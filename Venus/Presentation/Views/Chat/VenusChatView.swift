@@ -160,7 +160,7 @@ struct VenusChatView: View {
                     HStack(spacing: 12) {
                         // Text input
                         HStack {
-                            TextField("Converse com Venus...", text: $messageText, axis: .vertical)
+                            TextField("Digite aqui", text: $messageText, axis: .vertical)
                                 .focused($isTextFieldFocused)
                                 .font(.body)
                                 .foregroundColor(VenusTheme.text)
@@ -427,8 +427,9 @@ class VenusChatViewModel: ObservableObject {
     func startAnimations() {
         particleAnimation = true
         
-        // Testar API Key
+        // Testar API Key na inicialização
         Task {
+            print("🔑 Testando conexão com Gemini...")
             await APIKeyTester.testAPIKey()
         }
     }
@@ -471,8 +472,20 @@ class VenusChatViewModel: ObservableObject {
                 await saveCurrentSession()
                 
             } catch {
+                print("❌ ERRO na chamada do Gemini: \(error)")
+                
                 await MainActor.run {
                     self.isVenusThinking = false
+                    
+                    // Mostrar erro específico para debug
+                    if error.localizedDescription.contains("API_KEY_INVALID") {
+                        self.showError(message: "API Key inválida. Verifique a configuração.")
+                    } else if error.localizedDescription.contains("quota") {
+                        self.showError(message: "Limite de quota excedido.")
+                    } else {
+                        print("🔄 Tentando resposta de fallback...")
+                    }
+                    
                     let fallbackResponse = self.generateFallbackResponse(for: content)
                     let venusMessage = ChatMessage(content: fallbackResponse, isFromUser: false)
                     self.messages.append(venusMessage)

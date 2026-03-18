@@ -1,5 +1,5 @@
 //
-//  VenusWorkScheduleStep.swift
+//  WorkScheduleStep.swift
 //  Venus
 //
 //  Created by Kaua on 14/12/25.
@@ -7,14 +7,67 @@
 
 import SwiftUI
 
-struct VenusWorkScheduleStep: View {
+struct WorkScheduleStep: View {
     @Binding var userProfile: UserProfile
+    
     @State private var hasWork: Bool = false
     @State private var workStart: Date = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
     @State private var workEnd: Date = Calendar.current.date(bySettingHour: 18, minute: 0, second: 0, of: Date()) ?? Date()
     @State private var hasStudy: Bool = false
     @State private var studyStart: Date = Calendar.current.date(bySettingHour: 14, minute: 0, second: 0, of: Date()) ?? Date()
     @State private var studyEnd: Date = Calendar.current.date(bySettingHour: 16, minute: 0, second: 0, of: Date()) ?? Date()
+    
+    private var workFeedback: ScheduleFeedback? {
+        guard hasWork else { return nil }
+        
+        if let errorMessage = OnboardingScheduleValidator.validationMessage(
+            start: workStart,
+            end: workEnd,
+            context: "trabalho"
+        ) {
+            return ScheduleFeedback(
+                message: errorMessage,
+                icon: "exclamationmark.triangle.fill",
+                color: .red
+            )
+        }
+        
+        if OnboardingScheduleValidator.isOvernight(start: workStart, end: workEnd) {
+            return ScheduleFeedback(
+                message: "Turno noturno detectado. Tudo certo.",
+                icon: "moon.stars.fill",
+                color: VenusTheme.textSecondary
+            )
+        }
+        
+        return nil
+    }
+    
+    private var studyFeedback: ScheduleFeedback? {
+        guard hasStudy else { return nil }
+        
+        if let errorMessage = OnboardingScheduleValidator.validationMessage(
+            start: studyStart,
+            end: studyEnd,
+            context: "estudo"
+        ) {
+            return ScheduleFeedback(
+                message: errorMessage,
+                icon: "exclamationmark.triangle.fill",
+                color: .red
+            )
+        }
+        
+        if OnboardingScheduleValidator.isOvernight(start: studyStart, end: studyEnd) {
+            return ScheduleFeedback(
+                message: "Janela de estudo atravessa a madrugada.",
+                icon: "moon.stars.fill",
+                color: VenusTheme.textSecondary
+            )
+        }
+        
+        return nil
+    }
     
     var body: some View {
         VStack(spacing: 24) {
@@ -45,6 +98,7 @@ struct VenusWorkScheduleStep: View {
                         Spacer()
                         Toggle("", isOn: $hasWork)
                             .tint(VenusTheme.darkGreen)
+                            .accessibilityLabel("Você trabalha?")
                     }
                     
                     if hasWork {
@@ -65,6 +119,13 @@ struct VenusWorkScheduleStep: View {
                                     .labelsHidden()
                             }
                         }
+                        
+                        if let feedback = workFeedback {
+                            Label(feedback.message, systemImage: feedback.icon)
+                                .font(.caption)
+                                .foregroundColor(feedback.color)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
                 }
             }
@@ -81,6 +142,7 @@ struct VenusWorkScheduleStep: View {
                         Spacer()
                         Toggle("", isOn: $hasStudy)
                             .tint(VenusTheme.darkGreen)
+                            .accessibilityLabel("Você estuda?")
                     }
                     
                     if hasStudy {
@@ -101,6 +163,13 @@ struct VenusWorkScheduleStep: View {
                                     .labelsHidden()
                             }
                         }
+                        
+                        if let feedback = studyFeedback {
+                            Label(feedback.message, systemImage: feedback.icon)
+                                .font(.caption)
+                                .foregroundColor(feedback.color)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
                 }
             }
@@ -120,28 +189,42 @@ struct VenusWorkScheduleStep: View {
                 hasWork = schedule.hasWork
                 workStart = schedule.startTime
                 workEnd = schedule.endTime
+            } else {
+                hasWork = false
             }
+            
             hasStudy = userProfile.studySchedule.studies
             studyStart = userProfile.studySchedule.startTime
             studyEnd = userProfile.studySchedule.endTime
+            
+            updateProfile()
         }
     }
     
     private func updateProfile() {
-        if hasWork || hasStudy {
+        if hasWork {
             userProfile.workSchedule = WorkSchedule(
-                hasWork: hasWork,
+                hasWork: true,
                 startTime: workStart,
                 endTime: workEnd
             )
+        } else {
+            userProfile.workSchedule = nil
         }
+        
         userProfile.studySchedule.studies = hasStudy
         userProfile.studySchedule.startTime = studyStart
         userProfile.studySchedule.endTime = studyEnd
     }
 }
 
+private struct ScheduleFeedback {
+    let message: String
+    let icon: String
+    let color: Color
+}
+
 #Preview {
-    VenusWorkScheduleStep(userProfile: .constant(UserProfile()))
+    WorkScheduleStep(userProfile: .constant(UserProfile()))
         .background(VenusTheme.backgroundGradient)
 }

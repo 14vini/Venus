@@ -41,9 +41,36 @@ class MoodRepositoryImpl: MoodRepositoryProtocol {
     }
     
     @MainActor
+    func getMoodCount(on date: Date) async throws -> Int {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        let descriptor = FetchDescriptor<MoodModel>(
+            predicate: #Predicate<MoodModel> {
+                $0.timestamp >= startOfDay && $0.timestamp < endOfDay
+            }
+        )
+        
+        return try modelContext.fetch(descriptor).count
+    }
+    
+    @MainActor
     func getAllMoods() async throws -> [Mood] {
         let descriptor = FetchDescriptor<MoodModel>(
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        let models = try modelContext.fetch(descriptor)
+        return models.compactMap { $0.toDomain() }
+    }
+
+    @MainActor
+    func getMoods(from startDate: Date, to endDate: Date) async throws -> [Mood] {
+        let descriptor = FetchDescriptor<MoodModel>(
+            predicate: #Predicate<MoodModel> {
+                $0.timestamp >= startDate && $0.timestamp <= endDate
+            },
+            sortBy: [SortDescriptor(\.timestamp, order: .forward)]
         )
         let models = try modelContext.fetch(descriptor)
         return models.compactMap { $0.toDomain() }

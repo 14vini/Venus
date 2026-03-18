@@ -1,5 +1,5 @@
 //
-//  VenusEmotionalAreaStep.swift
+//  EmotionalAreaStep.swift
 //  Venus
 //
 //  Created by Kaua on 14/12/25.
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct VenusEmotionalAreaStep: View {
+struct EmotionalAreaStep: View {
     @Binding var userProfile: UserProfile
     @State private var selectedAreas: Set<String> = []
     
@@ -82,8 +82,11 @@ struct VenusEmotionalAreaStep: View {
                                 selectedAreas.contains(area) ? VenusTheme.darkGreen : Color.white
                             )
                             .cornerRadius(20)
+                            .contentShape(RoundedRectangle(cornerRadius: 20))
                         }
                         .buttonStyle(PlainButtonStyle())
+                        .accessibilityLabel(area)
+                        .accessibilityAddTraits(selectedAreas.contains(area) ? [.isButton, .isSelected] : .isButton)
                     
                     .padding(.horizontal, 24)
                 }
@@ -129,6 +132,6 @@ struct VenusEmotionalAreaStep: View {
 }
 
 #Preview {
-    VenusEmotionalAreaStep(userProfile: .constant(UserProfile()))
+    EmotionalAreaStep(userProfile: .constant(UserProfile()))
         .background(VenusTheme.backgroundGradient)
 }

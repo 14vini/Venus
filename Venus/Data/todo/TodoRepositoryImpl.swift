@@ -36,6 +36,18 @@ class TodoRepositoryImpl: TodoRepositoryProtocol {
         let models = try context.fetch(descriptor)
         return models.map { $0.toDomain() }
     }
+
+    func getTodos(from startDate: Date, to endDate: Date) async throws -> [TodoItem] {
+        let descriptor = FetchDescriptor<TodoModel>(
+            predicate: #Predicate<TodoModel> { todo in
+                todo.date >= startDate && todo.date <= endDate
+            },
+            sortBy: [SortDescriptor(\.date, order: .forward), SortDescriptor(\.time, order: .forward)]
+        )
+
+        let models = try context.fetch(descriptor)
+        return models.map { $0.toDomain() }
+    }
     
     func save(item: TodoItem) async throws {
         // Check if exists update, else insert

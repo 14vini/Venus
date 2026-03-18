@@ -1,5 +1,5 @@
 //
-//  VenusDesiredHobbiesStep.swift
+//  DesiredHobbiesStep.swift
 //  Venus
 //
 //  Created by Kaua on 14/12/25.
@@ -8,7 +8,7 @@
 import SwiftUI
 
 @Observable
-class VenusDesiredHobbiesStepModel {
+class DesiredHobbiesStepModel {
     var selectedHobbies: [String: Bool] = [
         "Meditação": false,
         "Ioga Avançada": false,
@@ -35,9 +35,9 @@ class VenusDesiredHobbiesStepModel {
     ]
 }
 
-struct VenusDesiredHobbiesStep: View {
+struct DesiredHobbiesStep: View {
     @Binding var userProfile: UserProfile
-    @State private var model = VenusDesiredHobbiesStepModel()
+    @State private var model = DesiredHobbiesStepModel()
     
     var selectedCount: Int {
         model.selectedHobbies.filter { $0.value }.count
@@ -92,6 +92,6 @@ struct VenusDesiredHobbiesStep: View {
 }
 
 #Preview {
-    VenusDesiredHobbiesStep(userProfile: .constant(UserProfile()))
+    DesiredHobbiesStep(userProfile: .constant(UserProfile()))
         .background(VenusTheme.backgroundGradient)
 }

@@ -9,7 +9,10 @@ import SwiftUI
 
 struct WelcomeStep: View {
     @Binding var userProfile: UserProfile
+    var onSubmit: (() -> Void)? = nil
+    
     @State private var inputName: String = ""
+    @FocusState private var isInputFocused: Bool
     
     var body: some View {
         VStack(spacing: 32) {
@@ -40,9 +43,19 @@ struct WelcomeStep: View {
                         .background(VenusTheme.chipBackground)
                         .cornerRadius(12)
                         .foregroundColor(VenusTheme.text)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled(true)
+                        .submitLabel(.next)
+                        .focused($isInputFocused)
                         .onChange(of: inputName) { oldValue, newValue in
                             userProfile.name = newValue
                         }
+                        .onSubmit {
+                            commitName()
+                            onSubmit?()
+                        }
+                        .accessibilityLabel("Nome")
+                        .accessibilityHint("Digite seu nome para personalizar sua experiência")
                     
                     Text("Seu nome nos ajuda a personalizar sua experiência")
                         .font(.caption)
@@ -56,7 +69,21 @@ struct WelcomeStep: View {
         
         .onAppear {
             inputName = userProfile.name
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                isInputFocused = true
+            }
         }
+        .onDisappear {
+            commitName()
+        }
+    }
+    
+    private func commitName() {
+        let normalizedName = inputName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if inputName != normalizedName {
+            inputName = normalizedName
+        }
+        userProfile.name = normalizedName
     }
 }
 

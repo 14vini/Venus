@@ -50,11 +50,17 @@ class TodoListViewModel: ObservableObject {
     }
     
     private func setupWeek(for date: Date) {
-        let calendar = Calendar.current
-        // Find start of the week for the given date
-        let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date))!
-        
-        self.currentWeek = (0..<7).compactMap { day in
+        var calendar = Calendar.current
+        calendar.firstWeekday = 2 // Monday
+
+        guard let startOfWeek = calendar.date(
+            from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        ) else {
+            currentWeek = [calendar.startOfDay(for: date)]
+            return
+        }
+
+        currentWeek = (0..<7).compactMap { day in
             calendar.date(byAdding: .day, value: day, to: startOfWeek)
         }
     }
@@ -75,7 +81,7 @@ class TodoListViewModel: ObservableObject {
             .store(in: &cancellables)
             
         $selectedMonth
-             .sink { [weak self] _ in
+             .sink { _ in
                  // Logic to handle month change if needed
              }
              .store(in: &cancellables)
@@ -146,7 +152,8 @@ class TodoListViewModel: ObservableObject {
     private func isDateInCurrentWeek(_ date: Date) -> Bool {
         guard let first = currentWeek.first, let last = currentWeek.last else { return false }
         let calendar = Calendar.current
-        // Simple check if date is between first and last
-        return date >= calendar.startOfDay(for: first) && date <= calendar.date(bySettingHour: 23, minute: 59, second: 59, of: last)!
+        let start = calendar.startOfDay(for: first)
+        let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: last) ?? last
+        return date >= start && date <= end
     }
 }

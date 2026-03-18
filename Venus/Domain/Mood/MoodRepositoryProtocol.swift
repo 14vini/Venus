@@ -10,5 +10,7 @@ import Foundation
 protocol MoodRepositoryProtocol {
     func save(mood: Mood) async throws
     func getTodayMood() async throws -> Mood?
+    func getMoodCount(on date: Date) async throws -> Int
     func getAllMoods() async throws -> [Mood]
+    func getMoods(from startDate: Date, to endDate: Date) async throws -> [Mood]
 }

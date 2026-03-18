@@ -1,5 +1,5 @@
 //
-//  VenusInterestsStep.swift
+//  InterestsStep.swift
 //  Venus
 //
 //  Created by Kaua on 14/12/25.
@@ -8,7 +8,7 @@
 import SwiftUI
 
 @Observable
-class VenusInterestsStepModel {
+class InterestsStepModel {
     var selectedInterests: [String: Bool] = [
         "Tecnologia": false,
         "Natureza": false,
@@ -37,9 +37,9 @@ class VenusInterestsStepModel {
     ]
 }
 
-struct VenusInterestsStep: View {
+struct InterestsStep: View {
     @Binding var userProfile: UserProfile
-    @State private var model = VenusInterestsStepModel()
+    @State private var model = InterestsStepModel()
     
     var selectedCount: Int {
         model.selectedInterests.filter { $0.value }.count
@@ -95,6 +95,6 @@ struct VenusInterestsStep: View {
 }
 
 #Preview {
-    VenusInterestsStep(userProfile: .constant(UserProfile()))
+    InterestsStep(userProfile: .constant(UserProfile()))
         .background(VenusTheme.backgroundGradient)
 }

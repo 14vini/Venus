@@ -10,14 +10,107 @@ import Foundation
 struct Mood: Identifiable, Equatable {
     let id: UUID
     let type: MoodType
+    let intensity: Int?
+    let triggers: [String]
+    let affectedArea: MoodAffectedArea?
+    let energyLevel: MoodEnergyLevel?
+    let availableTime: MoodAvailableTime?
+    let controlLevel: MoodControlLevel?
+    let mentalClarity: Int?
+    let sleepQuality: MoodSleepQuality?
+    let bodySignals: [String]
     let note: String?
     let timestamp: Date
     
-    init(id: UUID = UUID(), type: MoodType, note: String? = nil, timestamp: Date = Date()) {
+    init(
+        id: UUID = UUID(),
+        type: MoodType,
+        intensity: Int? = nil,
+        triggers: [String] = [],
+        affectedArea: MoodAffectedArea? = nil,
+        energyLevel: MoodEnergyLevel? = nil,
+        availableTime: MoodAvailableTime? = nil,
+        controlLevel: MoodControlLevel? = nil,
+        mentalClarity: Int? = nil,
+        sleepQuality: MoodSleepQuality? = nil,
+        bodySignals: [String] = [],
+        note: String? = nil,
+        timestamp: Date = Date()
+    ) {
         self.id = id
         self.type = type
+        self.intensity = intensity
+        self.triggers = triggers
+        self.affectedArea = affectedArea
+        self.energyLevel = energyLevel
+        self.availableTime = availableTime
+        self.controlLevel = controlLevel
+        self.mentalClarity = mentalClarity
+        self.sleepQuality = sleepQuality
+        self.bodySignals = bodySignals
         self.note = note
         self.timestamp = timestamp
+    }
+}
+
+enum MoodAffectedArea: String, CaseIterable, Codable {
+    case work = "Trabalho"
+    case relationship = "Relacionamento"
+    case health = "Saúde"
+    case discipline = "Disciplina"
+    case finances = "Finanças"
+    case studies = "Estudos"
+    case social = "Social"
+    case family = "Família"
+    case personal = "Pessoal"
+}
+
+enum MoodEnergyLevel: String, CaseIterable, Codable {
+    case low = "Baixa"
+    case medium = "Média"
+    case high = "Alta"
+}
+
+enum MoodAvailableTime: String, CaseIterable, Codable {
+    case fiveMinutes = "5 min"
+    case tenMinutes = "10 min"
+    case twentyPlusMinutes = "20+ min"
+
+    var maxMinutes: Int {
+        switch self {
+        case .fiveMinutes:
+            return 5
+        case .tenMinutes:
+            return 10
+        case .twentyPlusMinutes:
+            return 30
+        }
+    }
+}
+
+enum MoodControlLevel: String, CaseIterable, Codable {
+    case low = "Baixo"
+    case medium = "Médio"
+    case high = "Alto"
+}
+
+enum MoodSleepQuality: String, CaseIterable, Codable {
+    case poor = "Ruim"
+    case fair = "Regular"
+    case good = "Boa"
+    case excellent = "Excelente"
+
+    var score: Int {
+        switch self {
+        case .poor:
+            return 1
+        case .fair:
+            return 2
+        case .good:
+            return 3
+        case .excellent:
+            return 4
+        }
     }
 }
 

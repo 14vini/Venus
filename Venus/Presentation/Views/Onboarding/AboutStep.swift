@@ -1,5 +1,5 @@
 //
-//  VenusAboutStep.swift
+//  AboutStep.swift
 //  Venus
 //
 //  Created by Kaua on 14/12/25.
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct VenusAboutStep: View {
+struct AboutStep: View {
     @Binding var userProfile: UserProfile
     
     // Animation states for each item
@@ -103,7 +103,7 @@ struct FeatureRow: View {
             Spacer()
             
             // Animated Arrow
-            Image(systemName: "arrow.right")
+            Image(systemName: "bolt.heart.fill")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(VenusTheme.secondary)
                 .offset(x: show ? 0 : -20) // Slide from left
@@ -127,6 +127,6 @@ struct FeatureRow: View {
 #Preview {
     ZStack {
         VenusTheme.backgroundGradient.ignoresSafeArea()
-        VenusAboutStep(userProfile: .constant(UserProfile()))
+        AboutStep(userProfile: .constant(UserProfile()))
     }
 }

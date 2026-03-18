@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5A423B822EEF8D1000A8D425 /* GoogleGenerativeAI in Frameworks */ = {isa = PBXBuildFile; productRef = 5A423B812EEF8D1000A8D425 /* GoogleGenerativeAI */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		5A423AD82EEF196400A8D425 /* Venus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Venus.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5A423B822EEF8D1000A8D425 /* GoogleGenerativeAI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = Venus;
 			packageProductDependencies = (
+				5A423B812EEF8D1000A8D425 /* GoogleGenerativeAI */,
 			);
 			productName = Venus;
 			productReference = 5A423AD82EEF196400A8D425 /* Venus.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = 5A423ACF2EEF196400A8D425;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5A423B802EEF8D1000A8D425 /* XCRemoteSwiftPackageReference "generative-ai-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A423AD92EEF196400A8D425 /* Products */;
 			projectDirPath = "";
@@ -256,6 +265,8 @@
 				DEVELOPMENT_TEAM = 4Y2S5682AR;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Este app utiliza o microfone para captar áudio durante a gravação";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "uses for trancription to talk with AI";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -288,6 +299,8 @@
 				DEVELOPMENT_TEAM = 4Y2S5682AR;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Este app utiliza o microfone para captar áudio durante a gravação";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "uses for trancription to talk with AI";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -332,6 +345,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5A423B802EEF8D1000A8D425 /* XCRemoteSwiftPackageReference "generative-ai-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/generative-ai-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.5.6;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5A423B812EEF8D1000A8D425 /* GoogleGenerativeAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A423B802EEF8D1000A8D425 /* XCRemoteSwiftPackageReference "generative-ai-swift" */;
+			productName = GoogleGenerativeAI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5A423AD02EEF196400A8D425 /* Project object */;
 }

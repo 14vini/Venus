@@ -1,5 +1,5 @@
 //
-//  VenusImprovementAreasStep.swift
+//  ImprovementAreasStep.swift
 //  Venus
 //
 //  Created by Kaua on 14/12/25.
@@ -35,7 +35,7 @@ class VenusImprovementAreasStepModel {
     ]
 }
 
-struct VenusImprovementAreasStep: View {
+struct ImprovementAreasStep: View {
     @Binding var userProfile: UserProfile
     @State private var model = VenusImprovementAreasStepModel()
     
@@ -92,6 +92,6 @@ struct VenusImprovementAreasStep: View {
 }
 
 #Preview {
-    VenusImprovementAreasStep(userProfile: .constant(UserProfile()))
+    ImprovementAreasStep(userProfile: .constant(UserProfile()))
         .background(VenusTheme.backgroundGradient)
 }

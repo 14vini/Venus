@@ -1,5 +1,5 @@
 //
-//  VenusPresentationView.swift
+//  PresentationView.swift
 //  Venus
 //
 //  Created by Kaua on 14/12/25.
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct VenusPresentationView: View {
+struct PresentationView: View {
     var onNext: () -> Void
     
     @State private var pulse = false
@@ -162,5 +162,5 @@ struct VenusPresentationView: View {
 }
 
 #Preview {
-    VenusPresentationView(onNext: {})
+    PresentationView(onNext: {})
 }

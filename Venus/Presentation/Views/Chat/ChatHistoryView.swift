@@ -16,8 +16,8 @@ struct ChatHistoryView: View {
     
     var body: some View {
         ZStack {
-            VenusTheme.backgroundGradient
-                .ignoresSafeArea()
+//            VenusTheme.backgroundGradient
+//                .ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Header
