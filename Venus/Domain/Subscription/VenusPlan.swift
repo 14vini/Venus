@@ -2,7 +2,7 @@
 //  VenusPlan.swift
 //  Venus
 //
-//  Created by Codex on 19/02/26.
+//  Created by Kaua on 19/02/26.
 //
 
 import Foundation

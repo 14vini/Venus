@@ -59,11 +59,7 @@ struct VenusProPlansSheet: View {
                 .padding(.top, 32)
                 .padding(.bottom, 18)
 
-                Text("Venus Pro")
-                    .font(.system(size: 14, weight: .black, design: .rounded))
-                    .foregroundColor(VenusTheme.textSecondary)
-                    .textCase(.uppercase)
-                    .tracking(1.5)
+                VenusProBadge()
                     .padding(.bottom, 14)
 
                 Text("Desbloqueie check-ins ilimitados")
@@ -144,6 +140,8 @@ struct VenusProPlansSheet: View {
                 .padding(.bottom, 28)
             }
             .padding(.horizontal, 28)
+            .venusProGlassCardStyle(cornerRadius: 34)
+            .padding(.horizontal, 18)
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)

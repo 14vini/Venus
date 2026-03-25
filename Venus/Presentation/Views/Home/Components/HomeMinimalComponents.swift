@@ -6,7 +6,7 @@
 import SwiftUI
 import Charts
 
-struct HomeActionReasonSheet: View {
+struct HomeActionReasonView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let actionModel: NextBestAction
@@ -17,29 +17,41 @@ struct HomeActionReasonSheet: View {
     let isPro: Bool
     let confidenceInsight: ConfidenceImprovementInsight?
     let triggerRecoveryInsight: TriggerRecoveryInsight?
+    let alternativeActions: [NextBestAction]
+    let exploreSuggestions: [ExploreActionSuggestion]
 
-    @State private var animateBackdrop = false
     @State private var pulseHero = false
     @State private var revealContent = false
 
     var body: some View {
         ZStack {
-            animatedBackground
+            VenusReadingBackground(
+                accent: actionAccent,
+                secondaryAccent: VenusTheme.moodSage,
+                tertiaryAccent: VenusTheme.ambientCool
+            )
 
             ScrollView(showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: 20) {
                     introSection
+                        .venusScrollMotion(.gentle)
                     heroCard
+                        .venusScrollMotion(.strong)
+                    causalChainSection
                     diagnosisSection
+                    decisionSimulatorSection
                     impactSection
                     contextSection
                     forecastSection
+                    protocolLibrarySection
+                    confidenceScoreSection
 
                     if let expandedActionOption {
                         expandedActionSection(option: expandedActionOption)
                     }
                 }
-                .padding(.horizontal, 20)
+                .scrollTargetLayout()
+                .padding(.horizontal)
                 .padding(.top, 22)
                 .padding(.bottom, 34)
                 .opacity(revealContent ? 1 : 0)
@@ -47,75 +59,34 @@ struct HomeActionReasonSheet: View {
             }
         }
         .background(VenusTheme.background)
+        .navigationTitle("Por que esta ação?")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(.visible, for: .navigationBar)
         .onAppear(perform: startAnimations)
     }
 
-    private var animatedBackground: some View {
-        GeometryReader { geometry in
-            ZStack {
-                LinearGradient(
-                    colors: [
-                        VenusTheme.backgroundWarm,
-                        VenusTheme.backgroundBlush,
-                        VenusTheme.backgroundCool,
-                        VenusTheme.backgroundSoft
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-
-                Circle()
-                    .fill(VenusTheme.ambientWarm.opacity(colorScheme == .dark ? 0.28 : 0.24))
-                    .frame(width: 260, height: 260)
-                    .blur(radius: 28)
-                    .scaleEffect(animateBackdrop ? 1.15 : 0.85)
-                    .offset(
-                        x: animateBackdrop ? geometry.size.width * 0.28 : -geometry.size.width * 0.18,
-                        y: animateBackdrop ? -70 : -10
-                    )
-
-                Circle()
-                    .fill(VenusTheme.ambientRose.opacity(colorScheme == .dark ? 0.22 : 0.18))
-                    .frame(width: 240, height: 240)
-                    .blur(radius: 36)
-                    .scaleEffect(animateBackdrop ? 0.9 : 1.2)
-                    .offset(
-                        x: animateBackdrop ? geometry.size.width * 0.45 : geometry.size.width * 0.12,
-                        y: animateBackdrop ? geometry.size.height * 0.6 : geometry.size.height * 0.38
-                    )
-
-                Circle()
-                    .fill(VenusTheme.ambientCool.opacity(colorScheme == .dark ? 0.2 : 0.16))
-                    .frame(width: 180, height: 180)
-                    .blur(radius: 20)
-                    .scaleEffect(animateBackdrop ? 1.05 : 0.82)
-                    .offset(
-                        x: animateBackdrop ? geometry.size.width * 0.08 : geometry.size.width * 0.42,
-                        y: animateBackdrop ? geometry.size.height * 0.2 : geometry.size.height * 0.08
-                    )
-            }
-            .ignoresSafeArea()
-        }
-    }
-
     private var introSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 10) {
-                Label(isPro ? "Leitura aprofundada" : "Leitura essencial", systemImage: isPro ? "crown.fill" : "sparkles")
-                    .font(.system(.caption, design: .rounded).weight(.bold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [actionAccent, actionAccent.opacity(0.72)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
+                if isPro {
+                    VenusProBadge(title: "Leitura aprofundada")
+                } else {
+                    Label("Leitura essencial", systemImage: "sparkles")
+                        .font(.system(.caption, design: .rounded).weight(.bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [actionAccent, actionAccent.opacity(0.72)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
                                 )
-                            )
-                    )
+                        )
+                }
 
                 Spacer()
 
@@ -126,20 +97,22 @@ struct HomeActionReasonSheet: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(Capsule().fill(cardFill.opacity(0.92)))
-                        .overlay(Capsule().stroke(cardBorder, lineWidth: 1))
                 }
             }
 
-            Text("Por que esta ação faz sentido agora")
-                .font(.system(size: 31, weight: .black, design: .rounded))
-                .foregroundColor(VenusTheme.text)
-                .fixedSize(horizontal: false, vertical: true)
-
             Text(actionWhy?.summary ?? actionModel.strategicReason)
-                .font(.system(.body, design: .rounded).weight(.medium))
+                .font(.system(.footnote, design: .rounded).weight(.medium))
                 .foregroundColor(VenusTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            LazyVGrid(columns: gridColumns, spacing: 10) {
+                ForEach(introHighlights) { highlight in
+                    HomeReasonQuickLookCard(highlight: highlight)
+                }
+            }
         }
+        .padding(18)
+        .actionReasonCardStyle()
     }
 
     private var heroCard: some View {
@@ -177,7 +150,7 @@ struct HomeActionReasonSheet: View {
                             Text(window)
                                 .font(.system(.caption2, design: .rounded).weight(.bold))
                                 .foregroundColor(VenusTheme.textSecondary)
-                                .lineLimit(1)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
 
@@ -193,7 +166,7 @@ struct HomeActionReasonSheet: View {
                 }
             }
 
-            HStack(spacing: 12) {
+            LazyVGrid(columns: gridColumns, spacing: 12) {
                 HomeSpotlightMetric(
                     title: "Formato",
                     value: actionModel.isHighImpactVariant ? "Profundo" : "Leve",
@@ -221,19 +194,30 @@ struct HomeActionReasonSheet: View {
         .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(heroGradient, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .stroke(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.45), lineWidth: 1)
-        )
-        .shadow(color: actionAccent.opacity(colorScheme == .dark ? 0.18 : 0.14), radius: 18, x: 0, y: 12)
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.24 : 0.08), radius: 18, x: 0, y: 12)
+    }
+
+    private var causalChainSection: some View {
+        HomeReasonSection(
+            title: "Leitura causal",
+            subtitle: "A cadeia de decisão que explica por que essa ação venceu agora.",
+            icon: "point.3.connected.trianglepath.dotted",
+            tint: actionAccent
+        ) {
+            LazyVGrid(columns: gridColumns, spacing: 12) {
+                ForEach(causalHighlights) { item in
+                    HomeReasonQuickLookCard(highlight: item)
+                }
+            }
+        }
     }
 
     private var diagnosisSection: some View {
         HomeReasonSection(
             title: "Diagnóstico em camadas",
-            subtitle: "Os sinais mais fortes que fizeram essa ação subir para o topo agora.",
+            subtitle: "Os sinais que empurraram essa ação para o topo agora.",
             icon: "waveform.path.ecg",
-            tint: VenusTheme.accentOrange
+            tint: VenusTheme.moodMintStrong
         ) {
             VStack(spacing: 14) {
                 ForEach(Array(evidenceItems.prefix(4).enumerated()), id: \.offset) { index, item in
@@ -249,12 +233,68 @@ struct HomeActionReasonSheet: View {
     }
 
     @ViewBuilder
+    private var decisionSimulatorSection: some View {
+        HomeReasonSection(
+            title: "Simulador de alternativas",
+            subtitle: "Compare a ação escolhida com outras rotas viáveis para este mesmo momento.",
+            icon: "rectangle.split.3x1.fill",
+            tint: VenusTheme.accentBlue
+        ) {
+            if isPro {
+                VStack(spacing: 12) {
+                    HomeActionDecisionCard(
+                        title: actionModel.title,
+                        detail: actionModel.detail,
+                        badge: "Escolhida agora",
+                        duration: "\(actionModel.estimatedMinutes) min",
+                        tint: actionAccent
+                    )
+
+                    ForEach(Array(alternativeActions.prefix(3).enumerated()), id: \.element.id) { index, action in
+                        HomeActionDecisionCard(
+                            title: action.title,
+                            detail: action.strategicReason,
+                            badge: "Alternativa \(index + 1)",
+                            duration: "\(action.estimatedMinutes) min",
+                            tint: VenusTheme.accentBlue
+                        )
+                    }
+
+                    if !exploreSuggestions.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Rotas extras do Pro")
+                                .font(.system(.caption, design: .rounded).weight(.bold))
+                                .foregroundColor(VenusTheme.textSecondary)
+
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 10) {
+                                    ForEach(exploreSuggestions.prefix(4)) { suggestion in
+                                        HomeExploreSuggestionPill(suggestion: suggestion)
+                                    }
+                                }
+                                .padding(.horizontal, 2)
+                                .padding(.vertical, 2)
+                            }
+                            .scrollClipDisabled()
+                        }
+                    }
+                }
+            } else {
+                HomeLockedInsightCard(
+                    title: "O simulador de alternativas fica no Pro",
+                    detail: "No modo Pro você compara a ação escolhida com outras rotas, duração e motivo estratégico antes de começar."
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
     private var impactSection: some View {
         HomeReasonSection(
             title: "Como isso mexe no seu estado mental",
-            subtitle: "Aqui está a diferença esperada quando você executa essa ação no timing certo.",
+            subtitle: "A diferença esperada quando você age no timing certo.",
             icon: "sparkles.rectangle.stack.fill",
-            tint: VenusTheme.accentPink
+            tint: VenusTheme.accentBlue
         ) {
             VStack(spacing: 16) {
                 if let triggerRecoveryInsight {
@@ -287,7 +327,7 @@ struct HomeActionReasonSheet: View {
 
                         HomeScenarioChart(
                             points: triggerSeriesPoints(from: triggerRecoveryInsight),
-                            accent: VenusTheme.accentOrange,
+                            accent: actionAccent,
                             comparison: Color.secondary.opacity(colorScheme == .dark ? 0.45 : 0.35),
                             valueLabel: "Índice"
                         )
@@ -296,32 +336,27 @@ struct HomeActionReasonSheet: View {
                     .actionReasonCardStyle()
 
                     if !triggerRecoveryInsight.additionalAreaProjections.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach(triggerRecoveryInsight.additionalAreaProjections.prefix(3)) { projection in
-                                    VStack(alignment: .leading, spacing: 10) {
-                                        Text(projection.area)
-                                            .font(.system(.headline, design: .rounded).weight(.bold))
-                                            .foregroundColor(VenusTheme.text)
+                        LazyVGrid(columns: gridColumns, spacing: 12) {
+                            ForEach(triggerRecoveryInsight.additionalAreaProjections.prefix(4)) { projection in
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text(projection.area)
+                                        .font(.system(.headline, design: .rounded).weight(.bold))
+                                        .foregroundColor(VenusTheme.text)
 
-                                        HStack(spacing: 8) {
-                                            HomeMiniMetric(title: "D+3", value: signedPoints(projection.day3Delta))
-                                            HomeMiniMetric(title: "D+7", value: signedPoints(projection.day7Delta))
-                                        }
-
-                                        Text("\(Int((projection.confidence * 100).rounded()))% confiança")
-                                            .font(.system(.caption, design: .rounded).weight(.bold))
-                                            .foregroundColor(VenusTheme.textSecondary)
+                                    HStack(spacing: 8) {
+                                        HomeMiniMetric(title: "D+3", value: signedPoints(projection.day3Delta))
+                                        HomeMiniMetric(title: "D+7", value: signedPoints(projection.day7Delta))
                                     }
-                                    .padding(16)
-                                    .frame(width: 200, alignment: .leading)
-                                    .actionReasonCardStyle(cornerRadius: 24)
+
+                                    Text("\(Int((projection.confidence * 100).rounded()))% confiança")
+                                        .font(.system(.caption, design: .rounded).weight(.bold))
+                                        .foregroundColor(VenusTheme.textSecondary)
                                 }
+                                .padding(16)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .actionReasonCardStyle(cornerRadius: 24)
                             }
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 2)
                         }
-                        .scrollClipDisabled()
                     } else if !isPro, triggerRecoveryInsight.lockedAdditionalAreasCount > 0 {
                         HomeLockedInsightCard(
                             title: "Mais áreas destravadas no Pro",
@@ -363,7 +398,7 @@ struct HomeActionReasonSheet: View {
                             HomeMiniMetricCard(
                                 title: "Ganho",
                                 value: signedPercent(confidenceInsight.confidenceGain14Days),
-                                tint: VenusTheme.accentPink
+                                tint: VenusTheme.primary
                             )
                         }
 
@@ -388,7 +423,7 @@ struct HomeActionReasonSheet: View {
     private var contextSection: some View {
         HomeReasonSection(
             title: "Contexto da semana",
-            subtitle: "O pano de fundo comportamental que está influenciando essa sugestão.",
+            subtitle: "O pano de fundo da semana por trás dessa sugestão.",
             icon: "calendar.badge.exclamationmark",
             tint: VenusTheme.accentBlue
         ) {
@@ -396,11 +431,11 @@ struct HomeActionReasonSheet: View {
                 if weeklyInsights != nil || patternAlert != nil {
                     LazyVGrid(columns: gridColumns, spacing: 12) {
                         if let trigger = weeklyInsights?.dominantTrigger {
-                            HomeContextCard(title: "Gatilho dominante", value: trigger, tint: VenusTheme.accentOrange)
+                            HomeContextCard(title: "Gatilho dominante", value: trigger, tint: VenusTheme.moodMintStrong)
                         }
 
                         if let window = weeklyInsights?.criticalWindow {
-                            HomeContextCard(title: "Janela crítica", value: window, tint: VenusTheme.accentPink)
+                            HomeContextCard(title: "Janela crítica", value: window, tint: VenusTheme.accentBlue)
                         }
 
                         if let weeklyInsights {
@@ -435,20 +470,6 @@ struct HomeActionReasonSheet: View {
                                     tint: VenusTheme.accentGreen
                                 )
                             }
-
-                            if let recoveryProtocol = weeklyInsights.recoveryProtocol {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text(recoveryProtocol.title)
-                                        .font(.system(.headline, design: .rounded).weight(.bold))
-                                        .foregroundColor(VenusTheme.text)
-
-                                    ForEach(Array(recoveryProtocol.steps.enumerated()), id: \.offset) { index, step in
-                                        HomeStepRow(index: index + 1, text: step, tint: actionAccent)
-                                    }
-                                }
-                                .padding(18)
-                                .actionReasonCardStyle(cornerRadius: 26)
-                            }
                         }
                     }
 
@@ -457,7 +478,7 @@ struct HomeActionReasonSheet: View {
                             eyebrow: "Alerta ativo",
                             title: patternAlert.title,
                             detail: patternAlert.detail,
-                            tint: VenusTheme.accentOrange
+                            tint: VenusTheme.primary
                         )
                     }
                 } else {
@@ -473,8 +494,8 @@ struct HomeActionReasonSheet: View {
     @ViewBuilder
     private var forecastSection: some View {
         HomeReasonSection(
-            title: "Projeção emocional",
-            subtitle: "Uma visão do que tende a acontecer se você agir agora ou se deixar passar.",
+            title: "Cenário com ação vs sem ação",
+            subtitle: "A diferença projetada entre agir agora e deixar esse momento passar.",
             icon: "chart.line.text.clipboard",
             tint: VenusTheme.accentGreen
         ) {
@@ -514,7 +535,7 @@ struct HomeActionReasonSheet: View {
                             .fixedSize(horizontal: false, vertical: true)
 
                         if let riskAlert = proForecast.riskAlert {
-                            HomePillBadge(text: riskAlert, icon: "exclamationmark.triangle.fill", tint: VenusTheme.accentOrange)
+                            HomePillBadge(text: riskAlert, icon: "exclamationmark.triangle.fill", tint: VenusTheme.validationError)
                         }
                     }
                     .padding(18)
@@ -531,10 +552,89 @@ struct HomeActionReasonSheet: View {
         }
     }
 
+    @ViewBuilder
+    private var protocolLibrarySection: some View {
+        HomeReasonSection(
+            title: "Biblioteca de protocolos",
+            subtitle: "Estratégias que esse momento costuma aceitar melhor quando você precisa variar.",
+            icon: "books.vertical.fill",
+            tint: VenusTheme.primary
+        ) {
+            if isPro {
+                VStack(spacing: 12) {
+                    if let recoveryProtocol = weeklyInsights?.recoveryProtocol {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(recoveryProtocol.title)
+                                .font(.system(.headline, design: .rounded).weight(.bold))
+                                .foregroundColor(VenusTheme.text)
+
+                            ForEach(Array(recoveryProtocol.steps.enumerated()), id: \.offset) { index, step in
+                                HomeStepRow(index: index + 1, text: step, tint: actionAccent)
+                            }
+                        }
+                        .padding(18)
+                        .actionReasonCardStyle(cornerRadius: 26)
+                    }
+
+                    if !exploreSuggestions.isEmpty {
+                        LazyVGrid(columns: gridColumns, spacing: 12) {
+                            ForEach(exploreSuggestions.prefix(4)) { suggestion in
+                                HomeProtocolLibraryCard(suggestion: suggestion)
+                            }
+                        }
+                    } else if weeklyInsights?.recoveryProtocol == nil {
+                        HomeLockedInsightCard(
+                            title: "Ainda coletando protocolos",
+                            detail: "Conforme seu histórico cresce, o app passa a montar uma pequena biblioteca do que costuma funcionar melhor para você."
+                        )
+                    }
+                }
+            } else {
+                HomeLockedInsightCard(
+                    title: "Biblioteca adaptativa no Pro",
+                    detail: "No modo Pro você ganha protocolos prontos e sugestões adicionais organizadas por contexto, energia e duração."
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var confidenceScoreSection: some View {
+        HomeReasonSection(
+            title: "Confiança da leitura",
+            subtitle: "Quão forte está o sinal que sustenta essa recomendação hoje.",
+            icon: "target",
+            tint: VenusTheme.accentBlue
+        ) {
+            if let confidence = explanationConfidence {
+                VStack(spacing: 12) {
+                    HomeConfidenceScoreCard(
+                        confidence: confidence,
+                        summary: confidenceSummary
+                    )
+
+                    if let confidenceInsight {
+                        Text(confidenceInsight.personalizedSummary)
+                            .font(.system(.subheadline, design: .rounded).weight(.medium))
+                            .foregroundColor(VenusTheme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(18)
+                            .actionReasonCardStyle(cornerRadius: 24)
+                    }
+                }
+            } else {
+                HomeLockedInsightCard(
+                    title: "Confiança ainda em formação",
+                    detail: "Com mais check-ins e resposta às ações, esse bloco passa a mostrar o quanto podemos confiar nessa recomendação."
+                )
+            }
+        }
+    }
+
     private func expandedActionSection(option: HomeExpandedActionOption) -> some View {
         HomeReasonSection(
             title: "Plano ampliado",
-            subtitle: "Se você tiver mais energia hoje, essa é a versão estendida da mesma estratégia.",
+            subtitle: "Se hoje couber mais energia, essa é a versão ampliada da estratégia.",
             icon: "arrow.up.right.circle.fill",
             tint: VenusTheme.primary
         ) {
@@ -587,15 +687,15 @@ struct HomeActionReasonSheet: View {
     }
 
     private var actionAccent: Color {
-        actionModel.isHighImpactVariant ? VenusTheme.accentOrange : VenusTheme.accentGreen
+        actionModel.isHighImpactVariant ? VenusTheme.primary : VenusTheme.accentGreen
     }
 
     private var heroGradient: LinearGradient {
         LinearGradient(
             colors: [
-                actionAccent.opacity(colorScheme == .dark ? 0.2 : 0.18),
-                colorScheme == .dark ? Color(hex: "151B2A") : VenusTheme.cardSurface.opacity(0.92),
-                colorScheme == .dark ? Color(hex: "0F1422") : VenusTheme.primary.opacity(0.08)
+                actionAccent.opacity(colorScheme == .dark ? 0.10 : 0.08),
+                colorScheme == .dark ? VenusTheme.cardSurface : Color.white,
+                colorScheme == .dark ? VenusTheme.cardSurfaceStrong : VenusTheme.cardSurfaceStrong
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -603,11 +703,7 @@ struct HomeActionReasonSheet: View {
     }
 
     private var cardFill: Color {
-        colorScheme == .dark ? Color(hex: "161D2B").opacity(0.94) : Color.white.opacity(0.78)
-    }
-
-    private var cardBorder: Color {
-        colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.52)
+        colorScheme == .dark ? VenusTheme.cardSurface : Color.white
     }
 
     private var gridColumns: [GridItem] {
@@ -616,6 +712,144 @@ struct HomeActionReasonSheet: View {
 
     private var explanationConfidence: Double? {
         actionWhy?.confidence ?? weeklyInsights?.confidence ?? proForecast?.confidence
+    }
+
+    private var introHighlights: [HomeReasonQuickHighlight] {
+        var items: [HomeReasonQuickHighlight] = [
+            HomeReasonQuickHighlight(
+                title: "Formato",
+                value: actionModel.isHighImpactVariant ? "Profundo" : "Leve",
+                icon: actionModel.isHighImpactVariant ? "bolt.fill" : "leaf.fill",
+                tint: actionAccent
+            ),
+            HomeReasonQuickHighlight(
+                title: "Duração",
+                value: "\(actionModel.estimatedMinutes) min",
+                icon: "timer",
+                tint: VenusTheme.accentBlue
+            )
+        ]
+
+        if let confidence = explanationConfidence {
+            items.append(
+                HomeReasonQuickHighlight(
+                    title: "Confiança",
+                    value: "\(Int((confidence * 100).rounded()))%",
+                    icon: "target",
+                    tint: VenusTheme.accentGreen
+                )
+            )
+        }
+
+        if let delta = keyImpactDeltaText {
+            items.append(
+                HomeReasonQuickHighlight(
+                    title: "Impacto",
+                    value: delta,
+                    icon: "chart.line.uptrend.xyaxis",
+                    tint: VenusTheme.primary
+                )
+            )
+        } else if let window = weeklyInsights?.criticalWindow {
+            items.append(
+                HomeReasonQuickHighlight(
+                    title: "Janela",
+                    value: window,
+                    icon: "calendar.badge.clock",
+                    tint: VenusTheme.accentBlue
+                )
+            )
+        }
+
+        return Array(items.prefix(4))
+    }
+
+    private var causalHighlights: [HomeReasonQuickHighlight] {
+        [
+            HomeReasonQuickHighlight(
+                title: "Sinal",
+                value: signalSummary,
+                icon: "dot.scope",
+                tint: VenusTheme.accentBlue
+            ),
+            HomeReasonQuickHighlight(
+                title: "Padrão",
+                value: patternSummary,
+                icon: "waveform.path.ecg",
+                tint: VenusTheme.primary
+            ),
+            HomeReasonQuickHighlight(
+                title: "Por que agora",
+                value: whyNowSummary,
+                icon: "clock.badge.checkmark",
+                tint: actionAccent
+            ),
+            HomeReasonQuickHighlight(
+                title: "Impacto esperado",
+                value: expectedImpactSummary,
+                icon: "chart.line.uptrend.xyaxis",
+                tint: VenusTheme.accentGreen
+            )
+        ]
+    }
+
+    private var signalSummary: String {
+        if let triggerRecoveryInsight {
+            return triggerRecoveryInsight.highlightedTrigger
+        }
+        if let patternAlert {
+            return patternAlert.title
+        }
+        if let trigger = weeklyInsights?.dominantTrigger {
+            return trigger
+        }
+        return "Sinal em formação"
+    }
+
+    private var patternSummary: String {
+        if let weeklyInsights {
+            return weeklyInsights.worstRecurringPattern
+        }
+        if let patternAlert {
+            return patternAlert.detail
+        }
+        return "Ainda estamos consolidando padrão suficiente."
+    }
+
+    private var whyNowSummary: String {
+        if let window = weeklyInsights?.criticalWindow {
+            return window
+        }
+        if let actionWhy {
+            return actionWhy.summary
+        }
+        return actionModel.strategicReason
+    }
+
+    private var expectedImpactSummary: String {
+        if let delta = keyImpactDeltaText {
+            return delta
+        }
+        if let proForecast {
+            return forecastDeltaText(from: proForecast)
+        }
+        return "Mais clareza e menos atrito no próximo passo."
+    }
+
+    private var confidenceSummary: String {
+        guard let confidence = explanationConfidence else {
+            return "Ainda não temos confiança suficiente para exibir esse bloco."
+        }
+
+        let percent = Int((confidence * 100).rounded())
+        switch percent {
+        case ..<55:
+            return "Leitura ainda jovem. Boa para orientar, mas vale observar mais alguns dias."
+        case ..<75:
+            return "Leitura consistente. Já temos sinal suficiente para priorizar essa direção."
+        default:
+            return "Leitura forte. O padrão atual está bem sustentado pelos seus sinais recentes."
+        }
     }
 
     private var day7TriggerDelta: Double? {
@@ -640,10 +874,6 @@ struct HomeActionReasonSheet: View {
     private func startAnimations() {
         guard !revealContent else { return }
 
-        withAnimation(.easeInOut(duration: 11).repeatForever(autoreverses: true)) {
-            animateBackdrop = true
-        }
-
         withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
             pulseHero = true
         }
@@ -655,51 +885,12 @@ struct HomeActionReasonSheet: View {
 
     private var expandedActionOption: HomeExpandedActionOption? {
         guard !actionModel.isHighImpactVariant else { return nil }
-
-        switch actionModel.kind {
-        case .resolveAvoidedTask:
-            return HomeExpandedActionOption(
-                title: "Sprint de execução profunda",
-                detail: "Bloqueie 30 minutos para concluir uma tarefa importante: 25 min foco + 5 min revisão.",
-                estimatedMinutes: 30
-            )
-        case .sleepReset:
-            return HomeExpandedActionOption(
-                title: "Protocolo de sono completo",
-                detail: "Faça um fechamento de dia de 35 minutos: reduzir luz, organizar amanhã e desacelerar.",
-                estimatedMinutes: 35
-            )
-        case .environmentReset:
-            return HomeExpandedActionOption(
-                title: "Reset completo de ambiente",
-                detail: "Organize seu espaço por 25 minutos e elimine três pontos de fricção visual.",
-                estimatedMinutes: 25
-            )
-        case .quickExercise:
-            return HomeExpandedActionOption(
-                title: "Sessão de movimento estendida",
-                detail: "Faça 30 minutos de caminhada forte ou treino leve para estabilizar energia e foco.",
-                estimatedMinutes: 30
-            )
-        case .difficultMessage:
-            return HomeExpandedActionOption(
-                title: "Conversa estruturada",
-                detail: "Reserve 25 minutos para preparar e conduzir a conversa difícil com clareza.",
-                estimatedMinutes: 25
-            )
-        case .deepDisconnect:
-            return HomeExpandedActionOption(
-                title: "Ritual de recuperação",
-                detail: "Faça 30 minutos sem tela: respiração, silêncio e rotina curta de regulação.",
-                estimatedMinutes: 30
-            )
-        case .weeklyPlanning:
-            return HomeExpandedActionOption(
-                title: "Planejamento tático",
-                detail: "Reserve 35 minutos para revisar semana, escolher prioridades e reduzir sobrecarga.",
-                estimatedMinutes: 35
-            )
-        }
+        let expanded = actionModel.asHighImpactVariant()
+        return HomeExpandedActionOption(
+            title: expanded.title,
+            detail: expanded.detail,
+            estimatedMinutes: expanded.estimatedMinutes
+        )
     }
 
     private func triggerSeriesPoints(from insight: TriggerRecoveryInsight) -> [ReasonChartPoint] {
@@ -788,43 +979,95 @@ private struct HomeReasonSection<Content: View>: View {
 
             content
         }
+        .venusScrollMotion(.strong)
+    }
+}
+
+private struct HomeReasonQuickHighlight: Identifiable {
+    let id = UUID()
+    let title: String
+    let value: String
+    let icon: String
+    let tint: Color
+}
+
+private struct HomeReasonQuickLookCard: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let highlight: HomeReasonQuickHighlight
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(highlight.tint.opacity(0.15))
+                    .frame(width: 30, height: 30)
+                Image(systemName: highlight.icon)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(highlight.tint)
+            }
+
+            Text(highlight.title)
+                .font(.system(.caption2, design: .rounded).weight(.bold))
+                .foregroundColor(VenusTheme.textSecondary)
+
+            Text(highlight.value)
+                .font(.system(.subheadline, design: .rounded).weight(.black))
+                .foregroundColor(VenusTheme.text)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(colorScheme == .dark ? VenusTheme.cardSurfaceStrong : Color.white)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(VenusTheme.cardBorder, lineWidth: 1)
+        )
     }
 }
 
 private struct HomeSpotlightMetric: View {
     @Environment(\.colorScheme) private var colorScheme
-
     let title: String
     let value: String
     let icon: String
     let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(tint.opacity(0.15))
+                    .frame(width: 30, height: 30)
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundColor(tint)
-                Text(title)
-                    .font(.system(.caption2, design: .rounded).weight(.bold))
-                    .foregroundColor(VenusTheme.textSecondary)
             }
+
+            Text(title)
+                .font(.system(.caption2, design: .rounded).weight(.bold))
+                .foregroundColor(VenusTheme.textSecondary)
 
             Text(value)
                 .font(.system(.subheadline, design: .rounded).weight(.black))
                 .foregroundColor(VenusTheme.text)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
         }
         .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.52))
+                .fill(colorScheme == .dark ? VenusTheme.cardSurfaceStrong : Color.white)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.48), lineWidth: 1)
+                .stroke(VenusTheme.cardBorder, lineWidth: 1)
         )
     }
 }
@@ -952,7 +1195,16 @@ private struct HomeMiniMetricCard: View {
     let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(tint.opacity(0.15))
+                    .frame(width: 30, height: 30)
+                Capsule()
+                    .fill(LinearGradient(colors: [tint.opacity(0.5), tint], startPoint: .leading, endPoint: .trailing))
+                    .frame(width: 14, height: 4)
+            }
+
             Text(title)
                 .font(.system(.caption, design: .rounded).weight(.bold))
                 .foregroundColor(VenusTheme.textSecondary)
@@ -961,19 +1213,11 @@ private struct HomeMiniMetricCard: View {
                 .font(.system(.headline, design: .rounded).weight(.black))
                 .foregroundColor(VenusTheme.text)
 
-            Capsule()
-                .fill(
-                    LinearGradient(
-                        colors: [tint.opacity(0.22), tint.opacity(0.65)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .frame(height: 6)
+            Spacer(minLength: 0)
         }
         .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .actionReasonCardStyle(cornerRadius: 22)
+        .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
+        .actionReasonCardStyle(cornerRadius: 20)
     }
 }
 
@@ -983,7 +1227,16 @@ private struct HomeContextCard: View {
     let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(tint.opacity(0.15))
+                    .frame(width: 30, height: 30)
+                Capsule()
+                    .fill(tint.opacity(0.75))
+                    .frame(width: 14, height: 4)
+            }
+
             Text(title)
                 .font(.system(.caption, design: .rounded).weight(.bold))
                 .foregroundColor(VenusTheme.textSecondary)
@@ -993,13 +1246,11 @@ private struct HomeContextCard: View {
                 .foregroundColor(VenusTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Capsule()
-                .fill(tint.opacity(0.75))
-                .frame(width: 48, height: 4)
+            Spacer(minLength: 0)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .actionReasonCardStyle(cornerRadius: 22)
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
+        .actionReasonCardStyle(cornerRadius: 20)
     }
 }
 
@@ -1075,11 +1326,7 @@ private struct HomeLegendPill: View {
         .padding(.vertical, 7)
         .background(
             Capsule()
-                .fill(colorScheme == .dark ? Color.white.opacity(0.06) : VenusTheme.cardSurfaceStrong.opacity(0.85))
-        )
-        .overlay(
-            Capsule()
-                .stroke(colorScheme == .dark ? Color.white.opacity(0.06) : VenusTheme.cardBorder.opacity(0.6), lineWidth: 1)
+                .fill(colorScheme == .dark ? VenusTheme.cardSurfaceStrong : Color.white)
         )
     }
 }
@@ -1097,7 +1344,7 @@ private struct HomePillBadge: View {
                 .font(.system(size: 11, weight: .bold))
             Text(text)
                 .font(.system(.caption, design: .rounded).weight(.bold))
-                .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .foregroundColor(tint)
         .padding(.horizontal, 12)
@@ -1105,10 +1352,6 @@ private struct HomePillBadge: View {
         .background(
             Capsule()
                 .fill(colorScheme == .dark ? tint.opacity(0.18) : tint.opacity(0.12))
-        )
-        .overlay(
-            Capsule()
-                .stroke(colorScheme == .dark ? tint.opacity(0.24) : tint.opacity(0.16), lineWidth: 1)
         )
     }
 }
@@ -1119,10 +1362,16 @@ private struct HomeLockedInsightCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                VenusProBadge(compact: true)
+
+                Spacer(minLength: 0)
+            }
+
             HStack(spacing: 10) {
-                Image(systemName: "sparkles")
+                Image(systemName: "crown.fill")
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(VenusTheme.accentOrange)
+                    .foregroundColor(VenusTheme.accentPurple)
 
                 Text(title)
                     .font(.system(.headline, design: .rounded).weight(.bold))
@@ -1135,7 +1384,203 @@ private struct HomeLockedInsightCard: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(18)
-        .actionReasonCardStyle(cornerRadius: 26)
+        .venusProGlassCardStyle(cornerRadius: 26)
+    }
+}
+
+private struct HomeActionDecisionCard: View {
+    let title: String
+    let detail: String
+    let badge: String
+    let duration: String
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Text(badge)
+                    .font(.system(.caption2, design: .rounded).weight(.bold))
+                    .foregroundColor(tint)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(tint.opacity(0.12)))
+
+                Spacer()
+
+                Text(duration)
+                    .font(.system(.caption2, design: .rounded).weight(.bold))
+                    .foregroundColor(VenusTheme.textSecondary)
+            }
+
+            Text(title)
+                .font(.system(.headline, design: .rounded).weight(.bold))
+                .foregroundColor(VenusTheme.text)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(detail)
+                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                .foregroundColor(VenusTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .actionReasonCardStyle(cornerRadius: 24)
+    }
+}
+
+private struct HomeExploreSuggestionPill: View {
+    let suggestion: ExploreActionSuggestion
+
+    private var tint: Color {
+        switch suggestion.activityCategory.lowercased() {
+        case let value where value.contains("mov"):
+            return VenusTheme.accentGreen
+        case let value where value.contains("sono"), let value where value.contains("auto"):
+            return VenusTheme.primary
+        case let value where value.contains("conex"), let value where value.contains("rel"):
+            return VenusTheme.accentBlue
+        default:
+            return VenusTheme.moodMintStrong
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: suggestion.iconName)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(tint)
+
+                Text("\(suggestion.durationMinutes) min")
+                    .font(.system(.caption2, design: .rounded).weight(.bold))
+                    .foregroundColor(VenusTheme.textSecondary)
+            }
+
+            Text(suggestion.activityTitle)
+                .font(.system(.caption, design: .rounded).weight(.bold))
+                .foregroundColor(VenusTheme.text)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(suggestion.activityCategory)
+                .font(.system(.caption2, design: .rounded))
+                .foregroundColor(VenusTheme.textSecondary)
+        }
+        .padding(12)
+        .frame(width: 160, alignment: .leading)
+        .actionReasonCardStyle(cornerRadius: 20)
+    }
+}
+
+private struct HomeProtocolLibraryCard: View {
+    let suggestion: ExploreActionSuggestion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: suggestion.iconName)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(VenusTheme.accentBlue)
+
+                Spacer()
+
+                Text("\(Int((suggestion.matchScore * 100).rounded()))% fit")
+                    .font(.system(.caption2, design: .rounded).weight(.bold))
+                    .foregroundColor(VenusTheme.moodMintStrong)
+            }
+
+            Text(suggestion.activityTitle)
+                .font(.system(.headline, design: .rounded).weight(.bold))
+                .foregroundColor(VenusTheme.text)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(suggestion.recommendationReason)
+                .font(.system(.footnote, design: .rounded))
+                .foregroundColor(VenusTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("\(suggestion.durationMinutes) min · \(suggestion.activityCategory)")
+                .font(.system(.caption2, design: .rounded).weight(.bold))
+                .foregroundColor(VenusTheme.textSecondary)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .actionReasonCardStyle(cornerRadius: 24)
+    }
+}
+
+private struct HomeConfidenceScoreCard: View {
+    let confidence: Double
+    let summary: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 12) {
+                ZStack {
+                    Circle()
+                        .stroke(VenusTheme.cardBorder.opacity(0.55), lineWidth: 6)
+                        .frame(width: 58, height: 58)
+
+                    Circle()
+                        .trim(from: 0, to: max(0.04, min(confidence, 1)))
+                        .stroke(
+                            LinearGradient(
+                                colors: [VenusTheme.primary, VenusTheme.moodMintStrong],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            style: StrokeStyle(lineWidth: 6, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: 58, height: 58)
+
+                    Text("\(Int((confidence * 100).rounded()))%")
+                        .font(.system(.caption2, design: .rounded).weight(.black))
+                        .foregroundColor(VenusTheme.text)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Confiança da recomendação")
+                        .font(.system(.headline, design: .rounded).weight(.bold))
+                        .foregroundColor(VenusTheme.text)
+
+                    Text(summary)
+                        .font(.system(.footnote, design: .rounded))
+                        .foregroundColor(VenusTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            HomeConfidenceLinearBar(value: confidence, tint: VenusTheme.moodMintStrong)
+        }
+        .padding(18)
+        .actionReasonCardStyle(cornerRadius: 24)
+    }
+}
+
+private struct HomeConfidenceLinearBar: View {
+    let value: Double
+    let tint: Color
+
+    var body: some View {
+        GeometryReader { geometry in
+            let clampedValue = max(0, min(value, 1))
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(VenusTheme.cardBorder.opacity(0.35))
+
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [tint.opacity(0.45), tint],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: max(18, geometry.size.width * clampedValue))
+            }
+        }
+        .frame(height: 8)
     }
 }
 
@@ -1198,22 +1643,13 @@ private struct HomeActionReasonCardStyle: ViewModifier {
         content
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                colorScheme == .dark ? Color(hex: "161D2B").opacity(0.98) : VenusTheme.cardSurface.opacity(0.96),
-                                colorScheme == .dark ? Color(hex: "0F1524").opacity(0.96) : Color.white.opacity(0.48)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(colorScheme == .dark ? VenusTheme.cardSurface : Color.white)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.46), lineWidth: 1)
+                    .stroke(VenusTheme.cardBorder, lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.28 : 0.08), radius: 18, x: 0, y: 10)
+            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.24 : 0.08), radius: 18, x: 0, y: 10)
     }
 }
 

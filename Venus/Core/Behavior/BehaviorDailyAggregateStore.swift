@@ -2,7 +2,7 @@
 //  BehaviorDailyAggregateStore.swift
 //  Venus
 //
-//  Created by Codex on 20/02/26.
+//  Created by Kaua on 20/02/26.
 //
 
 import Foundation

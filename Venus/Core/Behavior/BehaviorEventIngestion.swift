@@ -2,7 +2,7 @@
 //  BehaviorEventIngestion.swift
 //  Venus
 //
-//  Created by Codex on 20/02/26.
+//  Created by Kaua on 20/02/26.
 //
 
 import Foundation
@@ -75,6 +75,7 @@ enum BehaviorEventIngestion {
                 timestamp: record.timestamp,
                 dayKey: calendar.startOfDay(for: record.timestamp),
                 kind: record.kind,
+                actionKey: record.actionKey,
                 stage: record.stage,
                 perceivedRelief: record.perceivedRelief
             )

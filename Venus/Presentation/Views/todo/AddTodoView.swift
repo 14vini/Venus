@@ -23,27 +23,13 @@ struct AddTodoView: View {
     
     var body: some View {
         ZStack {
-            VenusTheme.backgroundGradient
-                .ignoresSafeArea()
-
-            Circle()
-                .fill(VenusTheme.ambientWarm.opacity(colorScheme == .dark ? 0.28 : 0.2))
-                .frame(width: 260, height: 260)
-                .blur(radius: 54)
-                .offset(x: -120, y: -240)
-
-            Circle()
-                .fill(VenusTheme.ambientRose.opacity(colorScheme == .dark ? 0.22 : 0.14))
-                .frame(width: 240, height: 240)
-                .blur(radius: 42)
-                .offset(x: 150, y: 40)
+            VenusReadingBackground(
+                accent: VenusTheme.accentOrange,
+                secondaryAccent: VenusTheme.ambientRose,
+                tertiaryAccent: VenusTheme.ambientCool
+            )
 
             VStack(spacing: 24) {
-                // Handle
-                Capsule()
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.08))
-                    .frame(width: 40, height: 5)
-                    .padding(.top, 10)
                 
                 Text("Nova Tarefa")
                     .font(.system(size: 20, weight: .bold, design: .rounded))

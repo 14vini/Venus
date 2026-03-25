@@ -64,11 +64,7 @@ struct PremiumUpgradeSheet: View {
                 .padding(.bottom, 18)
 
                 // ── Badge — mesmo padrão de HomeHeroCard ──────────
-                Text("Venus Pro")
-                    .font(.system(size: 14, weight: .black, design: .rounded))
-                    .foregroundColor(VenusTheme.textSecondary)
-                    .textCase(.uppercase)
-                    .tracking(1.5)
+                VenusProBadge()
                     .padding(.bottom, 14)
 
                 // ── Título ────────────────────────────────────────
@@ -144,6 +140,8 @@ struct PremiumUpgradeSheet: View {
                 .padding(.bottom, 28)
             }
             .padding(.horizontal, 28)
+            .venusProGlassCardStyle(cornerRadius: 34)
+            .padding(.horizontal, 18)
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)

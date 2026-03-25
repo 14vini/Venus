@@ -2,7 +2,7 @@
 //  PatternEngineAdvancedInsights.swift
 //  Venus
 //
-//  Created by Codex on 22/02/26.
+//  Created by Kaua on 22/02/26.
 //
 
 import Foundation
@@ -282,21 +282,17 @@ extension PatternEngineUseCase {
         latestMood: BehaviorMoodEvent?
     ) -> [String: Double] {
         var weights: [String: Double]
-        switch actionKind {
-        case .resolveAvoidedTask:
-            weights = ["foco": 0.95, "criatividade": 0.74, "relaxamento": 0.56]
-        case .sleepReset:
-            weights = ["relaxamento": 0.98, "fisico": 0.54]
-        case .environmentReset:
-            weights = ["relaxamento": 0.86, "foco": 0.78, "criatividade": 0.62]
-        case .quickExercise:
-            weights = ["fisico": 0.98, "relaxamento": 0.62]
-        case .difficultMessage:
-            weights = ["social": 0.95, "relaxamento": 0.68]
-        case .deepDisconnect:
-            weights = ["relaxamento": 1.0, "criatividade": 0.70, "social": 0.52]
-        case .weeklyPlanning:
-            weights = ["foco": 0.97, "criatividade": 0.72, "relaxamento": 0.56]
+        switch actionKind.category {
+        case .execution:
+            weights = ["foco": 0.95, "criatividade": 0.72, "relaxamento": 0.54]
+        case .planning:
+            weights = ["foco": 0.96, "criatividade": 0.76, "relaxamento": 0.56]
+        case .communication:
+            weights = ["social": 0.95, "relaxamento": 0.66]
+        case .movement:
+            weights = ["fisico": 0.98, "relaxamento": 0.60]
+        case .recovery:
+            weights = ["relaxamento": 0.98, "fisico": 0.58, "criatividade": 0.62]
         }
 
         if analysis.indicators.hasSleepImpact {

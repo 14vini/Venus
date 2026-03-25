@@ -157,18 +157,14 @@ struct HomeSummaryHeaderCard: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(
-                colors: [Color(hex: "B9B6FF"), Color(hex: "F6C7B4")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 28, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.white.opacity(0.45), lineWidth: 1)
-        )
+//        .background(
+//            LinearGradient(
+//                colors: [Color(hex: "B9B6FF"), Color(hex: "F6C7B4")],
+//                startPoint: .topLeading,
+//                endPoint: .bottomTrailing
+//            ),
+//            in: RoundedRectangle(cornerRadius: 28, style: .continuous)
+//        )
         .glassEffect(.clear.interactive(), in: .rect(cornerRadius: 28))
     }
 }

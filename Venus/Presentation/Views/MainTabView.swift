@@ -28,23 +28,84 @@ struct MainTabView: View {
                 .tabItem {
                     Label("Agenda", systemImage: "calendar")
                 }
+//            
+//            ActivitiesListView(viewModel: DependencyContainer.shared.makeActivitiesListViewModel())
+//                .tabItem {
+//                    Label("Explorar", systemImage: "sparkles.rectangle.stack")
+//                }
             
-            ActivitiesListView(viewModel: DependencyContainer.shared.makeActivitiesListViewModel())
-                .tabItem {
-                    Label("Explorar", systemImage: "sparkles.rectangle.stack")
-                }
-            
+            NavigationStack {
+                SettingsView()
+            }
+            .tabItem {
+                Label("Ajustes", systemImage: "gearshape.fill")
+            }
+
+
             // Profile Placeholder (Future)
 //            Text("Perfil (Em construção)")
 //                .tabItem {
 //                    Label("Perfil", systemImage: "person")
 //                }
         }
-        .tint(Color(hex: "FF3D00"))
+        .tint(VenusTheme.primary)
         .preferredColorScheme(nil) // Permite que o sistema controle o modo escuro
     }
 }
 
+private struct MainTabViewPreviewHost: View {
+    var body: some View {
+        TabView {
+            NavigationStack {
+                previewPlaceholder(title: "Hoje", subtitle: "Preview leve da tab principal")
+            }
+            .tabItem {
+                Label("Hoje", systemImage: "sparkles")
+            }
+
+            previewPlaceholder(title: "Práticas", subtitle: "Preview leve")
+                .tabItem {
+                    Label("Práticas", systemImage: "leaf.fill")
+                }
+
+            TodoListView(viewModel: TodoListPreviewFactory.makeViewModel())
+                .tabItem {
+                    Label("Agenda", systemImage: "calendar")
+                }
+
+            previewPlaceholder(title: "Explorar", subtitle: "Preview leve")
+                .tabItem {
+                    Label("Explorar", systemImage: "sparkles.rectangle.stack")
+                }
+
+            NavigationStack {
+                SettingsView()
+            }
+            .tabItem {
+                Label("Ajustes", systemImage: "gearshape.fill")
+            }
+        }
+        .tint(VenusTheme.primary)
+    }
+
+    private func previewPlaceholder(title: String, subtitle: String) -> some View {
+        ZStack {
+            VenusReadingBackground()
+
+            VStack(spacing: 10) {
+                Text(title)
+                    .font(.system(size: 34, weight: .black, design: .rounded))
+                    .foregroundColor(VenusTheme.text)
+
+                Text(subtitle)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundColor(VenusTheme.textSecondary)
+            }
+        }
+    }
+}
+
 #Preview {
-    MainTabView(userName: "Kauã")
+    MainTabViewPreviewHost()
+        .environment(UserProfile())
 }

@@ -27,6 +27,18 @@ class UserProfile {
     
     // Validação
     var isOnboardingComplete: Bool = false
+
+    func reset() {
+        name = ""
+        interests = []
+        workSchedule = nil
+        studySchedule = StudySchedule()
+        currentHobbies = []
+        desiredHobbies = []
+        improvementAreas = []
+        emotionalAreas = []
+        isOnboardingComplete = false
+    }
 }
 
 struct WorkSchedule {

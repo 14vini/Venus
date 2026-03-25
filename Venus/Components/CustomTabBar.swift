@@ -75,14 +75,7 @@ struct CustomTabBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(.ultraThinMaterial)
-        )
         .glassEffect(.clear.interactive())
-        .clipShape(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-        )
         .padding(.horizontal, 24)
         .padding(.bottom, 12)
     }

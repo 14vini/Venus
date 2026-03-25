@@ -2,7 +2,7 @@
 //  PatternEngineUseCase.swift
 //  Venus
 //
-//  Created by Codex on 20/02/26.
+//  Created by Kaua on 20/02/26.
 //
 
 import Foundation
@@ -35,7 +35,7 @@ final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
         snapshotCache: PatternSnapshotCache = PatternSnapshotCache(),
         calendar: Calendar = .current,
         homeWindowDays: Int = 21,
-        snapshotAlgorithmVersion: String = "behavior-home-v4"
+        snapshotAlgorithmVersion: String = "behavior-home-v5"
     ) {
         self.moodRepository = moodRepository
         self.todoRepository = todoRepository
@@ -122,7 +122,7 @@ final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
 
         guard let snapshot else { return nil }
         await snapshotCache.store(dayKey: dayKey, dataVersion: dataVersion, snapshot: snapshot)
-        await feedbackStore.trackSuggestion(kind: snapshot.nextBestAction.kind, at: referenceDate)
+        await feedbackStore.trackSuggestion(action: snapshot.nextBestAction, at: referenceDate)
         return snapshot
     }
 
@@ -152,7 +152,7 @@ final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
 
         let latestAggregate = aggregates.last(where: { $0.dayKey == input.dayKey }) ?? aggregates.last
         let actionPolicyEngine = BehaviorActionPolicyEngine(calendar: workerCalendar)
-        let nextBestAction = actionPolicyEngine.selectAction(
+        let actionSelection = actionPolicyEngine.selectRecommendations(
             latestMood: input.latestMoodEvent,
             latestAggregate: latestAggregate,
             analysis: analysis,
@@ -160,6 +160,7 @@ final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
             history: input.actionHistory,
             referenceDate: input.referenceDate
         )
+        let nextBestAction = actionSelection.primary
 
         let insightComposer = BehaviorInsightComposer(calendar: workerCalendar)
         let weeklyInsights = insightComposer.composeWeeklyInsights(
@@ -217,6 +218,7 @@ final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
 
         return PatternInsightsSnapshot(
             nextBestAction: nextBestAction,
+            alternativeActions: actionSelection.alternatives,
             weeklyTrend: analysis.weeklyTrend,
             patternAlert: analysis.primaryAlert,
             weeklyInsights: weeklyInsights,

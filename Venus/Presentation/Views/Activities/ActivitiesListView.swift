@@ -26,33 +26,15 @@ class ActivitiesListViewModel: ObservableObject {
 struct ActivitiesListView: View {
     @StateObject var viewModel: ActivitiesListViewModel
     @State private var appearAnimation = false
-    @State private var headerPulse = false
     @State private var selectedActivity: Activity?
     
     var body: some View {
         ZStack {
-            // Same gradient as HomeView
-            VenusTheme.backgroundGradient
-                .ignoresSafeArea()
-            
-            // Ambient Orbs
-            ZStack {
-                Circle()
-                    .fill(VenusTheme.primary.opacity(0.15))
-                    .frame(width: 200, height: 200)
-                    .blur(radius: 40)
-                    .offset(x: -80, y: -150)
-                    .scaleEffect(headerPulse ? 1.1 : 0.9)
-                    .animation(.easeInOut(duration: 3).repeatForever(autoreverses: true), value: headerPulse)
-                
-                Circle()
-                    .fill(VenusTheme.accentPink.opacity(0.1))
-                    .frame(width: 150, height: 150)
-                    .blur(radius: 30)
-                    .offset(x: 100, y: 200)
-                    .scaleEffect(headerPulse ? 0.8 : 1.2)
-                    .animation(.easeInOut(duration: 4).repeatForever(autoreverses: true).delay(1), value: headerPulse)
-            }
+            VenusReadingBackground(
+                accent: VenusTheme.accentOrange,
+                secondaryAccent: VenusTheme.accentPink,
+                tertiaryAccent: VenusTheme.accentGreen
+            )
             
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
@@ -140,7 +122,6 @@ struct ActivitiesListView: View {
             }
         }
         .onAppear {
-            headerPulse = true
             withAnimation {
                 appearAnimation = true
             }
@@ -158,25 +139,42 @@ struct ActivityCard: View {
     let activity: Activity
     var action: () -> Void = {}
     @State private var isPressed = false
-    @State private var shimmer = false
-    
+    @State private var shimmerPhase: CGFloat = -1
+
+    private var categoryColor: Color {
+        activity.category.accentColor
+    }
+
+    private var cardGradientColors: [Color] {
+        switch activity.category {
+        case .relaxation:
+            return [Color(hex: "7AD0A3"), Color(hex: "58B887"), Color(hex: "3D9E6E")]
+        case .focus:
+            return [Color(hex: "FFB36B"), Color(hex: "FF8A43"), Color(hex: "E06A28")]
+        case .creativity:
+            return [Color(hex: "C6A7FF"), Color(hex: "A07EF0"), Color(hex: "8D5CFF")]
+        case .physical:
+            return [Color(hex: "FFB3A0"), Color(hex: "F58B74"), Color(hex: "D9705C")]
+        case .social:
+            return [Color(hex: "9BC0FF"), Color(hex: "7AA3F0"), Color(hex: "5C8DFF")]
+        }
+    }
+
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 0) {
-                // Icon & Time Header
                 HStack {
                     Circle()
-                        .fill(.white.opacity(0.25))
+                        .fill(.white.opacity(0.2))
                         .frame(width: 48, height: 48)
                         .overlay(
                             Image(systemName: activity.iconName)
                                 .font(.system(size: 22, weight: .semibold))
                                 .foregroundColor(.white)
                         )
-                        .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
-                    
+
                     Spacer()
-                    
+
                     Text("\(activity.durationMinutes) min")
                         .font(.caption)
                         .fontWeight(.bold)
@@ -184,29 +182,28 @@ struct ActivityCard: View {
                         .padding(.vertical, 8)
                         .background(
                             Capsule()
-                                .fill(.white.opacity(0.2))
+                                .fill(.white.opacity(0.18))
                                 .overlay(
                                     Capsule()
-                                        .stroke(.white.opacity(0.3), lineWidth: 1)
+                                        .stroke(.white.opacity(0.25), lineWidth: 1)
                                 )
                         )
                         .foregroundColor(.white)
                 }
                 .padding(24)
-                
+
                 Spacer()
-                
-                // Content
+
                 VStack(alignment: .leading, spacing: 12) {
                     Text(activity.title)
                         .font(.system(size: 22, weight: .bold))
                         .foregroundColor(.white)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
-                    
+
                     Text(activity.description)
                         .font(.system(size: 14))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(.white.opacity(0.88))
                         .lineLimit(3)
                         .multilineTextAlignment(.leading)
                 }
@@ -214,7 +211,7 @@ struct ActivityCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     LinearGradient(
-                        colors: [.clear, .black.opacity(0.2), .black.opacity(0.5)],
+                        colors: [.clear, .black.opacity(0.15), .black.opacity(0.4)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -225,30 +222,22 @@ struct ActivityCard: View {
         .frame(width: 240, height: 300)
         .background(
             ZStack {
-                // Main Gradient
                 LinearGradient(
-                    colors: [
-                        VenusTheme.primary,
-                        VenusTheme.secondary,
-                        VenusTheme.tertiary
-                    ],
+                    colors: cardGradientColors,
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                
-                // Shimmer effect
+
                 LinearGradient(
-                    colors: [.clear, .white.opacity(0.3), .clear],
+                    colors: [.clear, .white.opacity(0.12), .clear],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
-                .rotationEffect(.degrees(45))
-                .offset(x: shimmer ? 300 : -300)
-                .animation(.easeInOut(duration: 2).repeatForever(autoreverses: false), value: shimmer)
-                
-                // Glass overlay
+                .rotationEffect(.degrees(30))
+                .offset(x: shimmerPhase * 400)
+
                 LinearGradient(
-                    colors: [.white.opacity(0.2), .clear],
+                    colors: [.white.opacity(0.1), .clear],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -257,9 +246,9 @@ struct ActivityCard: View {
         .cornerRadius(28)
         .overlay(
             RoundedRectangle(cornerRadius: 28)
-                .stroke(.white.opacity(0.2), lineWidth: 1.5)
+                .stroke(.white.opacity(0.18), lineWidth: 1)
         )
-        .shadow(color: VenusTheme.primary.opacity(0.3), radius: isPressed ? 8 : 15, x: 0, y: isPressed ? 4 : 8)
+        .shadow(color: cardGradientColors[1].opacity(0.3), radius: isPressed ? 8 : 15, x: 0, y: isPressed ? 4 : 8)
         .scaleEffect(isPressed ? 0.98 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isPressed)
         .onTapGesture {
@@ -274,7 +263,21 @@ struct ActivityCard: View {
             }
         }
         .onAppear {
-            shimmer = true
+            withAnimation(.easeInOut(duration: 3).repeatForever(autoreverses: true)) {
+                shimmerPhase = 1
+            }
+        }
+    }
+}
+
+extension ActivityCategory {
+    var accentColor: Color {
+        switch self {
+        case .relaxation: return VenusTheme.accentGreen
+        case .focus: return VenusTheme.accentOrange
+        case .creativity: return VenusTheme.accentPurple
+        case .physical: return VenusTheme.accentPink
+        case .social: return VenusTheme.accentBlue
         }
     }
 }
@@ -292,5 +295,5 @@ struct ActivityCard: View {
         iconName: "leaf.fill"
     ))
     .padding()
-    .background(VenusTheme.backgroundGradient)
+    .background(VenusReadingBackground())
 }

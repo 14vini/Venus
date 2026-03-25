@@ -61,6 +61,7 @@ struct VenusApp: App {
     private var destinationView: some View {
         if userProfile.isOnboardingComplete {
             MainTabView(userName: userProfile.name.isEmpty ? "Visitante" : userProfile.name)
+                .environment(userProfile)
         } else {
             OnboardingView(startAtWelcome: false)
                 .environment(userProfile)

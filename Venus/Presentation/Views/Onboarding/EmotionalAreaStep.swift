@@ -79,9 +79,13 @@ struct EmotionalAreaStep: View {
                             }
                             .padding(12)
                             .background(
-                                selectedAreas.contains(area) ? VenusTheme.darkGreen : Color.white
+                                selectedAreas.contains(area) ? VenusTheme.darkGreen : VenusTheme.cardSurface
                             )
                             .cornerRadius(20)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(selectedAreas.contains(area) ? VenusTheme.darkGreen : VenusTheme.cardBorder, lineWidth: 1)
+                            )
                             .contentShape(RoundedRectangle(cornerRadius: 20))
                         }
                         .buttonStyle(PlainButtonStyle())

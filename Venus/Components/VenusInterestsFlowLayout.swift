@@ -59,7 +59,7 @@ struct VenusInterestChipSimple: View {
                 .padding(.vertical, 8)
                 .frame(minHeight: 44)
                 .background(
-                    isSelected ? VenusTheme.darkGreen : Color.white.opacity(0.3)
+                    isSelected ? VenusTheme.darkGreen : VenusTheme.chipBackground
                 )
                 .foregroundColor(
                     isSelected ? .white : VenusTheme.text
@@ -68,7 +68,7 @@ struct VenusInterestChipSimple: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
                         .stroke(
-                            isSelected ? VenusTheme.darkGreen : Color.white.opacity(0.25),
+                            isSelected ? VenusTheme.darkGreen : VenusTheme.chipBorder,
                             lineWidth: 1
                         )
                 )

@@ -2,7 +2,7 @@
 //  BehaviorMoodForecastEngine.swift
 //  Venus
 //
-//  Created by Codex on 20/02/26.
+//  Created by Kaua on 20/02/26.
 //
 
 import Foundation
@@ -144,21 +144,17 @@ struct BehaviorMoodForecastEngine {
     }
 
     private func baseBoost(for kind: NextBestActionKind) -> Double {
-        switch kind {
-        case .resolveAvoidedTask:
+        switch kind.category {
+        case .execution:
             return 0.11
-        case .sleepReset:
-            return 0.12
-        case .environmentReset:
+        case .recovery:
+            return kind == .sleepReset ? 0.12 : 0.09
+        case .planning:
             return 0.08
-        case .quickExercise:
-            return 0.09
-        case .difficultMessage:
+        case .communication:
             return 0.10
-        case .deepDisconnect:
+        case .movement:
             return 0.09
-        case .weeklyPlanning:
-            return 0.08
         }
     }
 
@@ -178,21 +174,25 @@ struct BehaviorMoodForecastEngine {
     }
 
     private func matches(signal: PatternSignal, actionKind: NextBestActionKind) -> Bool {
-        switch actionKind {
-        case .resolveAvoidedTask:
+        switch actionKind.category {
+        case .execution:
             return signal.key == "emotional-procrastination"
                 || signal.key == "habit-correlation"
                 || signal.key == "low-clarity-stress"
                 || signal.key.hasPrefix("weekday-drop:")
-        case .sleepReset:
-            return signal.key == "sleep-impact"
-        case .environmentReset:
+        case .recovery:
+            if actionKind == .sleepReset || actionKind == .microRest {
+                return signal.key == "sleep-impact"
+                    || signal.key == "low-clarity-stress"
+                    || signal.key.hasPrefix("period-drop:")
+            }
             return signal.key == "low-clarity-stress"
                 || signal.key.hasPrefix("period-drop:")
-        case .quickExercise:
+                || signal.key == "sleep-impact"
+        case .movement:
             return signal.key.hasPrefix("period-drop:")
                 || signal.key == "habit-correlation"
-        case .difficultMessage:
+        case .communication:
             if signal.key.hasPrefix("trigger:") {
                 let rawTrigger = signal.key.replacingOccurrences(of: "trigger:", with: "")
                 return rawTrigger.contains("relacion")
@@ -200,11 +200,7 @@ struct BehaviorMoodForecastEngine {
                     || rawTrigger.contains("comunic")
             }
             return false
-        case .deepDisconnect:
-            return signal.key == "low-clarity-stress"
-                || signal.key.hasPrefix("period-drop:")
-                || signal.key == "sleep-impact"
-        case .weeklyPlanning:
+        case .planning:
             return signal.key == "habit-correlation"
                 || signal.key == "emotional-procrastination"
                 || signal.key.hasPrefix("weekday-drop:")
@@ -221,15 +217,15 @@ struct BehaviorMoodForecastEngine {
         lowControlRatio: Double,
         shortTimeRatio: Double
     ) -> Double {
-        switch actionKind {
-        case .deepDisconnect, .environmentReset, .sleepReset:
+        switch actionKind.category {
+        case .recovery:
             return max(0, lowControlRatio - 0.30) * 0.08
-        case .resolveAvoidedTask, .weeklyPlanning:
+        case .execution, .planning:
             let lowBudgetPenalty = max(0, shortTimeRatio - 0.50) * 0.06
             return -lowBudgetPenalty
-        case .difficultMessage:
+        case .communication:
             return max(0, lowControlRatio - 0.45) * -0.05
-        case .quickExercise:
+        case .movement:
             return max(0, shortTimeRatio - 0.50) * -0.04
         }
     }

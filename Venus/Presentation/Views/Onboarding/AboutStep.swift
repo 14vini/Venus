@@ -112,12 +112,12 @@ struct FeatureRow: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(.white.opacity(0.6))
+                .fill(VenusTheme.cardSurface)
                 .shadow(color: .black.opacity(0.03), radius: 10, x: 0, y: 5)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 20)
-                .stroke(.white.opacity(0.8), lineWidth: 1)
+                .stroke(VenusTheme.cardBorder, lineWidth: 1)
         )
         .offset(y: show ? 0 : 20) // Slide up entire row
         .opacity(show ? 1 : 0)

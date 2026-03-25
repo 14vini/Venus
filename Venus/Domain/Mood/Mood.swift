@@ -135,12 +135,36 @@ enum MoodType: String, CaseIterable, Codable {
     
     var colorHex: String {
         switch self {
-        case .calm: return "#A78BFA" // Purple
-        case .happy: return "#F472B6" // Pink
-        case .energetic: return "#FBBF24" // Yellow
-        case .stressed: return "#F87171" // Red
-        case .sad: return "#60A5FA" // Blue
-        case .tired: return "#9CA3AF" // Grey
+        case .calm: return "#8FD8FF"
+        case .happy: return "#82DEC9"
+        case .energetic: return "#5DBBFF"
+        case .stressed: return "#69B8D8"
+        case .sad: return "#A7D4FF"
+        case .tired: return "#BBD4C8"
+        }
+    }
+
+    /// Orb gradient colors: [light highlight, mid, deep]
+    var orbColors: (light: String, mid: String, deep: String) {
+        switch self {
+        case .happy:    return ("D6FFB9", "9BF66F", "59D85A")  // green
+        case .calm:     return ("B9EEFF", "6DCFF5", "3AAED8")  // sky blue
+        case .energetic:return ("FFFAB9", "FFE44A", "F5C800")  // yellow
+        case .stressed: return ("FFD4B9", "FF9A6C", "E06030")  // orange-red
+        case .sad:      return ("C4D4FF", "7FA8F5", "4A72D8")  // blue
+        case .tired:    return ("E0D4FF", "B89AF5", "8A60D8")  // purple
+        }
+    }
+
+    /// Face ink color (dark enough to read on the orb)
+    var faceColorHex: String {
+        switch self {
+        case .happy:    return "27603F"
+        case .calm:     return "1A5070"
+        case .energetic:return "7A5800"
+        case .stressed: return "7A2800"
+        case .sad:      return "1A3070"
+        case .tired:    return "3A1A70"
         }
     }
 }

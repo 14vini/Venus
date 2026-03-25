@@ -10,11 +10,11 @@ struct MoodSelectionGrid: View {
     let onSelect: (MoodType) -> Void
 
     private let moodColumns = [
-        GridItem(.adaptive(minimum: 104), spacing: 8)
+        GridItem(.adaptive(minimum: 98), spacing: 10)
     ]
 
     var body: some View {
-        LazyVGrid(columns: moodColumns, spacing: 8) {
+        LazyVGrid(columns: moodColumns, spacing: 10) {
             ForEach(MoodType.allCases, id: \.self) { mood in
                 MoodOptionCard(
                     mood: mood,
@@ -23,7 +23,6 @@ struct MoodSelectionGrid: View {
                 )
             }
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.85), value: selectedMood)
     }
 }
 
@@ -34,36 +33,51 @@ struct MoodOptionCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(mood.emoji)
-                    .font(.system(size: 36))
+                    .font(.system(size: 28))
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 Text(mood.rawValue)
-                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .font(.system(size: 13, weight: .black, design: .rounded))
                     .foregroundColor(VenusTheme.text)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color(hex: "FF3D00"))
+                    Label("Selecionado", systemImage: "checkmark.circle.fill")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundColor(VenusTheme.moodMintStrong)
                 } else {
-                    Text("Selecionar")
+                    Text("Toque para continuar")
                         .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundColor(VenusTheme.textSecondary)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 110)
+            .frame(maxWidth: .infinity, minHeight: 104, alignment: .leading)
+            .padding(14)
             .background(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(isSelected ? Color(hex: mood.colorHex).opacity(0.18) : VenusTheme.cardSurface)
+                    .fill(
+                        isSelected
+                        ? LinearGradient(
+                            colors: [
+                                Color(hex: mood.colorHex).opacity(0.24),
+                                VenusTheme.cardSurfaceStrong
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        : LinearGradient(
+                            colors: [VenusTheme.cardSurface, VenusTheme.cardSurfaceStrong.opacity(0.72)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(VenusTheme.cardBorder, lineWidth: 1)
+                    .stroke(isSelected ? Color(hex: mood.colorHex).opacity(0.45) : VenusTheme.cardBorder, lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.07), radius: 8, x: 0, y: 4)
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)

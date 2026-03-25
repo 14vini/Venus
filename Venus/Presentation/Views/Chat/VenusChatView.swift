@@ -332,12 +332,12 @@ struct VenusWelcomeMessage: View {
                 .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: animateText)
             
             VStack(spacing: 12) {
-                Text("Olá! Sou a Venus ✨")
+                Text("Olá!")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(VenusTheme.text)
                 
-                Text("Estou aqui para conversar sobre bem-estar, mindfulness e te ajudar em sua jornada de autoconhecimento. Como posso te ajudar hoje?")
+                Text("Estou aqui para conversar sobre bem-estar, Como posso te ajudar hoje?")
                     .font(.body)
                     .foregroundColor(VenusTheme.textSecondary)
                     .multilineTextAlignment(.center)

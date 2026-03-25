@@ -102,12 +102,12 @@ private struct HomeMetaChip: View {
 
     var body: some View {
         Text(title)
-            .font(.system(size: 12, weight: .bold, design: .rounded))
-            .foregroundColor(VenusTheme.text)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(Capsule().fill(VenusTheme.cardSurfaceStrong))
-            .overlay(Capsule().stroke(VenusTheme.cardBorder, lineWidth: 1))
+            .font(.system(.caption2, design: .rounded).weight(.semibold))
+            .foregroundColor(VenusTheme.textSecondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(VenusTheme.surface.opacity(0.7))
+            .clipShape(Capsule())
     }
 }
 
@@ -337,12 +337,12 @@ struct NextBestActionCard: View {
             Text(actionModel.detail)
                 .font(.system(size: 16, weight: .medium, design: .rounded))
                 .foregroundColor(VenusTheme.textSecondary)
-                .lineLimit(4)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text(actionModel.strategicReason)
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundColor(VenusTheme.textSecondary)
-                .lineLimit(4)
+                .fixedSize(horizontal: false, vertical: true)
 
             Button(action: action) {
                 Text("Iniciar micro-acao")

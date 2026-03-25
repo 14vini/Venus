@@ -9,154 +9,97 @@ import SwiftUI
 
 struct PresentationView: View {
     var onNext: () -> Void
-    
-    @State private var pulse = false
-    @State private var rotate = false
+
     @State private var appear = false
-    
+    @State private var orbAppear = false
+
     var body: some View {
         ZStack {
-            // MARK: - Background
             VenusTheme.backgroundGradient
                 .ignoresSafeArea()
-            
-            // Ambient Orbs (Blurred Background Blobs)
+
+            // Ambient blobs
             ZStack {
                 Circle()
-                    .fill(VenusTheme.primary.opacity(0.2))
-                    .frame(width: 300, height: 300)
-                    .blur(radius: 60)
-                    .offset(x: -100, y: -200)
-                
+                    .fill(VenusTheme.primary.opacity(0.18))
+                    .frame(width: 320, height: 320)
+                    .blur(radius: 72)
+                    .offset(x: -80, y: -220)
+
                 Circle()
-                    .fill(VenusTheme.accentPink.opacity(0.15))
-                    .frame(width: 250, height: 250)
-                    .blur(radius: 50)
-                    .offset(x: 120, y: 150)
+                    .fill(VenusTheme.accentBlue.opacity(0.10))
+                    .frame(width: 260, height: 260)
+                    .blur(radius: 60)
+                    .offset(x: 130, y: 180)
             }
-            
+
             VStack(spacing: 0) {
-                // MARK: - Header
-                HStack {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 24))
-                        .foregroundColor(VenusTheme.primary)
-                        .padding()
-                        .background(
-                            Circle()
-                                .fill(VenusTheme.surface)
-                                .shadow(color: VenusTheme.primary.opacity(0.1), radius: 10, x: 0, y: 5)
-                        )
-                    Spacer()
-                    
+                Spacer()
+
+                // Mascot
+                VenusMoodMascotOrb(mood: .happy, size: 200)
+                    .opacity(orbAppear ? 1 : 0)
+                    .scaleEffect(orbAppear ? 1 : 0.78)
+                    .animation(.spring(response: 0.7, dampingFraction: 0.68), value: orbAppear)
+
+                // Title block
+                VStack(spacing: 8) {
                     Text("Venus")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .font(.system(size: 42, weight: .black, design: .rounded))
                         .foregroundColor(VenusTheme.text)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Capsule().fill(VenusTheme.surface))
-                        .shadow(color: VenusTheme.text.opacity(0.1), radius: 5, x: 0, y: 2)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-                
-                Spacer()
-                
-                // MARK: - Center Orb & Greeting
-                ZStack {
-                    // Pulsing Rings
-                    ForEach(0..<3) { i in
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [VenusTheme.primary.opacity(0.5), VenusTheme.secondary.opacity(0.0)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                ),
-                                lineWidth: 2
-                            )
-                            .frame(width: 250 + CGFloat(i * 40), height: 250 + CGFloat(i * 40))
-                            .scaleEffect(pulse ? 1.05 : 0.95)
-                            .opacity(pulse ? 0.8 : 0.4)
-                            .animation(
-                                .easeInOut(duration: 2.5).repeatForever(autoreverses: true).delay(Double(i) * 0.2),
-                                value: pulse
-                            )
-                    }
-                    
-                    // Center Glow
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                gradient: Gradient(colors: [VenusTheme.primary.opacity(0.2), .clear]),
-                                center: .center,
-                                startRadius: 20,
-                                endRadius: 150
-                            )
-                        )
-                        .frame(width: 300, height: 300)
-                    
-                    // Main Text
-                    VStack(spacing: 8) {
-                        Text("Ola, sou a Venus")
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
-                            .foregroundColor(VenusTheme.text)
-                        
-                        Text("Seu guia de bem-estar")
-                            .font(.system(size: 18, weight: .regular, design: .rounded))
-                            .foregroundColor(VenusTheme.textSecondary)
-                        Text("Não é terapia, mas é terapêutico.")
-                            .font(.system(size: 14, weight: .regular, design: .serif))
-                            .foregroundColor(VenusTheme.textSecondary)
-                    }
-                }
-                .offset(y: -40)
-                
-                Spacer()
-                
-                // MARK: - Action Card
-                VStack(spacing: 20) {
-                    Text("Posso ajudar você a encontrar equilíbrio hoje?")
-                        .font(.system(size: 16, weight: .medium))
+
+                    Text("Não é terapia, mas é terapêutico.")
+                        .font(.system(.subheadline, design: .rounded).weight(.medium))
                         .foregroundColor(VenusTheme.textSecondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    
+                }
+                .opacity(appear ? 1 : 0)
+                .offset(y: appear ? 0 : 14)
+                .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.18), value: appear)
+                .padding(.top, 20)
+
+                Spacer()
+
+                // CTA card
+                VStack(spacing: 16) {
+                    Text("Posso te ajudar a encontrar equilíbrio hoje?")
+                        .font(.system(.callout, design: .rounded).weight(.medium))
+                        .foregroundColor(VenusTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+
                     Button(action: onNext) {
-                        HStack {
-                            Text("Iniciar Jornada")
-                                .fontWeight(.semibold)
+                        HStack(spacing: 8) {
+                            Text("Começar")
+                                .fontWeight(.bold)
                             Image(systemName: "arrow.right")
+                                .font(.system(size: 14, weight: .bold))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .padding()
+                        .padding(.vertical, 16)
                         .background(VenusTheme.primaryGradient)
-                        .cornerRadius(30)
-                        .shadow(color: VenusTheme.primary.opacity(0.3), radius: 10, x: 0, y: 5)
+                        .cornerRadius(20)
                     }
                 }
-                .padding(30)
+                .padding(24)
                 .background(
-                    RoundedRectangle(cornerRadius: 35)
-                        .fill(VenusTheme.surface)
-                        .shadow(color: VenusTheme.text.opacity(0.1), radius: 20, x: 0, y: 10)
+                    RoundedRectangle(cornerRadius: 32, style: .continuous)
+                        .fill(VenusTheme.cardSurface)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 35)
-                                .stroke(VenusTheme.chipBorder, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                                .stroke(VenusTheme.cardBorder, lineWidth: 1)
                         )
                 )
                 .padding(.horizontal, 24)
-                .padding(.bottom, 30)
-                .offset(y: appear ? 0 : 100)
+                .padding(.bottom, 32)
                 .opacity(appear ? 1 : 0)
+                .offset(y: appear ? 0 : 40)
+                .animation(.spring(response: 0.6, dampingFraction: 0.78).delay(0.32), value: appear)
             }
         }
         .onAppear {
-            pulse = true
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.8).delay(0.3)) {
-                appear = true
-            }
+            orbAppear = true
+            appear = true
         }
     }
 }

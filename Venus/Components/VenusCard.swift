@@ -23,15 +23,16 @@ struct VenusCard<Content: View>: View {
     var body: some View {
         content
             .padding(padding)
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(VenusTheme.surface)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(showBorder ? VenusTheme.cardBorder : Color.clear, lineWidth: 1)
-            )
-            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+//            .background(
+//                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+//                    .fill(VenusTheme.surface)
+//            )
+//            .overlay(
+//                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+//                    .stroke(showBorder ? VenusTheme.cardBorder : Color.clear, lineWidth: 1)
+//            )
+//            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
     }
 }
 

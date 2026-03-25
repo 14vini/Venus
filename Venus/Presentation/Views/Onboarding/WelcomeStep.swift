@@ -10,34 +10,45 @@ import SwiftUI
 struct WelcomeStep: View {
     @Binding var userProfile: UserProfile
     var onSubmit: (() -> Void)? = nil
-    
+
     @State private var inputName: String = ""
+    @State private var showGreeting = false
     @FocusState private var isInputFocused: Bool
-    
+
     var body: some View {
-        VStack(spacing: 32) {
-            VStack(spacing: 20) {
-                VStack(spacing: 12) {
-                    Text("Venus")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(VenusTheme.text)
-                    
-                    Text("Não é terapia, mas é terapêutico.")
-                        .font(.title3.bold())
-                        .foregroundColor(VenusTheme.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                .fontDesign(.rounded)
+        VStack(spacing: 0) {
+            // Mascot
+            VenusMoodMascotOrb(mood: .happy, size: 200)
+                .padding(.top, 8)
+                .opacity(showGreeting ? 1 : 0)
+                .scaleEffect(showGreeting ? 1 : 0.82)
+                .animation(.spring(response: 0.6, dampingFraction: 0.72), value: showGreeting)
+
+            // Greeting
+            VStack(spacing: 6) {
+                Text("Oi! Eu sou a Venus 👋")
+                    .font(.system(size: 28, weight: .black, design: .rounded))
+                    .foregroundColor(VenusTheme.text)
+                    .multilineTextAlignment(.center)
+
+                Text("Não é terapia, mas é terapêutico.")
+                    .font(.system(.subheadline, design: .rounded).weight(.medium))
+                    .foregroundColor(VenusTheme.textSecondary)
+                    .multilineTextAlignment(.center)
             }
-            
+            .opacity(showGreeting ? 1 : 0)
+            .offset(y: showGreeting ? 0 : 12)
+            .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.15), value: showGreeting)
+            .padding(.top, 4)
+            .padding(.bottom, 32)
+
+            // Name card
             VenusCard {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Qual é o seu nome?")
-                        .font(.title3)
-                        .fontWeight(.semibold)
+                        .font(.system(.title3, design: .rounded).weight(.semibold))
                         .foregroundColor(VenusTheme.text)
-                    
+
                     TextField("Digite seu nome", text: $inputName)
                         .padding(16)
                         .background(VenusTheme.chipBackground)
@@ -47,7 +58,7 @@ struct WelcomeStep: View {
                         .autocorrectionDisabled(true)
                         .submitLabel(.next)
                         .focused($isInputFocused)
-                        .onChange(of: inputName) { oldValue, newValue in
+                        .onChange(of: inputName) { _, newValue in
                             userProfile.name = newValue
                         }
                         .onSubmit {
@@ -56,20 +67,22 @@ struct WelcomeStep: View {
                         }
                         .accessibilityLabel("Nome")
                         .accessibilityHint("Digite seu nome para personalizar sua experiência")
-                    
+
                     Text("Seu nome nos ajuda a personalizar sua experiência")
                         .font(.caption)
                         .foregroundColor(VenusTheme.textSecondary)
                 }
             }
             .padding(.horizontal, 24)
+            .opacity(showGreeting ? 1 : 0)
+            .offset(y: showGreeting ? 0 : 16)
+            .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.28), value: showGreeting)
         }
-        .padding(.top, 32)
         .padding(.bottom, 20)
-        
         .onAppear {
             inputName = userProfile.name
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            showGreeting = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 isInputFocused = true
             }
         }
@@ -77,23 +90,17 @@ struct WelcomeStep: View {
             commitName()
         }
     }
-    
+
     private func commitName() {
-        let normalizedName = inputName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if inputName != normalizedName {
-            inputName = normalizedName
-        }
-        userProfile.name = normalizedName
+        let normalized = inputName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if inputName != normalized { inputName = normalized }
+        userProfile.name = normalized
     }
 }
 
-
-
 #Preview {
     ZStack {
-        VenusTheme.backgroundGradient
-            .ignoresSafeArea()
-        
+        VenusTheme.backgroundGradient.ignoresSafeArea()
         WelcomeStep(userProfile: .constant(UserProfile()))
     }
 }

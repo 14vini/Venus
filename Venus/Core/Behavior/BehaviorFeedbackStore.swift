@@ -2,15 +2,15 @@
 //  BehaviorFeedbackStore.swift
 //  Venus
 //
-//  Created by Codex on 20/02/26.
+//  Created by Kaua on 20/02/26.
 //
 
 import Foundation
 
 protocol BehaviorFeedbackStoreProtocol {
-    func trackSuggestion(kind: NextBestActionKind, at date: Date) async
-    func trackStarted(kind: NextBestActionKind, at date: Date) async
-    func trackCompleted(kind: NextBestActionKind, perceivedRelief: Int?, at date: Date) async
+    func trackSuggestion(action: NextBestAction, at date: Date) async
+    func trackStarted(action: NextBestAction, at date: Date) async
+    func trackCompleted(action: NextBestAction, perceivedRelief: Int?, at date: Date) async
     func loadRecent(days: Int, referenceDate: Date) async -> [ActionFeedbackRecord]
     func actionHistorySummary(referenceDate: Date, lookbackDays: Int) async -> ActionHistorySummary
 }
@@ -25,31 +25,34 @@ final class BehaviorFeedbackStore: BehaviorFeedbackStoreProtocol {
         self.defaults = defaults
     }
 
-    func trackSuggestion(kind: NextBestActionKind, at date: Date) async {
+    func trackSuggestion(action: NextBestAction, at date: Date) async {
         await append(
             ActionFeedbackRecord(
                 timestamp: date,
-                kind: kind,
+                kind: action.kind,
+                actionKey: action.actionKey,
                 stage: .suggested
             )
         )
     }
 
-    func trackStarted(kind: NextBestActionKind, at date: Date) async {
+    func trackStarted(action: NextBestAction, at date: Date) async {
         await append(
             ActionFeedbackRecord(
                 timestamp: date,
-                kind: kind,
+                kind: action.kind,
+                actionKey: action.actionKey,
                 stage: .started
             )
         )
     }
 
-    func trackCompleted(kind: NextBestActionKind, perceivedRelief: Int?, at date: Date) async {
+    func trackCompleted(action: NextBestAction, perceivedRelief: Int?, at date: Date) async {
         await append(
             ActionFeedbackRecord(
                 timestamp: date,
-                kind: kind,
+                kind: action.kind,
+                actionKey: action.actionKey,
                 stage: .completed,
                 perceivedRelief: perceivedRelief
             )
@@ -86,7 +89,9 @@ final class BehaviorFeedbackStore: BehaviorFeedbackStoreProtocol {
         guard !records.isEmpty else { return .empty }
 
         var lastSuggestedAt: [NextBestActionKind: Date] = [:]
+        var lastSuggestedAtByActionKey: [String: Date] = [:]
         var suggestedKinds: [NextBestActionKind] = []
+        var suggestedActionKeys: [String] = []
         var suggestedCategoryCountsLast7Days: [ActionSuggestionCategory: Int] = [:]
         var startedCountByKind: [NextBestActionKind: Int] = [:]
         var completedCountByKind: [NextBestActionKind: Int] = [:]
@@ -94,10 +99,13 @@ final class BehaviorFeedbackStore: BehaviorFeedbackStoreProtocol {
         var reliefCountByKind: [NextBestActionKind: Int] = [:]
 
         for record in records {
+            let actionKey = record.actionKey ?? record.kind.rawValue
             switch record.stage {
             case .suggested:
                 lastSuggestedAt[record.kind] = record.timestamp
+                lastSuggestedAtByActionKey[actionKey] = record.timestamp
                 suggestedKinds.append(record.kind)
+                suggestedActionKeys.append(actionKey)
                 if record.timestamp >= sevenDayStart {
                     let category = record.kind.category
                     suggestedCategoryCountsLast7Days[category, default: 0] += 1
@@ -129,7 +137,9 @@ final class BehaviorFeedbackStore: BehaviorFeedbackStoreProtocol {
 
         return ActionHistorySummary(
             lastSuggestedAt: lastSuggestedAt,
+            lastSuggestedAtByActionKey: lastSuggestedAtByActionKey,
             recentSuggestedKinds: Array(suggestedKinds.suffix(8)),
+            recentSuggestedActionKeys: Array(suggestedActionKeys.suffix(12)),
             suggestedCategoryCountsLast7Days: suggestedCategoryCountsLast7Days,
             startedCountByKind: startedCountByKind,
             completionRateByKind: completionRateByKind,

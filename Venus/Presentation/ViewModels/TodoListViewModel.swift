@@ -139,6 +139,13 @@ class TodoListViewModel: ObservableObject {
             await loadData(for: selectedDate)
         }
     }
+
+    func shiftWeek(by value: Int) {
+        let calendar = Calendar.current
+        guard let newDate = calendar.date(byAdding: .day, value: value * 7, to: selectedDate) else { return }
+        selectedDate = newDate
+        selectedMonth = newDate
+    }
     
     private func calculateProgress() {
         totalCount = todos.count

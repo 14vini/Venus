@@ -2,13 +2,14 @@
 //  BehaviorInsights.swift
 //  Venus
 //
-//  Created by Codex on 20/02/26.
+//  Created by Kaua on 20/02/26.
 //
 
 import Foundation
 
-struct NextBestAction: Identifiable, Equatable, Sendable {
+struct NextBestAction: Identifiable, Hashable, Equatable, Sendable {
     let id: UUID
+    let actionKey: String
     let kind: NextBestActionKind
     let title: String
     let detail: String
@@ -17,6 +18,7 @@ struct NextBestAction: Identifiable, Equatable, Sendable {
 
     init(
         id: UUID = UUID(),
+        actionKey: String? = nil,
         kind: NextBestActionKind,
         title: String,
         detail: String,
@@ -24,6 +26,7 @@ struct NextBestAction: Identifiable, Equatable, Sendable {
         estimatedMinutes: Int
     ) {
         self.id = id
+        self.actionKey = actionKey ?? kind.rawValue
         self.kind = kind
         self.title = title
         self.detail = detail
@@ -40,92 +43,161 @@ extension NextBestAction {
     func asHighImpactVariant() -> NextBestAction {
         guard !isHighImpactVariant else { return self }
 
-        switch kind {
-        case .resolveAvoidedTask:
-            return NextBestAction(
-                kind: kind,
-                title: "Bloco de Execução Crítica",
-                detail: "Reserve 30 minutos para fechar uma tarefa importante com foco total (25 min execução + 5 min fechamento).",
-                strategicReason: "Em risco alto, concluir uma entrega relevante reduz ansiedade antecipatória e recupera senso de controle.",
-                estimatedMinutes: 30
-            )
-        case .sleepReset:
-            return NextBestAction(
-                kind: kind,
-                title: "Protocolo Completo de Sono",
-                detail: "Faça um fechamento de 35 minutos: reduzir luz, preparar amanhã e desacelerar gradualmente.",
-                strategicReason: "Quando o risco sobe, proteger o sono aumenta estabilidade emocional dos próximos dias.",
-                estimatedMinutes: 35
-            )
-        case .environmentReset:
-            return NextBestAction(
-                kind: kind,
-                title: "Reset Estratégico de Ambiente",
-                detail: "Execute 25 minutos de organização por zonas para remover fricção visual e cognitiva.",
-                strategicReason: "Ambiente organizado reduz carga mental e ajuda a interromper ciclos de estresse elevado.",
-                estimatedMinutes: 25
-            )
-        case .quickExercise:
-            return NextBestAction(
-                kind: kind,
-                title: "Sessão Física de Recuperação",
-                detail: "Realize 30 minutos de movimento continuo (caminhada forte ou treino leve).",
-                strategicReason: "Em fase crítica, movimento sustentado regula ativação fisiológica e melhora foco.",
-                estimatedMinutes: 30
-            )
-        case .difficultMessage:
-            return NextBestAction(
-                kind: kind,
-                title: "Conversa Difícil Estruturada",
-                detail: "Reserve 25 minutos para preparar e conduzir a mensagem com objetividade e limite claro.",
-                strategicReason: "Resolver tensões relacionais reduz ruminação e evita escalada emocional.",
-                estimatedMinutes: 25
-            )
-        case .deepDisconnect:
-            return NextBestAction(
-                kind: kind,
-                title: "Protocolo de Descompressão Profunda",
-                detail: "Faça 30 minutos sem tela com rotina de regulação (respiração, silêncio e reorganização mental).",
-                strategicReason: "No risco alto, uma pausa profunda diminui hiperestímulo e previne piora no curto prazo.",
-                estimatedMinutes: 30
-            )
-        case .weeklyPlanning:
-            return NextBestAction(
-                kind: kind,
-                title: "Planejamento Tático de Contenção",
-                detail: "Use 35 minutos para reduzir escopo, priorizar 3 frentes e proteger energia da semana.",
-                strategicReason: "Quando há risco elevado, simplificar decisões reduz sobrecarga e melhora aderência.",
-                estimatedMinutes: 35
-            )
+        let expandedMinutes = max(20, estimatedMinutes + 12)
+        let expandedTitle: String
+        let expandedDetail: String
+        let expandedReason: String
+
+        switch kind.category {
+        case .execution:
+            expandedTitle = "Bloco guiado: \(title)"
+            expandedDetail = "Expanda isso para \(expandedMinutes) minutos com começo claro, foco protegido e um fechamento simples para sair com sensação de avanço real."
+            expandedReason = "Quando você transforma um passo curto em bloco protegido, cresce a chance de sair da trava e terminar com sensação de domínio."
+        case .recovery:
+            expandedTitle = "Protocolo completo: \(title)"
+            expandedDetail = "Use \(expandedMinutes) minutos para reduzir estímulo, recuperar o corpo e deixar seu estado mais estável pelo resto do dia."
+            expandedReason = "Quando o cansaço ou a pressão estão altos, uma recuperação mais completa costuma funcionar melhor do que só uma pausa rápida."
+        case .planning:
+            expandedTitle = "Mapa claro para seguir"
+            expandedDetail = "Reserve \(expandedMinutes) minutos para organizar a cabeça, cortar excesso e sair com um plano enxuto e fácil de cumprir."
+            expandedReason = "Dar estrutura ao que está difuso diminui o peso mental e deixa a ação seguinte muito mais provável."
+        case .communication:
+            expandedTitle = "Versão preparada da conversa"
+            expandedDetail = "Use \(expandedMinutes) minutos para escrever, revisar e deixar a mensagem mais calma, objetiva e segura antes de agir."
+            expandedReason = "Quando existe carga emocional em volta da conversa, preparar com calma costuma evitar impulso e reduzir arrependimento."
+        case .movement:
+            expandedTitle = "Sessão completa: \(title)"
+            expandedDetail = "Transforme isso em \(expandedMinutes) minutos de movimento contínuo para descarregar tensão e devolver presença ao corpo."
+            expandedReason = "Sustentar o movimento por mais tempo tende a regular melhor a ativação física e limpar a mente."
         }
+
+        return NextBestAction(
+            id: id,
+            actionKey: "\(actionKey)::deep",
+            kind: kind,
+            title: expandedTitle,
+            detail: expandedDetail,
+            strategicReason: expandedReason,
+            estimatedMinutes: expandedMinutes
+        )
     }
 }
 
 enum NextBestActionKind: String, Codable, Hashable, Sendable {
     case resolveAvoidedTask
+    case firstStepActivation
+    case mentalUnload
+    case solveOneProblem
+    case scopeReduction
+    case taskBreakdown
+    case delegateOneThing
+    case paperPlanning
+    case protectPeakWindow
+    case finishSmallWin
+    case timerSprint
+    case frictionCleanup
     case sleepReset
+    case breathReset
+    case sensoryPause
+    case sceneShift
+    case coolDownReset
     case environmentReset
+    case mechanicalCare
+    case hydrationReset
+    case microRest
+    case analogReset
+    case bodyScan
     case quickExercise
+    case walkingRegulation
+    case softStretch
+    case physicalDischarge
     case difficultMessage
+    case safeDraft
+    case supportMessage
+    case shareGoodMoment
     case deepDisconnect
     case weeklyPlanning
+    case valueReconnect
+    case pleasureBoost
+    case gratitudeMoment
+    case celebrationBreak
 
     var iconName: String {
         switch self {
         case .resolveAvoidedTask:
             return "checklist"
+        case .firstStepActivation:
+            return "play.circle.fill"
+        case .mentalUnload:
+            return "square.and.pencil"
+        case .solveOneProblem:
+            return "lightbulb.max.fill"
+        case .scopeReduction:
+            return "line.3.horizontal.decrease.circle.fill"
+        case .taskBreakdown:
+            return "square.split.2x2.fill"
+        case .delegateOneThing:
+            return "arrowshape.turn.up.right.fill"
+        case .paperPlanning:
+            return "note.text"
+        case .protectPeakWindow:
+            return "shield.lefthalf.filled"
+        case .finishSmallWin:
+            return "checkmark.seal.fill"
+        case .timerSprint:
+            return "timer"
+        case .frictionCleanup:
+            return "wand.and.stars"
         case .sleepReset:
             return "bed.double.fill"
+        case .breathReset:
+            return "wind"
+        case .sensoryPause:
+            return "drop.fill"
+        case .sceneShift:
+            return "arrow.triangle.swap"
+        case .coolDownReset:
+            return "snowflake"
         case .environmentReset:
             return "sparkles"
+        case .mechanicalCare:
+            return "house.fill"
+        case .hydrationReset:
+            return "drop.circle.fill"
+        case .microRest:
+            return "pause.circle.fill"
+        case .analogReset:
+            return "book.closed.fill"
+        case .bodyScan:
+            return "figure.mind.and.body"
         case .quickExercise:
             return "figure.run"
+        case .walkingRegulation:
+            return "figure.walk"
+        case .softStretch:
+            return "figure.cooldown"
+        case .physicalDischarge:
+            return "bolt.heart.fill"
         case .difficultMessage:
             return "message.fill"
+        case .safeDraft:
+            return "text.bubble.fill"
+        case .supportMessage:
+            return "person.2.fill"
+        case .shareGoodMoment:
+            return "heart.text.square.fill"
         case .deepDisconnect:
             return "moon.stars.fill"
         case .weeklyPlanning:
             return "calendar.badge.clock"
+        case .valueReconnect:
+            return "target"
+        case .pleasureBoost:
+            return "music.note"
+        case .gratitudeMoment:
+            return "heart.fill"
+        case .celebrationBreak:
+            return "party.popper.fill"
         }
     }
 }
@@ -300,6 +372,7 @@ struct ExploreActionSuggestion: Identifiable, Equatable, Sendable {
 
 struct PatternInsightsSnapshot: Equatable, Sendable {
     let nextBestAction: NextBestAction
+    let alternativeActions: [NextBestAction]
     let weeklyTrend: WeeklyEmotionalTrend
     let patternAlert: PatternAlert?
     let weeklyInsights: WeeklyStrategicInsights?
@@ -311,6 +384,7 @@ struct PatternInsightsSnapshot: Equatable, Sendable {
 
     init(
         nextBestAction: NextBestAction,
+        alternativeActions: [NextBestAction] = [],
         weeklyTrend: WeeklyEmotionalTrend,
         patternAlert: PatternAlert?,
         weeklyInsights: WeeklyStrategicInsights? = nil,
@@ -321,6 +395,7 @@ struct PatternInsightsSnapshot: Equatable, Sendable {
         exploreActionSuggestions: [ExploreActionSuggestion] = []
     ) {
         self.nextBestAction = nextBestAction
+        self.alternativeActions = alternativeActions
         self.weeklyTrend = weeklyTrend
         self.patternAlert = patternAlert
         self.weeklyInsights = weeklyInsights

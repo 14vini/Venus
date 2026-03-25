@@ -9,6 +9,41 @@ import Foundation
 import SwiftUI
 import Combine
 
+enum MoodRequiredField: String, CaseIterable, Identifiable {
+    case affectedArea
+    case energyLevel
+    case availableTime
+    case controlLevel
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .affectedArea:
+            return "Área mais afetada"
+        case .energyLevel:
+            return "Energia"
+        case .availableTime:
+            return "Tempo disponível agora"
+        case .controlLevel:
+            return "Está sob seu controle?"
+        }
+    }
+
+    var inlineTitle: String {
+        switch self {
+        case .affectedArea:
+            return "área afetada"
+        case .energyLevel:
+            return "energia"
+        case .availableTime:
+            return "tempo disponível"
+        case .controlLevel:
+            return "nível de controle"
+        }
+    }
+}
+
 @MainActor
 class MoodCheckInViewModel: ObservableObject {
     @Published var selectedMood: MoodType?
@@ -24,6 +59,7 @@ class MoodCheckInViewModel: ObservableObject {
     @Published var selectedBodySignals: Set<String> = []
     @Published var isSaving: Bool = false
     @Published var savedSuccess: Bool = false
+    @Published var validationHintVisible: Bool = false
     
     let quickTags = ["Trabalho", "Sono", "Relacionamentos", "Saúde", "Estudos", "Finanças"]
     let bodySignalOptions = ["Tensão muscular", "Respiração curta", "Dor de cabeça", "Cansaço físico", "Agitação", "Sem sintomas"]
@@ -32,6 +68,67 @@ class MoodCheckInViewModel: ObservableObject {
     let availableTimes = MoodAvailableTime.allCases
     let controlLevels = MoodControlLevel.allCases
     let sleepQualities = MoodSleepQuality.allCases
+
+    var isReadyToSave: Bool {
+        selectedMood != nil && missingRequiredFields.isEmpty
+    }
+
+    var missingRequiredFields: [MoodRequiredField] {
+        var missing: [MoodRequiredField] = []
+
+        if selectedAffectedArea == nil {
+            missing.append(.affectedArea)
+        }
+        if selectedEnergyLevel == nil {
+            missing.append(.energyLevel)
+        }
+        if selectedAvailableTime == nil {
+            missing.append(.availableTime)
+        }
+        if selectedControlLevel == nil {
+            missing.append(.controlLevel)
+        }
+
+        return missing
+    }
+
+    var shouldShowValidationHint: Bool {
+        selectedMood != nil && (!missingRequiredFields.isEmpty || validationHintVisible)
+    }
+
+    var validationHintTitle: String {
+        missingRequiredFields.count == 1
+        ? "Falta 1 campo obrigatório"
+        : "Faltam \(missingRequiredFields.count) campos obrigatórios"
+    }
+
+    var validationHintBody: String {
+        let fields = missingRequiredFields.map(\.inlineTitle)
+        guard !fields.isEmpty else { return "Tudo pronto para salvar seu check-in." }
+        return "Complete \(fields.joined(separator: ", ")) para liberar o salvar."
+    }
+
+    var requiredFieldsSummary: String {
+        if missingRequiredFields.isEmpty {
+            return "Tudo pronto para salvar."
+        }
+
+        return "Campos em vermelho: \(missingRequiredFields.map(\.inlineTitle).joined(separator: ", "))."
+    }
+
+    func triggerValidationHint() {
+        withAnimation {
+            validationHintVisible = true
+        }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            withAnimation { validationHintVisible = false }
+        }
+    }
+
+    func isMissing(_ field: MoodRequiredField) -> Bool {
+        missingRequiredFields.contains(field)
+    }
     
     private let saveMoodUseCase: SaveMoodUseCaseProtocol
     
@@ -45,6 +142,23 @@ class MoodCheckInViewModel: ObservableObject {
         withAnimation {
             selectedMood = mood
         }
+    }
+
+    func startNewCheckIn(prefilledMood: MoodType? = nil) {
+        savedSuccess = false
+        isSaving = false
+        validationHintVisible = false
+        selectedMood = prefilledMood
+        note = ""
+        selectedIntensity = 5
+        selectedTags = []
+        selectedAffectedArea = nil
+        selectedEnergyLevel = nil
+        selectedAvailableTime = nil
+        selectedControlLevel = nil
+        selectedMentalClarity = 5
+        selectedSleepQuality = nil
+        selectedBodySignals = []
     }
     
     func toggleTag(_ tag: String) {
@@ -90,9 +204,10 @@ class MoodCheckInViewModel: ObservableObject {
     
     func saveCheckIn() {
         guard let mood = selectedMood else { return }
-        
+
+        savedSuccess = false
         isSaving = true
-        
+
         Task {
             do {
                 _ = try await saveMoodUseCase.execute(
@@ -115,6 +230,10 @@ class MoodCheckInViewModel: ObservableObject {
                 isSaving = false
             }
         }
+    }
+
+    func resetAfterSave() {
+        startNewCheckIn()
     }
     
     private func sanitizedNote() -> String? {

@@ -24,8 +24,11 @@ struct ActivityDetailView: View {
     
     var body: some View {
         ZStack {
-            VenusTheme.backgroundGradient
-                .ignoresSafeArea()
+            VenusReadingBackground(
+                accent: VenusTheme.accentOrange,
+                secondaryAccent: VenusTheme.accentPink,
+                tertiaryAccent: VenusTheme.accentGreen
+            )
             
             VStack(spacing: 0) {
                 // Header
@@ -57,12 +60,12 @@ struct ActivityDetailView: View {
                     Spacer()
                     
                     Circle()
-                        .fill(VenusTheme.primary.opacity(0.2))
+                        .fill(activity.category.accentColor.opacity(0.2))
                         .frame(width: 44, height: 44)
                         .overlay(
                             Image(systemName: activity.iconName)
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(VenusTheme.primary)
+                                .foregroundColor(activity.category.accentColor)
                         )
                 }
                 .padding(.horizontal, 24)
@@ -333,8 +336,11 @@ struct ActivityCompletionView: View {
     
     var body: some View {
         ZStack {
-            VenusTheme.backgroundGradient
-                .ignoresSafeArea()
+            VenusReadingBackground(
+                accent: VenusTheme.accentGreen,
+                secondaryAccent: VenusTheme.accentOrange,
+                tertiaryAccent: VenusTheme.accentPink
+            )
             
             VStack(spacing: 32) {
                 Spacer()

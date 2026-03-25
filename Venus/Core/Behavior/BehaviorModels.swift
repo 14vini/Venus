@@ -2,7 +2,7 @@
 //  BehaviorModels.swift
 //  Venus
 //
-//  Created by Codex on 20/02/26.
+//  Created by kaua on 20/02/26.
 //
 
 import Foundation
@@ -96,6 +96,7 @@ struct ActionFeedbackRecord: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     let timestamp: Date
     let kind: NextBestActionKind
+    let actionKey: String?
     let stage: ActionFeedbackStage
     let perceivedRelief: Int?
 
@@ -103,12 +104,14 @@ struct ActionFeedbackRecord: Identifiable, Codable, Equatable, Sendable {
         id: UUID = UUID(),
         timestamp: Date,
         kind: NextBestActionKind,
+        actionKey: String? = nil,
         stage: ActionFeedbackStage,
         perceivedRelief: Int? = nil
     ) {
         self.id = id
         self.timestamp = timestamp
         self.kind = kind
+        self.actionKey = actionKey
         self.stage = stage
         self.perceivedRelief = perceivedRelief
     }
@@ -119,6 +122,7 @@ struct BehaviorActionFeedbackEvent: Identifiable, Equatable, Sendable {
     let timestamp: Date
     let dayKey: Date
     let kind: NextBestActionKind
+    let actionKey: String?
     let stage: ActionFeedbackStage
     let perceivedRelief: Int?
 
@@ -127,6 +131,7 @@ struct BehaviorActionFeedbackEvent: Identifiable, Equatable, Sendable {
             && lhs.timestamp == rhs.timestamp
             && lhs.dayKey == rhs.dayKey
             && lhs.kind == rhs.kind
+            && lhs.actionKey == rhs.actionKey
             && lhs.stage == rhs.stage
             && lhs.perceivedRelief == rhs.perceivedRelief
     }
@@ -327,42 +332,144 @@ final class RichRecommendationEngine: Sendable {
     }
 
     func suggest(for context: UserContext) -> ActionVariant? {
-        if context.moderators.riscoAlto { return nil }
-        guard let base = playbook[context.mood] else { return nil }
+        rankedSuggestions(for: context, limit: 1).first
+    }
+
+    func rankedSuggestions(for context: UserContext, limit: Int = 5) -> [ActionVariant] {
+        guard limit > 0 else { return [] }
+        return scoredSuggestions(for: context)
+            .prefix(limit)
+            .map(\.variant)
+    }
+
+    func scoredSuggestions(for context: UserContext) -> [(variant: ActionVariant, score: Int)] {
+        if context.moderators.riscoAlto { return [] }
+        guard let base = playbook[context.mood] else { return [] }
 
         let tempo = context.moderators.tempoMinutos ?? 10
-        let pool: [ActionVariant]
-        if tempo <= 7 {
-            pool = base.micro
-        } else if tempo <= 15 {
-            pool = base.micro + base.altoImpacto.filter { $0.duration <= 15 }
-        } else {
-            pool = base.altoImpacto
-        }
-
+        let pool = actionPool(for: base, tempo: tempo)
         let filtered = pool.filter { action in
             if let energia = context.moderators.energia, energia == "baixa",
-               action.category == "movimento", action.duration > 15 { return false }
+               action.category == "movimento", action.duration > 15 {
+                return false
+            }
+
             if let controle = context.moderators.controle, controle == "baixo",
-               action.category == "organizacao", action.duration > 15 { return false }
+               (action.category == "organizacao" || action.category == "problem_solving"),
+               action.duration > 15 {
+                return false
+            }
+
             return true
         }
 
-        var scored: [(ActionVariant, Int)] = filtered.map { ($0, 0) }
-        for index in scored.indices {
-            var score = scored[index].1
-            let action = scored[index].0
+        return filtered
+            .map { action in
+                (variant: action, score: score(action, in: context, tempo: tempo))
+            }
+            .sorted { lhs, rhs in
+                if lhs.score == rhs.score {
+                    if lhs.variant.duration == rhs.variant.duration {
+                        return lhs.variant.title < rhs.variant.title
+                    }
+                    return lhs.variant.duration < rhs.variant.duration
+                }
+                return lhs.score > rhs.score
+            }
+    }
 
-            if let area = context.area, let tag = action.areaTag, tag == area { score += 2 }
-            if let value = context.valuePriority, let vTag = action.valueTag, vTag == value { score += 2 }
-            if action.isRich { score += 1 }
-            if let last = context.lastActionCategory, last == action.category { score -= 1 }
-            if let feedback = context.helpsHistory[action.id] { score += feedback }
-
-            scored[index].1 = score
+    private func actionPool(for playbook: MoodPlaybook, tempo: Int) -> [ActionVariant] {
+        if tempo <= 7 {
+            return playbook.micro
         }
 
-        return scored.sorted { $0.1 > $1.1 }.first?.0
+        if tempo <= 15 {
+            return playbook.micro + playbook.altoImpacto.filter { $0.duration <= 20 }
+        }
+
+        return playbook.altoImpacto + playbook.micro
+    }
+
+    private func score(_ action: ActionVariant, in context: UserContext, tempo: Int) -> Int {
+        var score = 4
+
+        if action.duration <= tempo {
+            score += 2
+        } else if action.duration <= tempo + 5 {
+            score += 1
+        }
+
+        if let area = context.area, let tag = action.areaTag, tag == area {
+            score += 3
+        }
+        if let value = context.valuePriority, let vTag = action.valueTag, vTag == value {
+            score += 2
+        }
+        if action.isRich {
+            score += 1
+        }
+        if let last = context.lastActionCategory, last == action.category {
+            score -= 1
+        }
+        if let feedback = context.helpsHistory[action.id] {
+            score += feedback
+        }
+
+        if let energia = context.moderators.energia {
+            if energia == "baixa" && (action.category == "respiracao" || action.category == "auto_cuidado" || action.category == "sono") {
+                score += 2
+            }
+            if energia == "alta" && (action.category == "movimento" || action.category == "behavioral_activation") {
+                score += 2
+            }
+        }
+
+        if let controle = context.moderators.controle, controle == "baixo",
+           action.category == "respiracao" || action.category == "grounding" || action.category == "auto_cuidado" {
+            score += 2
+        }
+
+        if let clareza = context.moderators.clareza, clareza == "baixa",
+           action.category == "organizacao" || action.category == "grounding" || action.category == "manutencao" {
+            score += 1
+        }
+
+        switch context.mood {
+        case .ansioso, .estressado:
+            if action.category == "respiracao" || action.category == "grounding" || action.category == "movimento" {
+                score += 2
+            }
+        case .sobrecarregado:
+            if action.category == "organizacao" || action.category == "problem_solving" || action.category == "auto_cuidado" {
+                score += 2
+            }
+        case .irritado:
+            if action.category == "dbt" || action.category == "distress_tolerance" || action.category == "movimento" {
+                score += 2
+            }
+        case .triste, .desmotivado:
+            if action.category == "behavioral_activation" || action.category == "act_valor" || action.category == "conexao" {
+                score += 2
+            }
+        case .apatico:
+            if action.category == "manutencao" || action.category == "auto_cuidado" || action.category == "act_valor" {
+                score += 2
+            }
+        case .cansadoFisico, .cansadoMental:
+            if action.category == "sono" || action.category == "respiracao" || action.category == "manutencao" || action.category == "auto_cuidado" {
+                score += 2
+            }
+        case .calmo, .focado:
+            if action.category == "organizacao" || action.category == "behavioral_activation" {
+                score += 2
+            }
+        case .feliz, .energizado:
+            if action.category == "behavioral_activation" || action.category == "conexao" || action.category == "movimento" {
+                score += 2
+            }
+        }
+
+        return score
     }
 }
 
@@ -571,10 +678,159 @@ extension RichRecommendationEngine {
         guard let data = embeddedPlaybookJSON.data(using: .utf8) else { return [:] }
         let decoder = JSONDecoder()
         if let items = try? decoder.decode([MoodPlaybook].self, from: data) {
-            return Dictionary(uniqueKeysWithValues: items.map { ($0.cluster, $0) })
+            var dictionary = Dictionary(uniqueKeysWithValues: items.map { ($0.cluster, $0) })
+            supplementalPlaybooks.forEach { dictionary[$0.cluster] = $0 }
+            return dictionary
         }
-        return [:]
+        return Dictionary(uniqueKeysWithValues: supplementalPlaybooks.map { ($0.cluster, $0) })
     }()
+
+    private static let supplementalPlaybooks: [MoodPlaybook] = [
+        MoodPlaybook(
+            cluster: .calmo,
+            signals: MoodSignals(
+                fisicos: ["respiração mais solta", "ombros menos tensos"],
+                mentais: ["clareza suave", "menos ruído interno"],
+                gatilhos: ["rotina organizada", "pausa recente", "ambiente estável"],
+                duracaoTipica: "horas",
+                risco: ["falsa sensação de que não precisa proteger esse estado"]
+            ),
+            micro: [
+                action(id: "91000000-0000-0000-0000-000000000001", title: "Registrar o que está funcionando", detail: "Anote em 3 linhas o que deixou seu dia mais leve até aqui.", duration: 3, category: "organizacao", isRich: true),
+                action(id: "91000000-0000-0000-0000-000000000002", title: "Proteger a próxima hora", detail: "Defina só uma prioridade calma para a próxima hora.", duration: 5, category: "organizacao", isRich: true),
+                action(id: "91000000-0000-0000-0000-000000000003", title: "Pausa silenciosa com respiração nasal", detail: "4 minutos para manter o corpo no mesmo ritmo bom.", duration: 4, category: "respiracao", isRich: false)
+            ],
+            altoImpacto: [
+                action(id: "91000000-0000-0000-0000-000000000004", title: "Bloco sereno de foco", detail: "20 minutos em uma tarefa importante sem interrupção.", duration: 20, category: "behavioral_activation", isRich: true, areaTag: "trabalho"),
+                action(id: "91000000-0000-0000-0000-000000000005", title: "Preparar a noite com calma", detail: "Deixe roupas, água e o começo de amanhã resolvidos.", duration: 15, category: "organizacao", isRich: true),
+                action(id: "91000000-0000-0000-0000-000000000006", title: "Organizar um espaço de apoio", detail: "Arrume o ponto da casa que mais ajuda seu ritmo.", duration: 15, category: "manutencao", isRich: true)
+            ],
+            copyWhy: [
+                "Como você está mais estável agora, vale transformar essa janela boa em clareza para o resto do dia.",
+                "Quando o estado está calmo, pequenas decisões bem feitas costumam render muito mais."
+            ]
+        ),
+        MoodPlaybook(
+            cluster: .feliz,
+            signals: MoodSignals(
+                fisicos: ["rosto mais leve", "mais disposição para contato"],
+                mentais: ["mais abertura", "mais presença"],
+                gatilhos: ["boas notícias", "conexão", "sensação de progresso"],
+                duracaoTipica: "horas",
+                risco: ["gastar toda a energia sem intenção"]
+            ),
+            micro: [
+                action(id: "92000000-0000-0000-0000-000000000001", title: "Compartilhar uma coisa boa", detail: "Mande uma mensagem curta contando algo positivo do seu dia.", duration: 3, category: "conexao", isRich: true, areaTag: "relacao"),
+                action(id: "92000000-0000-0000-0000-000000000002", title: "Gratidão rápida do dia", detail: "Liste 3 coisas pequenas que fizeram bem hoje.", duration: 3, category: "gratidao", isRich: true),
+                action(id: "92000000-0000-0000-0000-000000000003", title: "Fechar uma pendência no embalo", detail: "Aproveite a leveza para concluir uma tarefa simples.", duration: 5, category: "behavioral_activation", isRich: true)
+            ],
+            altoImpacto: [
+                action(id: "92000000-0000-0000-0000-000000000004", title: "Celebração com intenção", detail: "Pare 15 minutos para reconhecer o progresso sem correr para a próxima cobrança.", duration: 15, category: "motivacao", isRich: true),
+                action(id: "92000000-0000-0000-0000-000000000005", title: "Avanço importante no embalo bom", detail: "Use essa energia para mover uma frente que importa para você.", duration: 20, category: "behavioral_activation", isRich: true, areaTag: "trabalho"),
+                action(id: "92000000-0000-0000-0000-000000000006", title: "Encontro leve com alguém que te faz bem", detail: "Marque ou faça um contato curto com alguém seguro.", duration: 15, category: "conexao", isRich: true, areaTag: "relacao")
+            ],
+            copyWhy: [
+                "Seu estado está mais aberto agora, então faz sentido usar isso para reforçar conexão e progresso.",
+                "Momentos bons costumam render ainda mais quando viram memória de avanço real."
+            ]
+        ),
+        MoodPlaybook(
+            cluster: .energizado,
+            signals: MoodSignals(
+                fisicos: ["mais impulso", "corpo ligado"],
+                mentais: ["vontade de agir", "mais iniciativa"],
+                gatilhos: ["boa notícia", "descanso", "senso de oportunidade"],
+                duracaoTipica: "horas",
+                risco: ["dispersão", "assumir coisa demais"]
+            ),
+            micro: [
+                action(id: "93000000-0000-0000-0000-000000000001", title: "Canalizar energia em 1 meta", detail: "Escolha uma meta clara para essa energia ir na direção certa.", duration: 4, category: "behavioral_activation", isRich: true),
+                action(id: "93000000-0000-0000-0000-000000000002", title: "Pausa curta para não dispersar", detail: "Respire e decida o próximo passo antes de sair fazendo tudo.", duration: 3, category: "grounding", isRich: true),
+                action(id: "93000000-0000-0000-0000-000000000003", title: "Limpar distrações antes do impulso cair", detail: "Feche abas, silencia notificações e deixa só o essencial.", duration: 5, category: "organizacao", isRich: true)
+            ],
+            altoImpacto: [
+                action(id: "93000000-0000-0000-0000-000000000004", title: "Sprint forte de 20 minutos", detail: "Bloco curto, direto e intenso em algo relevante.", duration: 20, category: "behavioral_activation", isRich: true),
+                action(id: "93000000-0000-0000-0000-000000000005", title: "Caminhada acelerada ou mobilidade", detail: "Use parte da energia no corpo para não virar ansiedade dispersa.", duration: 15, category: "movimento", isRich: false),
+                action(id: "93000000-0000-0000-0000-000000000006", title: "Proteger sua janela de alta energia", detail: "Reserve o resto da sua melhor faixa para a tarefa certa.", duration: 10, category: "organizacao", isRich: true)
+            ],
+            copyWhy: [
+                "Quando a energia está alta, o melhor é dar direção antes que ela vire dispersão.",
+                "Seu corpo está pronto para agir; a ideia é transformar isso em progresso e não em ruído."
+            ]
+        ),
+        MoodPlaybook(
+            cluster: .focado,
+            signals: MoodSignals(
+                fisicos: ["corpo estável", "respiração mais regular"],
+                mentais: ["clareza alta", "atenção mais firme"],
+                gatilhos: ["boa organização", "menos interrupção", "objetivo claro"],
+                duracaoTipica: "1–3 horas",
+                risco: ["passar do ponto e esquecer pausas"]
+            ),
+            micro: [
+                action(id: "94000000-0000-0000-0000-000000000001", title: "Fechar a etapa mais crítica", detail: "Use 5 minutos para encerrar o pedaço mais importante que está aberto.", duration: 5, category: "behavioral_activation", isRich: true, areaTag: "trabalho"),
+                action(id: "94000000-0000-0000-0000-000000000002", title: "Anotar o próximo passo antes de parar", detail: "Deixe a continuidade fácil para você mais tarde.", duration: 3, category: "organizacao", isRich: true),
+                action(id: "94000000-0000-0000-0000-000000000003", title: "Blindar 30 min sem distração", detail: "Silencie o que rouba atenção e preserve essa clareza.", duration: 4, category: "organizacao", isRich: true)
+            ],
+            altoImpacto: [
+                action(id: "94000000-0000-0000-0000-000000000004", title: "Bloco profundo de execução", detail: "20 minutos focados na frente que mais muda o seu dia.", duration: 20, category: "behavioral_activation", isRich: true, areaTag: "trabalho"),
+                action(id: "94000000-0000-0000-0000-000000000005", title: "Revisão do progresso e próximo marco", detail: "Feche o que avançou e defina o próximo marco ainda com a cabeça clara.", duration: 12, category: "organizacao", isRich: true),
+                action(id: "94000000-0000-0000-0000-000000000006", title: "Encerrar o ciclo com checklist final", detail: "Faça uma revisão curta para evitar pendências invisíveis.", duration: 10, category: "organizacao", isRich: true)
+            ],
+            copyWhy: [
+                "Você está numa boa faixa de clareza agora, então vale proteger isso para render de verdade.",
+                "Em momentos de foco, a melhor ação costuma ser a que transforma clareza em avanço concreto."
+            ]
+        ),
+        MoodPlaybook(
+            cluster: .estressado,
+            signals: MoodSignals(
+                fisicos: ["tensão no pescoço", "respiração curta", "pressão no corpo"],
+                mentais: ["urgência demais", "muita cobrança ao mesmo tempo"],
+                gatilhos: ["muitas interrupções", "pressão externa", "prazos"],
+                duracaoTipica: "horas",
+                risco: ["agir no impulso", "espalhar a tensão no resto do dia"]
+            ),
+            micro: [
+                action(id: "95000000-0000-0000-0000-000000000001", title: "Respiração 4-6 com ombros soltos", detail: "Puxe por 4, solte por 6 e relaxe o corpo a cada ciclo.", duration: 4, category: "respiracao", isRich: false),
+                action(id: "95000000-0000-0000-0000-000000000002", title: "Tirar 3 pressões da frente visual", detail: "Feche o que distrai e deixe só o que importa agora.", duration: 5, category: "organizacao", isRich: true),
+                action(id: "95000000-0000-0000-0000-000000000003", title: "Nomear o que está te apertando", detail: "Escreva em uma frase o peso principal deste momento.", duration: 3, category: "organizacao", isRich: true)
+            ],
+            altoImpacto: [
+                action(id: "95000000-0000-0000-0000-000000000004", title: "Caminhada de regulação com expiração longa", detail: "Ande por 15 a 20 min soltando o ar mais devagar que a inspiração.", duration: 20, category: "movimento", isRich: false),
+                action(id: "95000000-0000-0000-0000-000000000005", title: "Reset do ambiente + água + silêncio", detail: "Faça um mini protocolo físico para baixar a pressão do corpo.", duration: 12, category: "auto_cuidado", isRich: true),
+                action(id: "95000000-0000-0000-0000-000000000006", title: "Plano de contenção das próximas 3 horas", detail: "Decida o que manter, adiar e ignorar até a pressão baixar.", duration: 15, category: "organizacao", isRich: true)
+            ],
+            copyWhy: [
+                "Seu corpo está pedindo contenção, então a ação ideal precisa baixar a pressão antes de pedir mais de você.",
+                "Quando o estresse sobe, reduzir o ruído e dar direção clara costuma funcionar melhor do que insistir na força."
+            ]
+        )
+    ]
+
+    private static func action(
+        id: String,
+        title: String,
+        detail: String,
+        duration: Int,
+        category: String,
+        cautions: [String] = [],
+        isRich: Bool,
+        valueTag: String? = nil,
+        areaTag: String? = nil
+    ) -> ActionVariant {
+        ActionVariant(
+            id: UUID(uuidString: id) ?? UUID(),
+            title: title,
+            detail: detail,
+            duration: duration,
+            category: category,
+            cautions: cautions,
+            isRich: isRich,
+            valueTag: valueTag,
+            areaTag: areaTag
+        )
+    }
 }
 
 // MARK: - Helpers
@@ -613,20 +869,48 @@ enum ActionSuggestionCategory: String, Codable, Hashable, Sendable {
 extension NextBestActionKind {
     var category: ActionSuggestionCategory {
         switch self {
-        case .resolveAvoidedTask:
+        case .resolveAvoidedTask,
+                .firstStepActivation,
+                .solveOneProblem,
+                .finishSmallWin,
+                .timerSprint:
             return .execution
-        case .sleepReset:
-            return .recovery
-        case .environmentReset:
-            return .recovery
-        case .quickExercise:
-            return .movement
-        case .difficultMessage:
+        case .difficultMessage,
+                .safeDraft,
+                .supportMessage,
+                .shareGoodMoment:
             return .communication
-        case .deepDisconnect:
-            return .recovery
-        case .weeklyPlanning:
+        case .weeklyPlanning,
+                .mentalUnload,
+                .scopeReduction,
+                .taskBreakdown,
+                .delegateOneThing,
+                .paperPlanning,
+                .protectPeakWindow,
+                .frictionCleanup,
+                .valueReconnect,
+                .gratitudeMoment,
+                .celebrationBreak:
             return .planning
+        case .quickExercise,
+                .walkingRegulation,
+                .softStretch,
+                .physicalDischarge:
+            return .movement
+        case .sleepReset,
+                .breathReset,
+                .sensoryPause,
+                .sceneShift,
+                .coolDownReset,
+                .environmentReset,
+                .mechanicalCare,
+                .hydrationReset,
+                .microRest,
+                .analogReset,
+                .bodyScan,
+                .deepDisconnect,
+                .pleasureBoost:
+            return .recovery
         }
     }
 }
@@ -654,7 +938,9 @@ struct BehaviorPatternAnalysis: Equatable, Sendable {
 
 struct ActionHistorySummary: Equatable, Sendable {
     let lastSuggestedAt: [NextBestActionKind: Date]
+    let lastSuggestedAtByActionKey: [String: Date]
     let recentSuggestedKinds: [NextBestActionKind]
+    let recentSuggestedActionKeys: [String]
     let suggestedCategoryCountsLast7Days: [ActionSuggestionCategory: Int]
     let startedCountByKind: [NextBestActionKind: Int]
     let completionRateByKind: [NextBestActionKind: Double]
@@ -662,7 +948,9 @@ struct ActionHistorySummary: Equatable, Sendable {
 
     nonisolated static let empty = ActionHistorySummary(
         lastSuggestedAt: [:],
+        lastSuggestedAtByActionKey: [:],
         recentSuggestedKinds: [],
+        recentSuggestedActionKeys: [],
         suggestedCategoryCountsLast7Days: [:],
         startedCountByKind: [:],
         completionRateByKind: [:],

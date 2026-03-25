@@ -31,11 +31,11 @@ private enum TodoLayout {
     static let contentBottomPadding: CGFloat = 150
     static let quickActionWidth: CGFloat = 136
     static let quickActionHeight: CGFloat = 132
+    static let weekNavigationSize: CGFloat = 32
+    static let weekStripSpacing: CGFloat = 6
 }
 
 struct TodoListView: View {
-    @Environment(\.colorScheme) private var colorScheme
-
     @StateObject private var viewModel: TodoListViewModel
     @State private var showBreathingView = false
     @State private var showPomodoroView = false
@@ -66,26 +66,11 @@ struct TodoListView: View {
 
     var body: some View {
         ZStack {
-            VenusTheme.backgroundGradient
-                .ignoresSafeArea()
-
-            Circle()
-                .fill(VenusTheme.ambientWarm.opacity(colorScheme == .dark ? 0.32 : 0.24))
-                .frame(width: 320, height: 320)
-                .blur(radius: 62)
-                .offset(x: -140, y: -270)
-
-            Circle()
-                .fill(TodoScreenPalette.accentStrong.opacity(colorScheme == .dark ? 0.24 : 0.17))
-                .frame(width: 290, height: 290)
-                .blur(radius: 56)
-                .offset(x: 180, y: -10)
-
-            Circle()
-                .fill(VenusTheme.ambientCool.opacity(colorScheme == .dark ? 0.18 : 0.12))
-                .frame(width: 240, height: 240)
-                .blur(radius: 48)
-                .offset(x: -30, y: 300)
+            VenusReadingBackground(
+                accent: TodoScreenPalette.accentStrong,
+                secondaryAccent: VenusTheme.ambientWarm,
+                tertiaryAccent: VenusTheme.ambientCool
+            )
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: TodoLayout.sectionSpacing) {
@@ -103,10 +88,10 @@ struct TodoListView: View {
                     .frame(height: TodoLayout.contentBottomPadding)
             }
         }
-        .safeAreaInset(edge: .bottom, alignment: .trailing) {
+        .overlay(alignment: .bottomTrailing) {
             addButton
                 .padding(.trailing, TodoLayout.horizontalPadding)
-                .padding(.bottom, 12)
+                .padding(.bottom, 24)
         }
         .sheet(isPresented: $viewModel.showAddSheet) {
             AddTodoView { title, time, type in
@@ -179,34 +164,45 @@ struct TodoListView: View {
                 .padding(.top, 10)
             }
 
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        Color.clear.frame(width: 2)
-                        ForEach(viewModel.currentWeek, id: \.self) { date in
-                            TodoWeekdayItem(
-                                date: date,
-                                isSelected: viewModel.isSameDay(date1: date, date2: viewModel.selectedDate)
-                            ) {
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.80)) {
-                                    viewModel.selectedDate = date
-                                }
-                            }
-                            .id(date)
+            GeometryReader { geometry in
+                let availableWidth = geometry.size.width - (TodoLayout.weekNavigationSize * 2) - (TodoLayout.weekStripSpacing * 8)
+                let dayWidth = max(28, min(50, availableWidth / 7))
+
+                HStack(alignment: .center, spacing: TodoLayout.weekStripSpacing) {
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.80)) {
+                            viewModel.shiftWeek(by: -1)
                         }
-                        Color.clear.frame(width: 2)
+                    } label: {
+                        weekNavigationButton(symbol: "chevron.left")
                     }
-                }
-                .scrollClipDisabled()
-                .onAppear {
-                    proxy.scrollTo(viewModel.selectedDate, anchor: .center)
-                }
-                .onChange(of: viewModel.selectedDate) { _, newDate in
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        proxy.scrollTo(newDate, anchor: .center)
+                    .buttonStyle(.plain)
+
+                    ForEach(viewModel.currentWeek, id: \.self) { date in
+                        TodoWeekdayItem(
+                            date: date,
+                            isSelected: viewModel.isSameDay(date1: date, date2: viewModel.selectedDate),
+                            itemWidth: dayWidth
+                        ) {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.80)) {
+                                viewModel.selectedDate = date
+                            }
+                        }
+                        .frame(width: dayWidth)
                     }
+
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.80)) {
+                            viewModel.shiftWeek(by: 1)
+                        }
+                    } label: {
+                        weekNavigationButton(symbol: "chevron.right")
+                    }
+                    .buttonStyle(.plain)
                 }
+                .frame(maxWidth: .infinity)
             }
+            .frame(height: 92)
         }
     }
 
@@ -400,29 +396,31 @@ struct TodoListView: View {
         Button {
             viewModel.showAddSheet = true
         } label: {
-            ZStack {
-                Circle()
-                    .fill(TodoScreenPalette.accentStrong.opacity(0.42))
-                    .frame(width: 74, height: 74)
-                    .blur(radius: 12)
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 16, weight: .bold))
 
-                Circle()
+                Text("Adicionar tarefa")
+                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                Capsule()
                     .fill(
                         LinearGradient(
-                            colors: [TodoScreenPalette.accent, TodoScreenPalette.accentStrong],
+                            colors: [Color(hex: "FF5F15"), Color(hex: "FF3D00")],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 74, height: 74)
-
-                Image(systemName: "plus")
-                    .font(.system(size: 32, weight: .regular))
-                    .foregroundColor(.white)
-            }
+            )
+            .shadow(color: Color(hex: "FF3D00").opacity(0.35), radius: 12, x: 0, y: 6)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Adicionar tarefa")
+        .transition(.scale.combined(with: .opacity))
     }
 
     private var headerDateText: String {
@@ -433,6 +431,21 @@ struct TodoListView: View {
         formatter.dateFormat = "MMMM"
         let month = formatter.string(from: viewModel.selectedDate).capitalized(with: locale)
         return "\(day) de \(month)"
+    }
+
+    private func weekNavigationButton(symbol: String) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 14, weight: .bold))
+            .foregroundColor(TodoScreenPalette.accentStrong)
+            .frame(width: TodoLayout.weekNavigationSize, height: TodoLayout.weekNavigationSize)
+            .background(
+                Circle()
+                    .fill(TodoScreenPalette.cardBackground)
+            )
+            .overlay(
+                Circle()
+                    .stroke(TodoScreenPalette.cardStroke, lineWidth: 1)
+            )
     }
 
     private func sortTodos(_ lhs: TodoItem, _ rhs: TodoItem) -> Bool {
@@ -517,6 +530,11 @@ struct TodoQuickActionCard: View {
                 .stroke(TodoScreenPalette.cardStroke, lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .scrollTransition(.animated(.smooth(duration: 0.3))) { card, phase in
+            card
+                .scaleEffect(phase.isIdentity ? 1 : 0.96)
+                .opacity(phase.isIdentity ? 1 : 0.84)
+        }
     }
 }
 
@@ -659,6 +677,7 @@ private struct TodoTaskMeta {
 struct TodoWeekdayItem: View {
     let date: Date
     let isSelected: Bool
+    let itemWidth: CGFloat
     let onTap: () -> Void
 
     private var weekdayLabel: String {
@@ -671,28 +690,35 @@ struct TodoWeekdayItem: View {
         return String(raw.prefix(3))
     }
 
+    private var circleSize: CGFloat {
+        min(max(itemWidth, 30), 52)
+    }
+
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 8) {
                 Text(weekdayLabel)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(size: itemWidth < 34 ? 10 : itemWidth < 42 ? 11 : 13, weight: .bold, design: .rounded))
                     .foregroundColor(isSelected ? TodoScreenPalette.accentStrong : TodoScreenPalette.subtitle.opacity(0.65))
-                    .tracking(0.7)
+                    .tracking(itemWidth < 34 ? 0 : itemWidth < 42 ? 0.2 : 0.5)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
                 ZStack {
                     if isSelected {
                         Circle()
                             .fill(TodoScreenPalette.accentStrong)
-                            .frame(width: 64, height: 64)
+                            .frame(width: circleSize, height: circleSize)
                             .shadow(color: TodoScreenPalette.accentStrong.opacity(0.24), radius: 16, x: 0, y: 8)
                     }
 
                     Text("\(Calendar.current.component(.day, from: date))")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .font(.system(size: itemWidth < 34 ? 15 : itemWidth < 42 ? 16 : 18, weight: .bold, design: .rounded))
                         .foregroundColor(isSelected ? .white : TodoScreenPalette.title.opacity(0.78))
                 }
-                .frame(width: 54, height: 54)
+                .frame(width: circleSize, height: circleSize)
             }
+            .frame(width: itemWidth)
         }
         .buttonStyle(.plain)
     }
@@ -742,7 +768,15 @@ struct CalendarMonthView: View {
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(TodoScreenPalette.subtitle)
                 }
-                
+
+                let firstWeekday = calendar.component(.weekday, from: days.first ?? currentMonth)
+                let emptySlots = (firstWeekday - calendar.firstWeekday + 7) % 7
+
+                ForEach(0..<emptySlots, id: \.self) { _ in
+                    Text("")
+                        .frame(width: 42, height: 42)
+                }
+
                 ForEach(days, id: \.self) { date in
                     Button(action: { onSelect(date) }) {
                         Text("\(calendar.component(.day, from: date))")
@@ -771,6 +805,65 @@ struct CalendarMonthView: View {
     }
 }
 
+enum TodoListPreviewFactory {
+    @MainActor
+    static func makeViewModel() -> TodoListViewModel {
+        let baseDate = Calendar.current.startOfDay(for: Date())
+        let repo = PreviewTodoRepository(
+            items: [
+                TodoItem(title: "Revisar planejamento do dia", date: baseDate, time: previewTime(hour: 9, minute: 0), type: .work),
+                TodoItem(title: "Caminhada leve", date: baseDate, time: previewTime(hour: 11, minute: 30), type: .health),
+                TodoItem(title: "Separar prioridades da tarde", isCompleted: true, date: baseDate, time: previewTime(hour: 14, minute: 0), type: .routine)
+            ]
+        )
+
+        return TodoListViewModel(
+            todoRepository: repo,
+            generateScheduleUseCase: GenerateScheduleUseCase(todoRepository: repo),
+            userProfileRepository: PreviewUserProfileRepository()
+        )
+    }
+
+    private static func previewTime(hour: Int, minute: Int) -> Date {
+        Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) ?? Date()
+    }
+}
+
+private final class PreviewTodoRepository: TodoRepositoryProtocol {
+    private var items: [TodoItem]
+
+    init(items: [TodoItem]) {
+        self.items = items
+    }
+
+    func getTodos(for date: Date) async throws -> [TodoItem] {
+        items.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }
+    }
+
+    func getTodos(from startDate: Date, to endDate: Date) async throws -> [TodoItem] {
+        items.filter { $0.date >= startDate && $0.date <= endDate }
+    }
+
+    func save(item: TodoItem) async throws {
+        items.append(item)
+    }
+
+    func delete(id: UUID) async throws {
+        items.removeAll { $0.id == id }
+    }
+
+    func toggleCompletion(id: UUID) async throws {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        items[index].isCompleted.toggle()
+    }
+}
+
+private struct PreviewUserProfileRepository: UserProfileRepositoryProtocol {
+    func save(profile: UserProfile) async throws {}
+    func load() async throws -> UserProfile? { nil }
+    func delete() async throws {}
+}
+
 #Preview {
-    TodoListView(viewModel: DependencyContainer.shared.makeTodoListViewModel())
+    TodoListView(viewModel: TodoListPreviewFactory.makeViewModel())
 }
