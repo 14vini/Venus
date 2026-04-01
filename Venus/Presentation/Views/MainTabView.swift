@@ -13,10 +13,10 @@ struct MainTabView: View {
     var body: some View {
         TabView {
             NavigationStack {
-                HomeView(userName: userName)
+                HomeScreen(userName: userName)
             }
             .tabItem {
-                Label("Hoje", systemImage: "sparkles")
+                Label("home", systemImage: "house")
             }
             
             DailyPracticesView(viewModel: DependencyContainer.shared.makeActivitiesListViewModel())
@@ -24,10 +24,10 @@ struct MainTabView: View {
                     Label("Práticas", systemImage: "leaf.fill")
                 }
             
-            TodoListView(viewModel: DependencyContainer.shared.makeTodoListViewModel())
-                .tabItem {
-                    Label("Agenda", systemImage: "calendar")
-                }
+//            TodoListView(viewModel: DependencyContainer.shared.makeTodoListViewModel())
+//                .tabItem {
+//                    Label("Agenda", systemImage: "calendar")
+//                }
 //            
 //            ActivitiesListView(viewModel: DependencyContainer.shared.makeActivitiesListViewModel())
 //                .tabItem {

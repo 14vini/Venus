@@ -12,6 +12,11 @@ class UserProfile {
     // Informações básicas
     var name: String = ""
     var interests: [String] = []
+
+    // Preferências (calibração da Venus)
+    var primaryGoal: String = ""
+    var coachingTone: String = ""
+    var dailyTimeBudgetMinutes: Int = 0
     
     // Rotina
     var workSchedule: WorkSchedule? = nil
@@ -31,6 +36,9 @@ class UserProfile {
     func reset() {
         name = ""
         interests = []
+        primaryGoal = ""
+        coachingTone = ""
+        dailyTimeBudgetMinutes = 0
         workSchedule = nil
         studySchedule = StudySchedule()
         currentHobbies = []

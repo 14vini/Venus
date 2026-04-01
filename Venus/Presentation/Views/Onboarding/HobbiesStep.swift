@@ -38,41 +38,34 @@ struct HobbiesStep: View {
     var selectedCount: Int {
         model.selectedHobbies.filter { $0.value }.count
     }
+
+    private var selectedAccessory: String? {
+        guard selectedCount > 0 else { return nil }
+        return "\(selectedCount) selecionado\(selectedCount == 1 ? "" : "s")"
+    }
     
     var body: some View {
-        VStack(spacing: 24) {
-            HStack{
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Hobbies Atuais")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(VenusTheme.text)
-                    
-                    if selectedCount > 0 {
-                        Text("Você pratica \(selectedCount) hobby\(selectedCount != 1 ? "s" : ""). Que legal!")
-                            .font(.headline)
-                            .foregroundColor(VenusTheme.darkGreen)
-                            .fontWeight(.semibold)
-                    } else {
-                        Text("Quais hobbies você já pratica?")
-                            .font(.headline)
-                            .foregroundColor(VenusTheme.textSecondary)
-                    }
-                }
-                .padding(.horizontal, 24)
-                Spacer()
-            }
+        VStack(alignment: .leading, spacing: 18) {
+            OnboardingStepHeader(
+                eyebrow: "hobbies",
+                title: "O que você já pratica?",
+                subtitle: "Isso ajuda a sugerir ações e rituais que combinam com você.",
+                systemImage: "leaf.fill",
+                tint: VenusTheme.accentGreen,
+                accessory: selectedAccessory
+            )
+
             VenusHobbiesFlowLayout(
                 items: Array(model.selectedHobbies.keys),
                 selectedItems: model.selectedHobbies,
+                tint: VenusTheme.accentGreen,
                 onSelectionChange: { hobby in
                     model.selectedHobbies[hobby]?.toggle()
                 }
             )
-            .padding(.horizontal, 24)
-
         }
-        .padding(.top, 24)
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
         .padding(.bottom, 12)
         .onChange(of: model.selectedHobbies) { _, newValue in
             userProfile.currentHobbies = newValue.filter { $0.value }.map { $0.key }

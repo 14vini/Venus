@@ -23,7 +23,7 @@ struct VenusCard<Content: View>: View {
     var body: some View {
         content
             .padding(padding)
-            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
 //            .background(
 //                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 //                    .fill(VenusTheme.surface)

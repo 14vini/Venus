@@ -40,48 +40,42 @@ class InterestsStepModel {
 struct InterestsStep: View {
     @Binding var userProfile: UserProfile
     @State private var model = InterestsStepModel()
+    @State private var searchText: String = ""
+    @Environment(\.colorScheme) private var colorScheme
     
     var selectedCount: Int {
         model.selectedInterests.filter { $0.value }.count
     }
+
+    private var selectedAccessory: String? {
+        guard selectedCount > 0 else { return nil }
+        return "\(selectedCount) selecionado\(selectedCount == 1 ? "" : "s")"
+    }
     
     var body: some View {
-        VStack(spacing: 24) {
-            HStack {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Seus Interesses")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(VenusTheme.text)
-                    
-                    if selectedCount > 0 {
-                        Text("Você escolheu \(selectedCount) interesse\(selectedCount != 1 ? "s" : ""). Ótimo!")
-                            .font(.headline)
-                            .foregroundColor(VenusTheme.darkGreen)
-                            .fontWeight(.semibold)
-                    } else {
-                        Text("Selecione o que você gosta")
-                            .font(.headline)
-                            .foregroundColor(VenusTheme.textSecondary)
-                    }
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 24)
-            
-            
-                VenusInterestsFlowLayout(
-                    items: Array(model.selectedInterests.keys),
-                    selectedItems: model.selectedInterests,
-                    onSelectionChange: { interest in
-                        model.selectedInterests[interest]?.toggle()
-                    }
-                )
-                .padding(.horizontal, 24)
-            
+        VStack(alignment: .leading, spacing: 18) {
+            OnboardingStepHeader(
+                eyebrow: "interesses",
+                title: "O que te dá energia?",
+                subtitle: "Escolha alguns temas para eu calibrar o seu tom e as sugestões.",
+                systemImage: "sparkles",
+                tint: VenusTheme.accentBlue,
+                accessory: selectedAccessory
+            )
 
+            searchField
+
+            VenusInterestsFlowLayout(
+                items: filteredItems,
+                selectedItems: model.selectedInterests,
+                tint: VenusTheme.accentBlue,
+                onSelectionChange: { interest in
+                    model.selectedInterests[interest]?.toggle()
+                }
+            )
         }
-        .padding(.top, 24)
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
         .padding(.bottom, 12)
         .onChange(of: model.selectedInterests) { _, newValue in
             userProfile.interests = newValue.filter { $0.value }.map { $0.key }
@@ -91,6 +85,61 @@ struct InterestsStep: View {
                 model.selectedInterests[interest] = true
             }
         }
+    }
+
+    private var filteredItems: [String] {
+        let allItems = Array(model.selectedInterests.keys)
+        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return allItems }
+        return allItems.filter { $0.localizedCaseInsensitiveContains(trimmed) }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(VenusTheme.textSecondary)
+
+            TextField("Buscar interesses", text: $searchText)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled(true)
+                .foregroundStyle(VenusTheme.text)
+                .tint(VenusTheme.accentBlue)
+
+            if !searchText.isEmpty {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(VenusTheme.textSecondary.opacity(0.8))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Limpar busca")
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .opacity(colorScheme == .dark ? 0.62 : 0.94)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.12 : 0.22),
+                                Color.clear,
+                                Color.white.opacity(colorScheme == .dark ? 0.06 : 0.10)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        .blendMode(.overlay)
+                )
+        )
+        .accessibilityLabel("Buscar interesses")
     }
 }
 

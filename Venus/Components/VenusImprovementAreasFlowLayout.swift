@@ -10,6 +10,7 @@ import SwiftUI
 struct VenusImprovementAreasFlowLayout: View {
     let items: [String]
     let selectedItems: [String: Bool]
+    var tint: Color = VenusTheme.primary
     let onSelectionChange: (String) -> Void
     
     var body: some View {
@@ -18,6 +19,7 @@ struct VenusImprovementAreasFlowLayout: View {
                 VenusInterestChipSimple(
                     title: item,
                     isSelected: selectedItems[item] ?? false,
+                    tint: tint,
                     onTap: { onSelectionChange(item) }
                 )
             }

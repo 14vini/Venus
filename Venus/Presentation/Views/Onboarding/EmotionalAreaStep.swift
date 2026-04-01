@@ -15,88 +15,44 @@ struct EmotionalAreaStep: View {
         "Estresse", "Tristeza", "Solidão", "Culpa", "Raiva",
         "Insegurança", "Falta de Propósito", "Overwhelm"
     ]
+
+    private var selectedAccessory: String? {
+        let count = selectedAreas.count
+        guard count > 0 else { return nil }
+        return "\(count) selecionado\(count == 1 ? "" : "s")"
+    }
     
     var body: some View {
-        VStack(spacing: 24) {
-            HStack{
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Áreas Emocionais")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(VenusTheme.text)
-                    
-                    if selectedAreas.count > 0 {
-                        Text("Vamos cuidar de \(selectedAreas.count) área\(selectedAreas.count != 1 ? "s" : "") emocional\(selectedAreas.count != 1 ? "is" : "").")
-                            .font(.headline)
-                            .foregroundColor(VenusTheme.darkGreen)
-                            .fontWeight(.semibold)
-                    } else {
-                        Text("Quais emoções mais afetam seu dia a dia?")
-                            .font(.headline)
-                            .foregroundColor(VenusTheme.textSecondary)
-                    }
-                }
-                
-                Spacer()
-            }
-            .padding(.horizontal, 24)
-            
+        VStack(alignment: .leading, spacing: 18) {
+            OnboardingStepHeader(
+                eyebrow: "emoções",
+                title: "O que mais mexe com você?",
+                subtitle: "Escolha algumas áreas emocionais para eu cuidar melhor do seu dia.",
+                systemImage: "heart.text.square.fill",
+                tint: VenusTheme.accentOrange,
+                accessory: selectedAccessory
+            )
+
             VStack(spacing: 12) {
                 ForEach(emotionalAreas, id: \.self) { area in
-                    
-                        Button(action: {
-                            if selectedAreas.contains(area) {
-                                selectedAreas.remove(area)
-                            } else {
-                                selectedAreas.insert(area)
-                            }
-                        }) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: iconForArea(area))
-                                            .font(.system(size: 20))
-                                            .foregroundColor(selectedAreas.contains(area) ? .white : VenusTheme.darkGreen)
-                                        
-                                        Text(area)
-                                            .font(.headline)
-                                            .foregroundColor(selectedAreas.contains(area) ? .white : VenusTheme.text)
-                                    }
-                                    
-                                    Text(descriptionForArea(area))
-                                        .font(.caption)
-                                        .foregroundColor(selectedAreas.contains(area) ? .white.opacity(0.8) : VenusTheme.textSecondary)
-                                }
-                                .padding(8)
-                                
-                                Spacer()
-                                
-                                if selectedAreas.contains(area) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            .padding(12)
-                            .background(
-                                selectedAreas.contains(area) ? VenusTheme.darkGreen : VenusTheme.cardSurface
-                            )
-                            .cornerRadius(20)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(selectedAreas.contains(area) ? VenusTheme.darkGreen : VenusTheme.cardBorder, lineWidth: 1)
-                            )
-                            .contentShape(RoundedRectangle(cornerRadius: 20))
+                    OnboardingSelectionRow(
+                        title: area,
+                        detail: descriptionForArea(area),
+                        systemImage: iconForArea(area),
+                        isSelected: selectedAreas.contains(area),
+                        tint: VenusTheme.accentOrange
+                    ) {
+                        if selectedAreas.contains(area) {
+                            selectedAreas.remove(area)
+                        } else {
+                            selectedAreas.insert(area)
                         }
-                        .buttonStyle(PlainButtonStyle())
-                        .accessibilityLabel(area)
-                        .accessibilityAddTraits(selectedAreas.contains(area) ? [.isButton, .isSelected] : .isButton)
-                    
-                    .padding(.horizontal, 24)
+                    }
                 }
             }
         }
-        .padding(.top, 24)
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
         .padding(.bottom, 12)
         .onChange(of: selectedAreas) { _, newValue in
             userProfile.emotionalAreas = Array(newValue)

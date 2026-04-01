@@ -10,45 +10,65 @@ import SwiftUI
 struct VenusProgressBar: View {
     let currentStep: Int
     let totalSteps: Int
-    
+    var tint: Color = VenusTheme.primary
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var safeTotalSteps: Int { max(totalSteps, 1) }
+    private var safeCurrentStep: Int { min(max(currentStep, 1), safeTotalSteps) }
+
     private var progress: Double {
-        Double(currentStep) / Double(totalSteps)
+        Double(safeCurrentStep) / Double(safeTotalSteps)
     }
-    
+
+    private var trackColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.10)
+    }
+    private var fillColor: Color {
+        tint
+    }
+    private var textColor: Color {
+        colorScheme == .dark ? VenusTheme.textSecondary : VenusTheme.text
+    }
+    private var seenColor: Color {
+        tint.opacity(colorScheme == .dark ? 0.42 : 0.30)
+    }
+
     var body: some View {
         VStack(spacing: 8) {
-            // Progress Track
-            HStack {
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(Color.white.opacity(0.3))
-                            .frame(height: 12)
-                        
-                        Capsule()
-                            .fill(VenusTheme.darkGreen)
-                            .frame(width: max(0, geometry.size.width * CGFloat(progress)))
-                            .frame(height: 12)
-                            .shadow(color: .black.opacity(0.2), radius: 1.5, x: 2)
-                    }
+            HStack(spacing: 6) {
+                ForEach(0..<safeTotalSteps, id: \.self) { index in
+                    Capsule(style: .continuous)
+                        .fill(segmentColor(for: index))
+                        .frame(height: 4)
                 }
-                .frame(height: 12)
             }
-            .frame(maxWidth: .infinity)
-            
-            // Progress Text
+            .animation(.easeInOut(duration: 0.25), value: safeCurrentStep)
+
             HStack {
-                Text("Passo \(currentStep) de \(totalSteps)")
-                    .font(.caption2)
-                    .foregroundColor(VenusTheme.textSecondary)
+                Text("Passo \(safeCurrentStep) de \(safeTotalSteps)")
+                    .font(.system(.caption2, design: .rounded).weight(.medium))
+                    .foregroundColor(textColor.opacity(0.7))
                 Spacer()
                 Text("\(Int(progress * 100))%")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(VenusTheme.darkGreen)
-                    .frame(width: 35, alignment: .trailing)
+                    .font(.system(.caption2, design: .rounded).weight(.black))
+                    .foregroundColor(fillColor)
             }
         }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Progresso do onboarding")
+        .accessibilityValue("Passo \(safeCurrentStep) de \(safeTotalSteps)")
+        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .glassEffect(.clear.interactive())
+    }
+
+    private func segmentColor(for index: Int) -> Color {
+        let currentIndex = safeCurrentStep - 1
+        if index < currentIndex { return seenColor }
+        if index == currentIndex { return fillColor }
+        return trackColor
     }
 }
 

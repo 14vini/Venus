@@ -13,6 +13,9 @@ class UserProfileModel {
     @Attribute(.unique) var id: UUID
     var name: String
     var interests: [String]
+    var primaryGoal: String = ""
+    var coachingTone: String = ""
+    var dailyTimeBudgetMinutes: Int = 0
     var currentHobbies: [String]
     var desiredHobbies: [String]
     var improvementAreas: [String]
@@ -33,6 +36,9 @@ class UserProfileModel {
         self.id = UUID()
         self.name = profile.name
         self.interests = profile.interests
+        self.primaryGoal = profile.primaryGoal
+        self.coachingTone = profile.coachingTone
+        self.dailyTimeBudgetMinutes = profile.dailyTimeBudgetMinutes
         self.currentHobbies = profile.currentHobbies
         self.desiredHobbies = profile.desiredHobbies
         self.improvementAreas = profile.improvementAreas
@@ -52,6 +58,9 @@ class UserProfileModel {
         let profile = UserProfile()
         profile.name = name
         profile.interests = interests
+        profile.primaryGoal = primaryGoal
+        profile.coachingTone = coachingTone
+        profile.dailyTimeBudgetMinutes = dailyTimeBudgetMinutes
         profile.currentHobbies = currentHobbies
         profile.desiredHobbies = desiredHobbies
         profile.improvementAreas = improvementAreas

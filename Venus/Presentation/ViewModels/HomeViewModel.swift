@@ -45,7 +45,47 @@ enum DayOverDayTrendDirection: Equatable {
 
 @MainActor
 class HomeViewModel: ObservableObject {
-    @Published var hasCheckedInToday: Bool = false
+    // MARK: - Home UI state
+
+    @Published var showVenusChat: Bool = false
+    @Published var showChatHistory: Bool = false
+    @Published var showVenusProPlans: Bool = false
+    @Published var showWrapped: Bool = false
+    @Published var actionReasonAction: NextBestAction?
+
+    @Published var showCheckInHint: Bool = false
+    @Published var checkInPrefilledMood: MoodType?
+
+    // MARK: - Home preferences (UserDefaults)
+
+    @Published var preferHighImpactAction: Bool = false {
+        didSet { userDefaults.set(preferHighImpactAction, forKey: StorageKey.preferHighImpactAction) }
+    }
+
+    @Published var hasSeenCheckInFloatingHint: Bool = false {
+        didSet { userDefaults.set(hasSeenCheckInFloatingHint, forKey: StorageKey.hasSeenCheckInFloatingHint) }
+    }
+
+    @Published var hasSeenFirstLaunchGuide: Bool = false {
+        didSet { userDefaults.set(hasSeenFirstLaunchGuide, forKey: StorageKey.hasSeenFirstLaunchGuide) }
+    }
+
+    @Published var streakOverride: Int = 0 {
+        didSet { userDefaults.set(streakOverride, forKey: StorageKey.streakOverride) }
+    }
+
+    @Published var streakOverrideEnabled: Bool = false {
+        didSet { userDefaults.set(streakOverrideEnabled, forKey: StorageKey.streakOverrideEnabled) }
+    }
+
+    @Published private(set) var isPremiumTestEnabled: Bool = false
+
+    @Published var hasCheckedInToday: Bool = false {
+        didSet {
+            guard hasCheckedInToday != oldValue else { return }
+            presentCheckInHint()
+        }
+    }
     @Published var showMoodCheckIn: Bool = false
     @Published var showUpgradePrompt: Bool = false
     @Published var nextBestAction: NextBestAction?
@@ -72,9 +112,20 @@ class HomeViewModel: ObservableObject {
     @Published var dayOverDayTrend: DayOverDayTrendSummary?
     @Published var checkInStreakDays: Int = 0
     @Published var checkInsUsedToday: Int = 0
-    @Published var checkInAllowance: CheckInAllowance = .freeDefault
+    @Published var checkInAllowance: CheckInAllowance = .freeDefault {
+        didSet {
+            guard checkInAllowance.usedToday != oldValue.usedToday else { return }
+            presentCheckInHint()
+        }
+    }
     @Published var insightsErrorMessage: String?
-    @Published var isCriticalRiskNow: Bool = false
+    @Published var isCriticalRiskNow: Bool = false {
+        didSet {
+            if isCriticalRiskNow {
+                preferHighImpactAction = true
+            }
+        }
+    }
 
     var freePlanDailyLimit: Int { CheckInAllowance.defaultFreeDailyLimit }
 
@@ -82,6 +133,19 @@ class HomeViewModel: ObservableObject {
     private let checkInAllowanceUseCase: CheckInAllowanceUseCaseProtocol
     private let moodRepository: MoodRepositoryProtocol
     private let richEngine = RichRecommendationEngine()
+    private let userDefaults: UserDefaults
+
+    private var defaultsCancellable: AnyCancellable?
+    private var checkInHintSequence: Int = 0
+
+    private enum StorageKey {
+        static let preferHighImpactAction = "home.preferHighImpactAction"
+        static let hasSeenCheckInFloatingHint = "home.hasSeenCheckInFloatingHint"
+        static let hasSeenFirstLaunchGuide = "home.hasSeenFirstLaunchGuide"
+        static let streakOverride = "debug.streakOverride"
+        static let streakOverrideEnabled = "debug.streakOverrideEnabled"
+        static let planKey = LocalSubscriptionStatusProvider.planKey
+    }
 
     private var insightsTask: Task<Void, Never>?
     private var insightsRequestID = UUID()
@@ -89,11 +153,16 @@ class HomeViewModel: ObservableObject {
     init(
         patternEngineUseCase: PatternEngineUseCaseProtocol,
         checkInAllowanceUseCase: CheckInAllowanceUseCaseProtocol,
-        moodRepository: MoodRepositoryProtocol
+        moodRepository: MoodRepositoryProtocol,
+        userDefaults: UserDefaults = .standard
     ) {
         self.patternEngineUseCase = patternEngineUseCase
         self.checkInAllowanceUseCase = checkInAllowanceUseCase
         self.moodRepository = moodRepository
+        self.userDefaults = userDefaults
+
+        loadStoredPreferences()
+        observeSubscriptionChanges()
 
         Task {
             await checkIfCheckedIn()
@@ -102,6 +171,14 @@ class HomeViewModel: ObservableObject {
 
     deinit {
         insightsTask?.cancel()
+        defaultsCancellable?.cancel()
+    }
+
+    // MARK: - Lifecycle
+
+    func onAppear() {
+        loadStoredPreferences()
+        presentCheckInHint()
     }
 
     func checkInButtonTapped() {
@@ -132,6 +209,43 @@ class HomeViewModel: ObservableObject {
         Task {
             await refreshMoodStatus()
         }
+    }
+
+    func handleInlineMoodSelection(_ mood: MoodType) {
+        guard checkInAllowance.canCheckIn else {
+            showUpgradePrompt = true
+            return
+        }
+
+        checkInPrefilledMood = mood
+        showMoodCheckIn = true
+        if !hasSeenFirstLaunchGuide {
+            hasSeenFirstLaunchGuide = true
+        }
+    }
+
+    func handleCheckInAction() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+            showCheckInHint = false
+        }
+
+        if !hasSeenFirstLaunchGuide {
+            hasSeenFirstLaunchGuide = true
+        }
+
+        guard checkInAllowance.canCheckIn else {
+            showUpgradePrompt = true
+            return
+        }
+
+        checkInPrefilledMood = nil
+        showMoodCheckIn = true
+    }
+
+    func handleActionReasonTap() {
+        guard let action = displayedActionModel else { return }
+        actionReasonAction = action
+        showWrapped = true
     }
 
     func selectAlternativeAction(_ action: NextBestAction) {
@@ -598,5 +712,166 @@ class HomeViewModel: ObservableObject {
         }
 
         return riskScore >= 4
+    }
+
+    // MARK: - Derived presentation values
+
+    var dayMoment: DayMoment { .current }
+
+    var displayedStreakDays: Int {
+        streakOverrideEnabled ? streakOverride : checkInStreakDays
+    }
+
+    var heroSelectedMood: MoodType? {
+        todayMoodType ?? dayMoment.defaultMascotMood
+    }
+
+    var ritualProgressLabel: String {
+        let nextIndex = checkInAllowance.usedToday + 1
+        if checkInAllowance.isUnlimited {
+            return "Ritual \(nextIndex)/∞"
+        }
+
+        let limit = checkInAllowance.dailyLimit ?? freePlanDailyLimit
+        return "Ritual \(min(nextIndex, limit))/\(limit)"
+    }
+
+    var checkInStatusLabel: String {
+        hasCheckedInToday ? "feito hoje" : "pendente hoje"
+    }
+
+    var displayedActionModel: NextBestAction? {
+        guard let baseAction = nextBestAction else { return nil }
+        return preferHighImpactAction ? baseAction.asHighImpactVariant() : baseAction
+    }
+
+    var displayedAlternativeActions: [NextBestAction] {
+        alternativeActions.filter { $0.actionKey != nextBestAction?.actionKey }
+    }
+
+    var checkInFloatingButtonTitle: String {
+        if !hasCheckedInToday {
+            return "Fazer check-in"
+        }
+        if checkInAllowance.canCheckIn {
+            return "Novo check-in"
+        }
+        return "Mais check-ins"
+    }
+
+    var checkInFloatingButtonSubtitle: String {
+        if !hasCheckedInToday {
+            return "abre o check-in completo"
+        }
+        if checkInAllowance.canCheckIn {
+            return "abra uma nova atualização"
+        }
+        return "veja como liberar atualizações"
+    }
+
+    var checkInFloatingButtonIcon: String {
+        if !hasCheckedInToday {
+            return "heart.text.square.fill"
+        }
+        if checkInAllowance.canCheckIn {
+            return "plus.circle.fill"
+        }
+        return "crown.fill"
+    }
+
+    var checkInHintTitle: String {
+        if !hasCheckedInToday {
+            return "Comece o check-in aqui"
+        }
+        if checkInAllowance.canCheckIn {
+            return "Quer registrar um novo check-in?"
+        }
+        return "Seu check-in de hoje já está salvo"
+    }
+
+    var checkInHintBody: String {
+        if !hasSeenFirstLaunchGuide {
+            return "Comece por aqui. Ao tocar no humor ou no pop-up, eu abro o check-in completo em uma sheet."
+        }
+        if !hasSeenCheckInFloatingHint {
+            return "Esse botão de vidro abre o check-in completo sem pesar a Home."
+        }
+        if !hasCheckedInToday {
+            return "Leva poucos segundos e prepara a Home e a dashboard para o resto do dia."
+        }
+        if checkInAllowance.canCheckIn {
+            return "Se o seu dia mudou, toque aqui para abrir uma nova atualização do check-in."
+        }
+        return "No plano atual, novas atualizações ficam limitadas depois do primeiro check-in."
+    }
+
+    var homeHeadline: String {
+        if !hasCheckedInToday {
+            return dayMoment.greeting
+        }
+
+        let streak = displayedStreakDays
+        switch streak {
+        case 3: return "⚡️ 3 dias seguidos! Você está criando um hábito real."
+        case 7: return "🔥 Uma semana inteira! Isso é consistência de verdade."
+        case 14: return "⭐️ Duas semanas! Seu ritmo está mais forte do que nunca."
+        case 30: return "🏆 30 dias! Você transformou isso em parte da sua vida."
+        default: break
+        }
+
+        switch todayMoodType {
+        case .stressed: return "Ainda pesado por aí? Me conta como evoluiu."
+        case .tired: return "Descansou um pouco? Atualiza quando quiser."
+        case .sad: return "Como você está agora? Pode me contar."
+        case .happy: return "Boa energia! Ainda assim por aí?"
+        case .calm: return "Ainda tranquilo? Ou o dia mudou?"
+        case .energetic: return "Ainda com energia? Me conta como tá indo."
+        case nil: return dayMoment.greeting
+        }
+    }
+
+    // MARK: - Private helpers
+
+    private func loadStoredPreferences() {
+        isPremiumTestEnabled = userDefaults.bool(forKey: StorageKey.planKey)
+        preferHighImpactAction = userDefaults.bool(forKey: StorageKey.preferHighImpactAction)
+        hasSeenCheckInFloatingHint = userDefaults.bool(forKey: StorageKey.hasSeenCheckInFloatingHint)
+        hasSeenFirstLaunchGuide = userDefaults.bool(forKey: StorageKey.hasSeenFirstLaunchGuide)
+        streakOverride = userDefaults.integer(forKey: StorageKey.streakOverride)
+        streakOverrideEnabled = userDefaults.bool(forKey: StorageKey.streakOverrideEnabled)
+    }
+
+    private func observeSubscriptionChanges() {
+        defaultsCancellable = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification, object: userDefaults)
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    guard let self else { return }
+                    let latest = self.userDefaults.bool(forKey: StorageKey.planKey)
+                    guard latest != self.isPremiumTestEnabled else { return }
+                    self.isPremiumTestEnabled = latest
+                    self.refreshAfterPlanToggle()
+                }
+            }
+    }
+
+    private func presentCheckInHint() {
+        checkInHintSequence += 1
+        let sequence = checkInHintSequence
+
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.88)) {
+            showCheckInHint = true
+        }
+
+        hasSeenCheckInFloatingHint = true
+
+        guard hasSeenFirstLaunchGuide else { return }
+
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard sequence == checkInHintSequence else { return }
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.92)) {
+                showCheckInHint = false
+            }
+        }
     }
 }

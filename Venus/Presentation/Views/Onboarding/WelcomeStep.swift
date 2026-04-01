@@ -11,6 +11,8 @@ struct WelcomeStep: View {
     @Binding var userProfile: UserProfile
     var onSubmit: (() -> Void)? = nil
 
+    @Environment(\.colorScheme) private var colorScheme
+
     @State private var inputName: String = ""
     @State private var showGreeting = false
     @FocusState private var isInputFocused: Bool
@@ -18,7 +20,7 @@ struct WelcomeStep: View {
     var body: some View {
         VStack(spacing: 0) {
             // Mascot
-            VenusMoodMascotOrb(mood: .happy, size: 200)
+            VenusMascot3DCute(mood: .happy, size: 240)
                 .padding(.top, 8)
                 .opacity(showGreeting ? 1 : 0)
                 .scaleEffect(showGreeting ? 1 : 0.82)
@@ -51,9 +53,9 @@ struct WelcomeStep: View {
 
                     TextField("Digite seu nome", text: $inputName)
                         .padding(16)
-                        .background(VenusTheme.chipBackground)
-                        .cornerRadius(12)
+                        .background(nameFieldBackground)
                         .foregroundColor(VenusTheme.text)
+                        .tint(VenusTheme.primary)
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled(true)
                         .submitLabel(.next)
@@ -89,6 +91,25 @@ struct WelcomeStep: View {
         .onDisappear {
             commitName()
         }
+    }
+
+    private var nameFieldBackground: some View {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .opacity(colorScheme == .dark ? 0.70 : 0.96)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(LinearGradient(
+                        colors: [
+                            Color.white.opacity(colorScheme == .dark ? 0.12 : 0.22),
+                            Color.clear,
+                            Color.white.opacity(colorScheme == .dark ? 0.06 : 0.10)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                    .blendMode(.overlay)
+            )
     }
 
     private func commitName() {

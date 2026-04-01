@@ -245,6 +245,12 @@ private struct InsightGaugeView: View {
     let tint: Color
     @State private var appeared = false
 
+    private var label: String {
+        if value >= 0.7 { return "alto" }
+        if value >= 0.45 { return "médio" }
+        return "baixo"
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             ZStack {
@@ -264,16 +270,22 @@ private struct InsightGaugeView: View {
                     .foregroundColor(tint)
             }
 
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(tint.opacity(0.12))
-                    Capsule()
-                        .fill(LinearGradient(colors: [tint.opacity(0.5), tint], startPoint: .leading, endPoint: .trailing))
-                        .frame(width: appeared ? max(12, geo.size.width * value) : 0)
-                        .animation(.spring(response: 0.8, dampingFraction: 0.75).delay(0.1), value: appeared)
+            VStack(alignment: .leading, spacing: 2) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(tint.opacity(0.12))
+                        Capsule()
+                            .fill(LinearGradient(colors: [tint.opacity(0.5), tint], startPoint: .leading, endPoint: .trailing))
+                            .frame(width: appeared ? max(12, geo.size.width * value) : 0)
+                            .animation(.spring(response: 0.8, dampingFraction: 0.75).delay(0.1), value: appeared)
+                    }
                 }
+                .frame(height: 6)
+
+                Text(label)
+                    .font(.system(.caption2, design: .rounded).weight(.bold))
+                    .foregroundColor(tint)
             }
-            .frame(height: 6)
         }
         .onAppear { appeared = true }
     }
@@ -293,28 +305,55 @@ private struct InsightSparklineView: View {
         values.enumerated().map { SparkPoint(id: $0.offset, value: $0.element) }
     }
 
-    var body: some View {
-        Chart(points) { point in
-            AreaMark(
-                x: .value("Dia", point.id),
-                y: .value("Val", appeared ? point.value : 0)
-            )
-            .interpolationMethod(.catmullRom)
-            .foregroundStyle(tint.opacity(0.15))
+    private var trend: String {
+        guard let first = values.first, let last = values.last else { return "" }
+        let delta = last - first
+        if delta > 0.05 { return "↗ subindo" }
+        if delta < -0.05 { return "↘ caindo" }
+        return "→ estável"
+    }
+    private var trendColor: Color {
+        guard let first = values.first, let last = values.last else { return VenusTheme.textSecondary }
+        let delta = last - first
+        if delta > 0.05 { return tint }
+        if delta < -0.05 { return VenusTheme.accentPink }
+        return VenusTheme.textSecondary
+    }
 
-            LineMark(
-                x: .value("Dia", point.id),
-                y: .value("Val", appeared ? point.value : 0)
-            )
-            .interpolationMethod(.catmullRom)
-            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-            .foregroundStyle(tint)
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Chart(points) { point in
+                AreaMark(
+                    x: .value("Dia", point.id),
+                    y: .value("Val", appeared ? point.value : 0)
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(tint.opacity(0.15))
+
+                LineMark(
+                    x: .value("Dia", point.id),
+                    y: .value("Val", appeared ? point.value : 0)
+                )
+                .interpolationMethod(.catmullRom)
+                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                .foregroundStyle(tint)
+            }
+            .chartXAxis(.hidden)
+            .chartYAxis(.hidden)
+            .frame(height: 32)
+            .animation(.spring(response: 0.9, dampingFraction: 0.8), value: appeared)
+            .onAppear { appeared = true }
+
+            HStack {
+                Text("7 dias")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundColor(VenusTheme.textSecondary)
+                Spacer()
+                Text(trend)
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundColor(trendColor)
+            }
         }
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .frame(height: 36)
-        .animation(.spring(response: 0.9, dampingFraction: 0.8), value: appeared)
-        .onAppear { appeared = true }
     }
 }
 

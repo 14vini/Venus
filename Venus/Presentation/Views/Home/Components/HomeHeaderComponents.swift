@@ -19,52 +19,40 @@ struct HomeHeaderSection: View {
     let supportText: String
     let streakDays: Int
     let highlights: [HomeHeaderHighlight]
+    let mood: MoodType?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 18) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(title)
-                        .font(.system(size: 34, weight: .black, design: .rounded))
-                        .foregroundColor(VenusTheme.text)
-                        .fixedSize(horizontal: false, vertical: true)
+            // Mascot + speech bubble
+            HStack(alignment: .bottom, spacing: 0) {
+                VenusMoodMascotOrb(mood: mood, size: 88)
+                    .offset(y: 8)
 
-                    Text(supportText)
-                        .font(.system(.footnote, design: .rounded).weight(.medium))
-                        .foregroundColor(VenusTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                VenusFloatingHintBubble(
+                    title: title,
+                    bodyText: supportText,
+                    maxWidth: .infinity
+                )
+                .frame(maxWidth: .infinity)
+            }
 
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 10) {
-                    VenusIllustrationCluster(
-                        symbols: [
-                            VenusIllustrationSymbol(systemName: "sparkles", tint: VenusTheme.accentOrange, size: 18),
-                            VenusIllustrationSymbol(systemName: "heart.fill", tint: VenusTheme.accentPink, size: 16),
-                            VenusIllustrationSymbol(systemName: "chart.line.uptrend.xyaxis", tint: VenusTheme.accentBlue, size: 14)
-                        ],
-                        width: 112,
-                        height: 96
-                    )
-
+            // Streak + pills
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    // Streak destacado
                     HStack(spacing: 6) {
                         Image(systemName: "flame.fill")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(VenusTheme.accentOrange)
-                        Text("\(streakDays) dias")
-                            .font(.system(.caption, design: .rounded).weight(.semibold))
-                            .foregroundColor(VenusTheme.textSecondary)
+                        Text("\(streakDays) dias seguidos")
+                            .font(.system(.caption, design: .rounded).weight(.bold))
+                            .foregroundColor(VenusTheme.text)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(VenusTheme.accentOrange.opacity(0.08))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(VenusTheme.accentOrange.opacity(0.12))
                     .clipShape(Capsule())
-                }
-            }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
                     ForEach(highlights) { highlight in
                         HomeHeaderPill(highlight: highlight)
                     }

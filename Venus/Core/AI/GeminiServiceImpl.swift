@@ -50,10 +50,14 @@ class GeminiServiceImpl: GeminiServiceProtocol {
     
     private func buildSuggestionPrompt(mood: MoodType, userContext: UserProfile) -> String {
         var prompt = """
-        Você é o Venus, um assistente de bem-estar terapêutico (mas não terapia).
+        Você é a Venus, um assistente de bem-estar terapêutico (mas não terapia).
         
         Usuário: \(userContext.name)
         Humor atual: \(mood.rawValue) (\(mood.emoji))
+
+        Foco atual: \(userContext.primaryGoal.isEmpty ? "não informado" : userContext.primaryGoal)
+        Tom preferido: \(userContext.coachingTone.isEmpty ? "não informado" : userContext.coachingTone)
+        Tempo por dia: \(userContext.dailyTimeBudgetMinutes == 0 ? "não informado" : "\(userContext.dailyTimeBudgetMinutes) minutos")
         
         Interesses: \(userContext.interests.joined(separator: ", "))
         Hobbies atuais: \(userContext.currentHobbies.joined(separator: ", "))
@@ -62,9 +66,9 @@ class GeminiServiceImpl: GeminiServiceProtocol {
         Com base no humor e perfil do usuário, sugira UMA atividade específica e personalizada que:
         1. Ajude com o humor atual
         2. Se alinhe com os interesses dele
-        3. Seja prática e possível de fazer agora
+        3. Seja prática e possível de fazer agora (respeitando o tempo por dia)
         
-        Responda em formato curto (máximo 3 linhas), começando direto com a sugestão.
+        Responda em formato curto, começando direto com a sugestão, e se o usuraio precisar, seja pé no chão.
         Exemplo: "Que tal fazer uma respiração 4-7-8 por 5 minutos? Vai ajudar a acalmar a ansiedade."
         """
         

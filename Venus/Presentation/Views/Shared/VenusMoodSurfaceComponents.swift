@@ -29,23 +29,34 @@ struct VenusGlassPill: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
         .background(
-            Capsule()
-                .fill(colorScheme == .dark ? Color(hex: "1E2E20").opacity(0.95) : Color.white.opacity(0.94))
+            Capsule(style: .continuous)
+                .fill(.ultraThinMaterial)
+                .opacity(colorScheme == .dark ? 0.72 : 0.92)
                 .overlay(
-                    Capsule()
-                        .stroke(
-                            colorScheme == .dark ? Color(hex: "2E4A32").opacity(0.8) : VenusTheme.moodSage.opacity(0.7),
-                            lineWidth: 1
-                        )
+                    Capsule(style: .continuous)
+                        .fill(tint.opacity(colorScheme == .dark ? 0.10 : 0.06))
+                        .blendMode(.overlay)
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .fill(LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.14 : 0.22),
+                                Color.clear,
+                                Color.white.opacity(colorScheme == .dark ? 0.06 : 0.10)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        .blendMode(.overlay)
                 )
         )
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.22 : 0.06), radius: 10, x: 0, y: 6)
     }
 }
 
 struct VenusFloatingHintBubble: View {
     let title: String
-    let bodyText: String
+    var bodyText: String = ""
     var systemImage: String? = nil
     var tint: Color = VenusTheme.moodMintStrong
     var maxWidth: CGFloat = 230
@@ -64,16 +75,18 @@ struct VenusFloatingHintBubble: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: bodyText.isEmpty ? 0 : 8) {
                 Text(title)
                     .font(.system(.footnote, design: .rounded).weight(.bold))
                     .foregroundColor(VenusTheme.text)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text(bodyText)
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundColor(VenusTheme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if !bodyText.isEmpty {
+                    Text(bodyText)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundColor(VenusTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
         .padding(14)
@@ -161,11 +174,11 @@ struct VenusMoodMascotOrb: View {
         ZStack {
             // Ambient glow
             Circle()
-                .fill(glowColor.opacity(0.22))
-                .frame(width: size * 1.08, height: size * 1.08)
-                .blur(radius: 26)
+                .fill(glowColor.opacity(0.28))
+                .frame(width: size * 1.12, height: size * 1.12)
+                .blur(radius: 32)
                 .scaleEffect(animateFloat ? 1.03 : 0.97)
-                .animation(.easeInOut(duration: 0.7), value: mood)
+                .animation(.spring(response: 0.55, dampingFraction: 0.7), value: mood)
 
             mascotEar(rotation: -26)
                 .offset(x: -size * 0.22, y: -size * 0.38)
@@ -196,7 +209,7 @@ struct VenusMoodMascotOrb: View {
                         Circle()
                             .stroke(Color.white.opacity(0.5), lineWidth: 1.2)
                     )
-                    .animation(.easeInOut(duration: 0.7), value: mood)
+                    .animation(.spring(response: 0.45, dampingFraction: 0.62), value: mood)
 
                 Circle()
                     .fill(Color.white.opacity(0.22))
@@ -230,7 +243,7 @@ struct VenusMoodMascotOrb: View {
             )
             .frame(width: size * 0.11, height: size * 0.24)
             .rotationEffect(.degrees(rotation + (animateFloat ? 4 : -4)))
-            .animation(.easeInOut(duration: 0.7), value: mood)
+            .animation(.spring(response: 0.45, dampingFraction: 0.62), value: mood)
     }
 
     private func mascotArm(rotation: Double) -> some View {
@@ -243,7 +256,7 @@ struct VenusMoodMascotOrb: View {
             .frame(width: size * 0.13, height: size * 0.34)
             .rotationEffect(.degrees(rotation + (animateFloat ? 10 : -8)))
             .offset(y: animateFloat ? -4 : 4)
-            .animation(.easeInOut(duration: 0.7), value: mood)
+            .animation(.spring(response: 0.45, dampingFraction: 0.62), value: mood)
     }
 }
 

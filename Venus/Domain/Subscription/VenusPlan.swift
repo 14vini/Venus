@@ -13,7 +13,7 @@ enum VenusPlan: String, Codable, Sendable {
 }
 
 struct CheckInAllowance: Sendable {
-    static let defaultFreeDailyLimit = 3
+    static let defaultFreeDailyLimit = 1
 
     let plan: VenusPlan
     let dailyLimit: Int?

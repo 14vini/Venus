@@ -135,6 +135,15 @@ class VenusAIService: VenusAIServiceProtocol {
         if let profile = profile {
             context += "[Info do Perfil: "
             context += "Nome: \(profile.name), "
+            if !profile.primaryGoal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                context += "Foco: \(profile.primaryGoal), "
+            }
+            if !profile.coachingTone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                context += "Tom: \(profile.coachingTone), "
+            }
+            if profile.dailyTimeBudgetMinutes > 0 {
+                context += "Tempo/dia: \(profile.dailyTimeBudgetMinutes)min, "
+            }
             context += "Interesses: \(profile.interests.joined(separator: ", ")), "
             context += "Áreas de melhoria: \(profile.improvementAreas.joined(separator: ", "))"
             context += "] "

@@ -13,7 +13,13 @@ struct HomeImmersiveCheckInHeroSection: View {
     let progressLabel: String
     let statusLabel: String
     let isSelectionLocked: Bool
+    let mascotSpeech: String
+    let moodIntensity: Int?
     let onSelectMood: (MoodType) -> Void
+
+    @State private var shownMood: MoodType? = nil
+    @State private var mascotPulse: CGFloat = 1
+    @State private var mascotOpacity: Double = 1
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -22,95 +28,319 @@ struct HomeImmersiveCheckInHeroSection: View {
     ]
 
     var body: some View {
-        VStack(spacing: 24) {
-            HStack(spacing: 10) {
-                VenusGlassPill(
-                    title: progressLabel,
-                    systemImage: "sparkles"
-                )
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 16) {
+                // Mascot speech bubble + orb + waveform
+                VStack(spacing: 0) {
+                    MascotSpeechBubble(text: mascotSpeech)
+                        .padding(.bottom, -4)
+                        .zIndex(1)
 
-                if let selectedMood {
-                    VenusGlassPill(
-                        title: selectedMood.rawValue,
-                        systemImage: "checkmark.circle.fill",
-                        tint: Color(hex: selectedMood.colorHex)
+                    VenusMoodMascotOrb(
+                        mood: shownMood,
+                        size: 240
                     )
-                } else {
-                    VenusGlassPill(
-                        title: statusLabel,
-                        systemImage: hasCheckedInToday ? "heart.fill" : "circle.dashed",
-                        tint: hasCheckedInToday ? VenusTheme.accentGreen : VenusTheme.moodMintStrong
+                    .scaleEffect(mascotPulse)
+                    .opacity(mascotOpacity)
+                    .animation(.spring(response: 0.45, dampingFraction: 0.62), value: shownMood)
+
+                    MascotMoodWaveform(
+                        mood: shownMood,
+                        intensity: moodIntensity
                     )
+                    .padding(.top, 2)
                 }
-            }
 
-            VenusMoodMascotOrb(
-                mood: selectedMood,
-                size: 250
-            )
-                .padding(.top, 6)
-
-            VStack(spacing: 10) {
-                Text("Como você está\nse sentindo agora?")
-                    .font(.system(size: 38, weight: .black, design: .serif))
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(VenusTheme.text)
-
-                Text(heroSubtitle)
-                    .font(.system(.subheadline, design: .rounded).weight(.medium))
-                    .foregroundColor(VenusTheme.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            VenusMoodWaveform()
-
-            LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(MoodType.allCases, id: \.self) { mood in
-                    HomeFeelingChip(
-                        title: mood.rawValue,
-                        isSelected: selectedMood == mood,
-                        tint: Color(hex: mood.colorHex),
-                        action: {
-                            guard !isSelectionLocked else { return }
-                            onSelectMood(mood)
+                if !hasCheckedInToday {
+                    LazyVGrid(columns: columns, spacing: 10) {
+                        ForEach(MoodType.allCases, id: \.self) { mood in
+                            HomeFeelingChip(
+                                title: mood.rawValue,
+                                isSelected: shownMood == mood,
+                                tint: Color(hex: mood.colorHex),
+                                action: { handleMoodTap(mood) }
+                            )
                         }
-                    )
-                    .allowsHitTesting(!isSelectionLocked)
+                    }
+
+                    Text("Escolha o estado mais próximo e eu abro o check-in completo para você.")
+                        .font(.system(.footnote, design: .rounded))
+                        .foregroundColor(VenusTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-
-            if isSelectionLocked {
-                Text("Seu check-in de hoje já está salvo. Toque no pop-up de vidro para ver como liberar mais atualizações.")
-                    .font(.system(.footnote, design: .rounded))
-                    .foregroundColor(VenusTheme.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text(hasCheckedInToday
-                     ? "Escolha a emoção mais próxima do agora e eu abro uma nova atualização do check-in."
-                     : "Escolha o estado mais próximo e eu abro o check-in completo para você.")
-                    .font(.system(.footnote, design: .rounded))
-                    .foregroundColor(VenusTheme.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
+            .frame(maxWidth: .infinity, minHeight: 480)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 16)
-        .frame(maxWidth: .infinity, minHeight: 620)
+        .onAppear { shownMood = selectedMood }
+        .onChange(of: selectedMood) { _, new in shownMood = new }
     }
 
-    private var heroSubtitle: String {
-        if isSelectionLocked {
-            return "Seu estado de hoje já foi salvo. Quando quisermos, a gente libera novas atualizações."
+    private func handleMoodTap(_ mood: MoodType) {
+        // Fase 1: encolhe e dissolve suavemente (o orb "absorve" a emoção)
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+            mascotPulse = 0.88
+            mascotOpacity = 0.0
         }
 
-        if hasCheckedInToday {
-            return "Escolha a opção mais próxima para abrir uma nova atualização do check-in."
+        // Fase 2: troca o mood no meio da transição (invisível)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            shownMood = mood
         }
 
-        return "Escolha a opção mais próxima e eu abro o check-in completo para você."
+        // Fase 3: expande de volta com a nova cor — efeito de "renascimento"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.58)) {
+                mascotPulse = 1.06
+                mascotOpacity = 1.0
+            }
+        }
+
+        // Fase 4: assenta no tamanho normal
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.52) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                mascotPulse = 1.0
+            }
+        }
+
+        // Fase 5: abre o check-in depois que o usuário viu a reação
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.62) {
+            onSelectMood(mood)
+        }
+    }
+
+    private var heroSubtitle: String { "" }
+}
+
+// MARK: - Streak Badge
+
+struct StreakBadge: View {
+    let days: Int
+    let celebrated: Bool
+
+    @State private var animateFlame = false
+    @State private var burstScale: CGFloat = 1
+    @State private var showConfetti = false
+    @State private var orbPulse = false
+
+    private var milestone: Int? {
+        [3, 7, 14, 30].first { $0 == days }
+    }
+
+    private var milestoneLabel: String? {
+        guard let m = milestone else { return nil }
+        switch m {
+        case 3:  return "⚡️ 3 dias!"
+        case 7:  return "🔥 1 semana!"
+        case 14: return "⭐️ 2 semanas!"
+        case 30: return "🏆 1 mês!"
+        default: return nil
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            // Confetti burst no milestone
+            if showConfetti {
+                ConfettiBurst()
+                    .allowsHitTesting(false)
+            }
+
+            VStack(spacing: 2) {
+                HStack(spacing: 5) {
+                    Image(systemName: celebrated ? "flame.fill" : "flame")
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundColor(VenusTheme.accentOrange)
+                        .scaleEffect(animateFlame ? 1.2 : 1.0)
+                        .rotationEffect(.degrees(animateFlame ? 10 : -10))
+
+                    Text("\(days)")
+                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .foregroundColor(VenusTheme.text)
+                        .scaleEffect(burstScale)
+                }
+
+                if let label = milestoneLabel, celebrated {
+                    Text(label)
+                        .font(.system(.caption2, design: .rounded).weight(.black))
+                        .foregroundColor(VenusTheme.accentOrange)
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+        }
+        .onAppear { triggerIfNeeded() }
+        .onChange(of: celebrated) { _, _ in triggerIfNeeded() }
+        .onChange(of: days) { _, _ in triggerIfNeeded() }
+    }
+
+    private func triggerIfNeeded() {
+        guard celebrated else {
+            animateFlame = false
+            return
+        }
+
+        // Burst de escala
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) { burstScale = 1.35 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { burstScale = 1.0 }
+        }
+
+        // Chama animação por 1 segundo e para
+        withAnimation(.easeInOut(duration: 0.25).repeatCount(4, autoreverses: true)) {
+            animateFlame = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            withAnimation(.default) { animateFlame = false }
+        }
+
+        // Confetti apenas nos milestones
+        if milestone != nil {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                showConfetti = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                withAnimation { showConfetti = false }
+            }
+        }
+    }
+}
+
+// MARK: - Confetti Burst
+
+private struct ConfettiBurst: View {
+    private struct Particle: Identifiable {
+        let id = UUID()
+        let color: Color
+        let angle: Double
+        let distance: CGFloat
+        let size: CGFloat
+        let rotation: Double
+    }
+
+    private let particles: [Particle] = (0..<18).map { i in
+        let colors: [Color] = [
+            VenusTheme.accentOrange, VenusTheme.accentPink,
+            VenusTheme.accentBlue, VenusTheme.accentGreen,
+            VenusTheme.accentPurple, Color(hex: "FFD580")
+        ]
+        return Particle(
+            color: colors[i % colors.count],
+            angle: Double(i) * (360.0 / 18),
+            distance: CGFloat.random(in: 28...56),
+            size: CGFloat.random(in: 5...9),
+            rotation: Double.random(in: 0...360)
+        )
+    }
+
+    @State private var exploded = false
+
+    var body: some View {
+        ZStack {
+            ForEach(particles) { p in
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(p.color)
+                    .frame(width: p.size, height: p.size * 1.6)
+                    .rotationEffect(.degrees(p.rotation))
+                    .offset(
+                        x: exploded ? cos(p.angle * .pi / 180) * p.distance : 0,
+                        y: exploded ? sin(p.angle * .pi / 180) * p.distance - 10 : 0
+                    )
+                    .opacity(exploded ? 0 : 1)
+                    .animation(
+                        .spring(response: 0.5, dampingFraction: 0.6).delay(Double.random(in: 0...0.1)),
+                        value: exploded
+                    )
+            }
+        }
+        .onAppear {
+            withAnimation { exploded = true }
+        }
+    }
+}
+
+// MARK: - Mascot Speech Bubble
+
+private struct MascotSpeechBubble: View {
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            ZStack(alignment: .bottomLeading) {
+                // Bubble body
+                Text(text)
+                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                    .foregroundColor(VenusTheme.text)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(VenusTheme.cardSurface)
+                            .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 4)
+                    )
+                    .padding(.bottom, 10)
+
+                // Rabo do balão apontando para baixo-esquerda
+                SpeechBubbleTail()
+                    .fill(VenusTheme.cardSurface)
+                    .frame(width: 16, height: 10)
+                    .padding(.leading, 20)
+            }
+            .frame(maxWidth: 260, alignment: .leading)
+
+            Spacer()
+        }
+    }
+}
+
+private struct SpeechBubbleTail: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX - 9, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.midX + 9, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+// MARK: - Mascot Mood Waveform
+
+private struct MascotMoodWaveform: View {
+    let mood: MoodType?
+    let intensity: Int? // 1-10
+
+    private var tint: Color {
+        guard let mood else { return VenusTheme.moodMintStrong }
+        return Color(hex: mood.orbColors.mid)
+    }
+
+    private var secondaryTint: Color {
+        guard let mood else { return VenusTheme.moodMint }
+        return Color(hex: mood.orbColors.light)
+    }
+
+    // Altura máxima das barras escala com intensidade (1-10 → 0.3-1.0)
+    private var heightScale: Double {
+        guard let intensity else { return 0.45 }
+        return 0.3 + (Double(intensity) / 10.0) * 0.7
+    }
+
+    private var barHeights: [CGFloat] {
+        let base: [CGFloat] = [14, 20, 30, 44, 58, 72, 84, 72, 58, 44, 30, 20, 14]
+        return base.map { $0 * heightScale }
+    }
+
+    var body: some View {
+        VenusMoodWaveform(
+            tint: tint,
+            secondaryTint: secondaryTint,
+            barHeights: barHeights
+        )
     }
 }
 
@@ -202,237 +432,254 @@ struct HomeReflectionsPreviewSection: View {
     let isLoadingInsights: Bool
     var onReasonTap: (() -> Void)? = nil
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Reflexões")
-                        .font(.system(size: 30, weight: .black, design: .serif))
-                        .foregroundColor(VenusTheme.text)
+        VStack(alignment: .leading, spacing: 16) {
+            // Cabeçalho
+            HStack(alignment: .center) {
+                Text("Reflexões")
+                    .font(.system(size: 26, weight: .black, design: .serif))
+                    .foregroundColor(VenusTheme.text)
 
-                    Text(isLoadingInsights ? "Analisando seu momento..." : "Leitura do seu dia.")
-                        .font(.system(.footnote, design: .rounded))
-                        .foregroundColor(VenusTheme.textSecondary)
+                Spacer()
+
+                if isLoadingInsights {
+                    ProgressView()
+                        .tint(VenusTheme.moodMintStrong)
+                        .scaleEffect(0.8)
                 }
-
-                Spacer(minLength: 12)
-
-                VenusGlassPill(
-                    title: isLoadingInsights ? "Analisando" : "Prévia",
-                    systemImage: isLoadingInsights ? "hourglass" : "sparkles"
-                )
             }
 
-            // Lead card — direction of the day
-            HomeReflectionLeadCard(
-                title: leadTitle,
-                detail: leadDetail,
-                eyebrow: leadEyebrow,
-                pills: leadPills,
-                onReasonTap: action != nil ? onReasonTap : nil
+            // Narrativa principal
+            ReflectionNarrativeCard(
+                narrative: narrative,
+                tint: narrativeTint,
+                isLoading: isLoadingInsights
             )
 
-            // Metric scroll row
-//            HomeReflectionMetricRow(
-//                moodValue: moodValue,
-//                intensityDetail: intensityDetail,
-//                triggerValue: affectedArea?.rawValue ?? dominantTriggerValue,
-//                triggerDetail: triggerDetail,
-//                windowValue: weeklyInsights?.criticalWindow ?? "Em leitura",
-//                windowDetail: actionTimingDetail,
-//                actionValue: action?.title ?? "Em preparação",
-//                actionDetail: actionDetail
-//            )
-
-            // Weekly trend
-            HomeReflectionsWeeklyCard(
-                title: weeklyTrend?.direction.title ?? "Comparativo semanal",
-                detail: weeklyTrend?.summary ?? "Quando houver histórico suficiente, esse bloco mostra se sua semana está melhorando, estável ou pedindo mais cuidado.",
-                previousValue: weeklyTrend?.previousWeekScore,
-                currentValue: weeklyTrend?.currentWeekScore
-            )
-
-            // Priority items as a clean vertical stack
-            VStack(alignment: .leading, spacing: 10) {
-                Text("O que acompanhar agora")
-                    .font(.system(.subheadline, design: .rounded).weight(.bold))
-                    .foregroundColor(VenusTheme.textSecondary)
-
-                ForEach(priorityItems) { item in
-                    HomeReflectionPriorityRow(item: item)
-                }
+            // Card de ação — só aparece quando há ação
+            if let action {
+                ReflectionActionCard(
+                    action: action,
+                    onTap: onReasonTap
+                )
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var moodValue: String {
-        mood?.rawValue ?? "Sem check-in"
-    }
+    // MARK: - Narrativa gerada a partir dos dados
 
-    private var intensityDetail: String {
-        guard let intensity else { return "Quando você salvar, a intensidade aparece aqui" }
-        return "Intensidade \(intensity)/10"
-    }
+    private var narrative: String {
+        guard !isLoadingInsights else {
+            return "Estou lendo os seus sinais e montando uma leitura do seu momento agora..."
+        }
 
-    private var dominantTriggerValue: String {
-        weeklyInsights?.dominantTrigger ?? tags.first ?? "Ainda vamos descobrir"
-    }
+        guard mood != nil else {
+            return "Quando você fizer o check-in, eu transformo tudo isso em uma leitura do seu dia — em uma frase só."
+        }
 
-    private var triggerDetail: String {
-        if let patternAlert {
-            return patternAlert.detail
-        }
-        if let focus = weeklyInsights?.behavioralFocus {
-            return focus
-        }
-        return "Os gatilhos e as notas do check-in vão alimentar esse bloco."
-    }
+        var parts: [String] = []
 
-    private var controlDetail: String {
-        if let worstPattern = weeklyInsights?.worstRecurringPattern {
-            return worstPattern
-        }
-        return "Sono, controle e sinais do corpo entram aqui."
-    }
-
-    private var actionTimingDetail: String {
-        if let action {
-            return "\(action.estimatedMinutes) min para começar com direção."
-        }
-        return controlDetail
-    }
-
-    private var actionDetail: String {
-        if let action {
-            return action.strategicReason
-        }
-        if isLoadingInsights {
-            return "Estou calculando sua leitura visual do dia."
-        }
-        return "Vai mostrar a recomendação principal e o motivo."
-    }
-
-    private var leadEyebrow: String {
-        if isLoadingInsights {
-            return "Leitura em andamento"
-        }
-        if action != nil {
-            return "Direção do dia"
-        }
-        return "Painel executivo"
-    }
-
-    private var leadTitle: String {
-        if let action {
-            return action.title
-        }
-        if let weeklyInsights {
-            return weeklyInsights.behavioralFocus
-        }
-        return "Complete o check-in para liberar uma direção mais clara para o seu dia."
-    }
-
-    private var leadDetail: String {
-        if let action {
-            return action.strategicReason
-        }
-        if let alert = patternAlert {
-            return alert.detail
-        }
-        if let weeklyTrend {
-            return weeklyTrend.summary
-        }
-        return "Aqui vamos resumir, em uma única leitura, o que mais importa agora: estado, risco principal, janela de ação e o próximo passo."
-    }
-
-    private var leadPills: [String] {
-        var pills: [String] = []
-
+        // Abertura com o estado atual
         if let mood {
-            pills.append(mood.rawValue)
-        }
-        if let energyLevel {
-            pills.append("Energia \(energyLevel.rawValue.lowercased())")
-        }
-        if let affectedArea {
-            pills.append(affectedArea.rawValue)
-        } else if let firstTag = tags.first {
-            pills.append(firstTag)
-        }
-
-        if let window = weeklyInsights?.criticalWindow {
-            pills.append(window)
-        }
-
-        return Array(pills.prefix(4))
-    }
-
-    private var priorityItems: [HomeReflectionPriorityItemData] {
-        var items: [HomeReflectionPriorityItemData] = []
-
-        if let patternAlert {
-            items.append(
-                HomeReflectionPriorityItemData(
-                    title: "Observe esse padrão",
-                    detail: patternAlert.detail,
-                    tint: VenusTheme.primary
-                )
-            )
-        } else {
-            items.append(
-                HomeReflectionPriorityItemData(
-                    title: "O que mais pesa agora",
-                    detail: triggerDetail,
-                    tint: VenusTheme.accentBlue
-                )
-            )
+            switch mood {
+            case .happy:
+                parts.append("Você está com uma energia boa hoje.")
+            case .calm:
+                parts.append("Hoje você parece mais tranquilo, num ritmo mais suave.")
+            case .energetic:
+                parts.append("Você está com bastante energia agora.")
+            case .stressed:
+                parts.append("Hoje está pesado — você está sentindo pressão.")
+            case .sad:
+                parts.append("Hoje parece um dia mais difícil para você.")
+            case .tired:
+                parts.append("Você está cansado agora, e isso faz sentido.")
+            }
         }
 
-        if let window = weeklyInsights?.criticalWindow {
-            items.append(
-                HomeReflectionPriorityItemData(
-                    title: "Proteja essa janela",
-                    detail: window,
-                    tint: VenusTheme.accentGreen
-                )
-            )
+        // Intensidade
+        if let intensity {
+            if intensity >= 8 {
+                parts.append("A intensidade está alta — \(intensity)/10.")
+            } else if intensity <= 3 {
+                parts.append("A intensidade está baixa, \(intensity)/10.")
+            }
         }
 
+        // Tendência semanal
+        if let trend = weeklyTrend {
+            switch trend.direction {
+            case .improving:
+                parts.append("Comparando com a semana passada, você está reagindo melhor.")
+            case .declining:
+                parts.append("A semana tem sido mais pesada do que a anterior.")
+            case .stable:
+                parts.append("Seu ritmo está estável em relação à semana passada.")
+            }
+        }
+
+        // Padrão de alerta
+        if let alert = patternAlert {
+            let cleaned = alert.detail
+                .replacingOccurrences(of: "\n", with: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !cleaned.isEmpty {
+                parts.append(cleaned)
+            }
+        } else if let trigger = weeklyInsights?.dominantTrigger {
+            parts.append("O que mais tem pesado é \(trigger.lowercased()).")
+        }
+
+        // Área afetada
+        if let area = affectedArea {
+            parts.append("Hoje o foco está em \(area.rawValue.lowercased()).")
+        }
+
+        // Energia
+        if let energy = energyLevel {
+            switch energy {
+            case .low:
+                parts.append("Com pouca energia, o melhor é ir devagar.")
+            case .medium:
+                parts.append("Sua energia está equilibrada para agir.")
+            case .high:
+                parts.append("Você tem energia para ir mais fundo se quiser.")
+            }
+        }
+
+        // Próxima ação
         if let action {
-            items.append(
-                HomeReflectionPriorityItemData(
-                    title: "Próximo passo",
-                    detail: "Reserve \(action.estimatedMinutes) min para \(action.title.lowercased()).",
-                    tint: VenusTheme.moodMintStrong
-                )
-            )
-        } else {
-            items.append(
-                HomeReflectionPriorityItemData(
-                    title: "Leitura ainda em preparação",
-                    detail: "Assim que você concluir o check-in, esse bloco vira um plano claro do que fazer e do que monitorar.",
-                    tint: VenusTheme.textSecondary
-                )
-            )
+            parts.append("O próximo passo sugerido é \(action.title.lowercased()) — \(action.estimatedMinutes) min.")
         }
 
-        return Array(items.prefix(3))
+        guard !parts.isEmpty else {
+            return "Seu check-in foi salvo. Assim que eu processar os dados, a leitura aparece aqui."
+        }
+
+        return parts.joined(separator: " ")
     }
 
-    private func compactTags(from values: [String], fallback: [String]) -> [String] {
-        let normalized = values
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-
-        if normalized.isEmpty {
-            return fallback
-        }
-
-        return Array(normalized.prefix(3))
+    private var narrativeTint: Color {
+        guard let mood else { return VenusTheme.moodMintStrong }
+        return Color(hex: mood.orbColors.mid)
     }
 }
 
+// MARK: - Narrative Card
+
+private struct ReflectionNarrativeCard: View {
+    let narrative: String
+    let tint: Color
+    let isLoading: Bool
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(tint)
+                    .frame(width: 8, height: 8)
+
+                Text("Leitura do seu dia")
+                    .font(.system(.caption, design: .rounded).weight(.black))
+                    .foregroundColor(tint)
+                    .tracking(0.4)
+            }
+
+            Text(narrative)
+                .font(.system(size: 18, weight: .semibold, design: .serif))
+                .foregroundColor(VenusTheme.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(4)
+                .redacted(reason: isLoading ? .placeholder : [])
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    colorScheme == .dark
+                    ? Color(hex: "1E2E20")
+                    : Color.white.opacity(0.96)
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(tint.opacity(0.22), lineWidth: 1)
+        )
+        .shadow(color: tint.opacity(colorScheme == .dark ? 0.12 : 0.08), radius: 16, x: 0, y: 8)
+    }
+}
+
+// MARK: - Action Card
+
+private struct ReflectionActionCard: View {
+    let action: NextBestAction
+    var onTap: (() -> Void)?
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var tint: Color {
+        switch action.kind.category {
+        case .execution:     return VenusTheme.accentOrange
+        case .planning:      return VenusTheme.accentBlue
+        case .communication: return VenusTheme.accentPink
+        case .movement:      return VenusTheme.accentGreen
+        case .recovery:      return VenusTheme.accentPurple
+        }
+    }
+
+    var body: some View {
+        Button {
+            onTap?()
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(tint.opacity(0.14))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: action.kind.iconName)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(tint)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(action.title)
+                        .font(.system(.subheadline, design: .rounded).weight(.bold))
+                        .foregroundColor(VenusTheme.text)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text("\(action.estimatedMinutes) min · toque para entender o porquê")
+                        .font(.system(.caption2, design: .rounded).weight(.semibold))
+                        .foregroundColor(VenusTheme.textSecondary)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(VenusTheme.textSecondary)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(colorScheme == .dark ? Color(hex: "1E2E20") : Color.white.opacity(0.96))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(tint.opacity(0.18), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(onTap == nil)
+    }
+}
 private struct HomeReflectionLeadCard: View {
     let title: String
     let detail: String

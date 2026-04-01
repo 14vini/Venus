@@ -20,7 +20,6 @@ struct MoodCheckInView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var stage: MoodCheckInStage = .feeling
-    @State private var movingForward = true
 
     var body: some View {
         ZStack {
@@ -34,7 +33,9 @@ struct MoodCheckInView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 24) {
                     quotaBanner
+                        .venusScrollMotion(.gentle)
                     stepSwitcher
+                        .venusScrollMotion(.gentle)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
@@ -72,7 +73,6 @@ struct MoodCheckInView: View {
                 )
                 .padding(.trailing, 20)
                 .padding(.bottom, 24)
-                .transition(.scale.combined(with: .opacity))
             }
         }
         .navigationTitle(stage == .feeling ? "Check-in" : "Mais contexto")
@@ -100,13 +100,9 @@ struct MoodCheckInView: View {
                 }
             }
         }
-        .animation(.spring(response: 0.5, dampingFraction: 0.85), value: showsFloatingSaveButton)
         .onChange(of: viewModel.selectedMood) { _, selectedMood in
             guard selectedMood != nil, stage == .feeling else { return }
-            movingForward = true
-            withAnimation(.spring(response: 0.44, dampingFraction: 0.88)) {
-                stage = .details
-            }
+            stage = .details
         }
         .onChange(of: viewModel.savedSuccess) { _, success in
             if success, let mood = viewModel.selectedMood {
@@ -176,16 +172,11 @@ struct MoodCheckInView: View {
 
     @ViewBuilder
     private var stepSwitcher: some View {
-        ZStack {
-            if stage == .feeling {
-                moodStep
-                    .transition(stepTransition)
-            } else {
-                detailsStep
-                    .transition(stepTransition)
-            }
+        if stage == .feeling {
+            moodStep
+        } else {
+            detailsStep
         }
-        .animation(.spring(response: 0.44, dampingFraction: 0.88), value: stage)
     }
 
     private var moodStep: some View {
@@ -248,20 +239,6 @@ struct MoodCheckInView: View {
 
             requiredFieldsHint
         }
-    }
-
-    private var stepTransition: AnyTransition {
-        if movingForward {
-            return .asymmetric(
-                insertion: .move(edge: .trailing).combined(with: .opacity),
-                removal: .move(edge: .leading).combined(with: .opacity)
-            )
-        }
-
-        return .asymmetric(
-            insertion: .move(edge: .leading).combined(with: .opacity),
-            removal: .move(edge: .trailing).combined(with: .opacity)
-        )
     }
 
     private var checkInQuotaTitle: String {
@@ -384,13 +361,9 @@ struct MoodCheckInView: View {
 
     private func handleLeadingAction() {
         if stage == .details {
-            movingForward = false
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
-                stage = .feeling
-            }
+            stage = .feeling
             return
         }
-
         dismiss()
     }
 

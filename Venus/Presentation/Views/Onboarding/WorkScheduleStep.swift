@@ -70,34 +70,26 @@ struct WorkScheduleStep: View {
     }
     
     var body: some View {
-        VStack(spacing: 24) {
-            HStack{
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Sua Rotina")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(VenusTheme.text)
-                    
-                    Text("Horários de trabalho e estudo")
-                        .font(.subheadline)
-                        .foregroundColor(VenusTheme.textSecondary)
-                }
-                .frame(alignment: .leading)
-                .padding(.horizontal)
-                
-                Spacer()
-            }
+        VStack(alignment: .leading, spacing: 18) {
+            OnboardingStepHeader(
+                eyebrow: "rotina",
+                title: "Quais são seus horários?",
+                subtitle: "Opcional. Só pra eu sugerir janelas melhores para agir e descansar.",
+                systemImage: "calendar.badge.clock",
+                tint: VenusTheme.accentOrange
+            )
+
             VenusCard {
                 VStack(spacing: 16) {
                     HStack {
                         Image(systemName: "briefcase.fill")
-                            .foregroundColor(VenusTheme.darkGreen)
+                            .foregroundColor(VenusTheme.accentOrange)
                         Text("Você trabalha?")
                             .font(.headline)
                             .foregroundColor(VenusTheme.text)
                         Spacer()
                         Toggle("", isOn: $hasWork)
-                            .tint(VenusTheme.darkGreen)
+                            .tint(VenusTheme.accentOrange)
                             .accessibilityLabel("Você trabalha?")
                     }
                     
@@ -135,13 +127,13 @@ struct WorkScheduleStep: View {
                 VStack(spacing: 16) {
                     HStack {
                         Image(systemName: "book.fill")
-                            .foregroundColor(VenusTheme.darkGreen)
+                            .foregroundColor(VenusTheme.accentOrange)
                         Text("Você estuda?")
                             .font(.headline)
                             .foregroundColor(VenusTheme.text)
                         Spacer()
                         Toggle("", isOn: $hasStudy)
-                            .tint(VenusTheme.darkGreen)
+                            .tint(VenusTheme.accentOrange)
                             .accessibilityLabel("Você estuda?")
                     }
                     
@@ -176,7 +168,8 @@ struct WorkScheduleStep: View {
             .padding(.horizontal, 24)
             
         }
-        .padding(.top, 24)
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
         .padding(.bottom, 12)
         .onChange(of: hasWork) { _, _ in updateProfile() }
         .onChange(of: workStart) { _, _ in updateProfile() }

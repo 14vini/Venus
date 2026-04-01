@@ -22,6 +22,7 @@ struct HomeActionReasonView: View {
 
     @State private var pulseHero = false
     @State private var revealContent = false
+    @State private var showComingSoon = false
 
     var body: some View {
         ZStack {
@@ -32,8 +33,8 @@ struct HomeActionReasonView: View {
             )
 
             ScrollView(showsIndicators: false) {
-                LazyVStack(alignment: .leading, spacing: 20) {
-                    introSection
+                LazyVStack(alignment: .leading, spacing: 24) {
+                    directAnswerSection
                         .venusScrollMotion(.gentle)
                     heroCard
                         .venusScrollMotion(.strong)
@@ -45,65 +46,103 @@ struct HomeActionReasonView: View {
                     forecastSection
                     protocolLibrarySection
                     confidenceScoreSection
-
                     if let expandedActionOption {
                         expandedActionSection(option: expandedActionOption)
                     }
                 }
                 .scrollTargetLayout()
-                .padding(.horizontal)
-                .padding(.top, 22)
-                .padding(.bottom, 34)
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 120)
                 .opacity(revealContent ? 1 : 0)
                 .offset(y: revealContent ? 0 : 18)
             }
         }
+        .overlay(alignment: .bottomTrailing) {
+            Button {
+                showComingSoon = true
+            } label: {
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(VenusTheme.primaryGradient)
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("começar agora")
+                            .font(.system(.subheadline, design: .rounded).weight(.bold))
+                            .foregroundColor(VenusTheme.text)
+                        Text("\(actionModel.estimatedMinutes) min")
+                            .font(.system(.caption2, design: .rounded).weight(.semibold))
+                            .foregroundColor(VenusTheme.textSecondary)
+                    }
+                }
+                .padding(.vertical, 10)
+                .padding(.leading, 10)
+                .padding(.trailing, 18)
+                .glassEffect(.regular.interactive())
+            }
+            .buttonStyle(.plain)
+            .padding(.trailing, 20)
+            .padding(.bottom, 24)
+        }
+        .sheet(isPresented: $showComingSoon) {
+            ComingSoonSheet(actionTitle: actionModel.title)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
         .background(VenusTheme.background)
-        .navigationTitle("Por que esta ação?")
+        .navigationTitle("por que essa ação?")
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(.visible, for: .navigationBar)
         .onAppear(perform: startAnimations)
     }
 
-    private var introSection: some View {
+    // MARK: - Resposta direta no topo
+
+    private var directAnswerSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 10) {
                 if isPro {
-                    VenusProBadge(title: "Leitura aprofundada")
+                    VenusProBadge(title: "leitura completa")
                 } else {
-                    Label("Leitura essencial", systemImage: "sparkles")
+                    Label("sua leitura de hoje", systemImage: "sparkles")
                         .font(.system(.caption, design: .rounded).weight(.bold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
                         .background(
                             Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [actionAccent, actionAccent.opacity(0.72)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
+                                .fill(LinearGradient(
+                                    colors: [actionAccent, actionAccent.opacity(0.72)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ))
                         )
                 }
 
                 Spacer()
 
                 if let confidence = explanationConfidence {
-                    Text("\(Int((confidence * 100).rounded()))% confiança")
-                        .font(.system(.caption, design: .rounded).weight(.bold))
-                        .foregroundColor(VenusTheme.text)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Capsule().fill(cardFill.opacity(0.92)))
+                    HStack(spacing: 5) {
+                        Image(systemName: "target")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(confidenceLabel(confidence))
+                            .font(.system(.caption, design: .rounded).weight(.bold))
+                    }
+                    .foregroundColor(VenusTheme.textSecondary)
                 }
             }
 
-            Text(actionWhy?.summary ?? actionModel.strategicReason)
-                .font(.system(.footnote, design: .rounded).weight(.medium))
-                .foregroundColor(VenusTheme.textSecondary)
+            // Resposta em linguagem humana
+            Text(directAnswer)
+                .font(.system(size: 20, weight: .bold, design: .serif))
+                .foregroundColor(VenusTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(3)
 
             LazyVGrid(columns: gridColumns, spacing: 10) {
                 ForEach(introHighlights) { highlight in
@@ -113,6 +152,18 @@ struct HomeActionReasonView: View {
         }
         .padding(18)
         .actionReasonCardStyle()
+    }
+
+    private var directAnswer: String {
+        let why = actionWhy?.summary ?? actionModel.strategicReason
+        let format = actionModel.isHighImpactVariant ? "uma versão mais completa" : "algo leve e direto"
+        let duration = "\(actionModel.estimatedMinutes) minutos"
+
+        if let trigger = weeklyInsights?.dominantTrigger ?? patternAlert?.title {
+            return "Eu escolhi \(format) porque \(trigger.lowercased()) está pesando no seu momento. Cabe em \(duration) e foi feito para o que você está sentindo agora."
+        }
+
+        return "\(why) Cabe em \(duration) e foi escolhido para o seu momento atual."
     }
 
     private var heroCard: some View {
@@ -139,7 +190,7 @@ struct HomeActionReasonView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
-                        Text(actionModel.isHighImpactVariant ? "Ação alta" : "Microação")
+                        Text(actionModel.isHighImpactVariant ? "modo completo" : "modo rápido")
                             .font(.system(.caption, design: .rounded).weight(.bold))
                             .foregroundColor(actionAccent)
                             .padding(.horizontal, 10)
@@ -168,8 +219,8 @@ struct HomeActionReasonView: View {
 
             LazyVGrid(columns: gridColumns, spacing: 12) {
                 HomeSpotlightMetric(
-                    title: "Formato",
-                    value: actionModel.isHighImpactVariant ? "Profundo" : "Leve",
+                    title: "Como é",
+                    value: actionModel.isHighImpactVariant ? "vai fundo" : "leve e direto",
                     icon: actionModel.isHighImpactVariant ? "bolt.fill" : "leaf.fill",
                     tint: actionAccent
                 )
@@ -199,8 +250,8 @@ struct HomeActionReasonView: View {
 
     private var causalChainSection: some View {
         HomeReasonSection(
-            title: "Leitura causal",
-            subtitle: "A cadeia de decisão que explica por que essa ação venceu agora.",
+            title: "Por que exatamente essa?",
+            subtitle: "Os sinais que eu captei e que fizeram essa ação ganhar.",
             icon: "point.3.connected.trianglepath.dotted",
             tint: actionAccent
         ) {
@@ -214,8 +265,8 @@ struct HomeActionReasonView: View {
 
     private var diagnosisSection: some View {
         HomeReasonSection(
-            title: "Diagnóstico em camadas",
-            subtitle: "Os sinais que empurraram essa ação para o topo agora.",
+            title: "O que eu notei em você hoje",
+            subtitle: "O que você me contou e o que eu percebi no seu padrão.",
             icon: "waveform.path.ecg",
             tint: VenusTheme.moodMintStrong
         ) {
@@ -235,8 +286,8 @@ struct HomeActionReasonView: View {
     @ViewBuilder
     private var decisionSimulatorSection: some View {
         HomeReasonSection(
-            title: "Simulador de alternativas",
-            subtitle: "Compare a ação escolhida com outras rotas viáveis para este mesmo momento.",
+            title: "Outras rotas que considerei",
+            subtitle: "Antes de decidir, eu olhei essas opções também.",
             icon: "rectangle.split.3x1.fill",
             tint: VenusTheme.accentBlue
         ) {
@@ -245,7 +296,7 @@ struct HomeActionReasonView: View {
                     HomeActionDecisionCard(
                         title: actionModel.title,
                         detail: actionModel.detail,
-                        badge: "Escolhida agora",
+                        badge: "essa foi a escolhida",
                         duration: "\(actionModel.estimatedMinutes) min",
                         tint: actionAccent
                     )
@@ -254,7 +305,7 @@ struct HomeActionReasonView: View {
                         HomeActionDecisionCard(
                             title: action.title,
                             detail: action.strategicReason,
-                            badge: "Alternativa \(index + 1)",
+                            badge: "opção \(index + 1)",
                             duration: "\(action.estimatedMinutes) min",
                             tint: VenusTheme.accentBlue
                         )
@@ -262,7 +313,7 @@ struct HomeActionReasonView: View {
 
                     if !exploreSuggestions.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("Rotas extras do Pro")
+                            Text("mais opções no Pro")
                                 .font(.system(.caption, design: .rounded).weight(.bold))
                                 .foregroundColor(VenusTheme.textSecondary)
 
@@ -281,8 +332,8 @@ struct HomeActionReasonView: View {
                 }
             } else {
                 HomeLockedInsightCard(
-                    title: "O simulador de alternativas fica no Pro",
-                    detail: "No modo Pro você compara a ação escolhida com outras rotas, duração e motivo estratégico antes de começar."
+                    title: "Quer ver as outras opções?",
+                    detail: "No Pro você vê tudo que eu considerei antes de escolher essa — com tempo e motivo de cada uma."
                 )
             }
         }
@@ -291,8 +342,8 @@ struct HomeActionReasonView: View {
     @ViewBuilder
     private var impactSection: some View {
         HomeReasonSection(
-            title: "Como isso mexe no seu estado mental",
-            subtitle: "A diferença esperada quando você age no timing certo.",
+            title: "O que muda se você fizer isso agora",
+            subtitle: "A diferença real que eu espero no seu estado.",
             icon: "sparkles.rectangle.stack.fill",
             tint: VenusTheme.accentBlue
         ) {
@@ -301,7 +352,7 @@ struct HomeActionReasonView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack {
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Gatilho destacado")
+                                Text("O que mais está pesando")
                                     .font(.system(.caption, design: .rounded).weight(.bold))
                                     .foregroundColor(VenusTheme.textSecondary)
                                 Text(triggerRecoveryInsight.highlightedTrigger)
@@ -329,7 +380,7 @@ struct HomeActionReasonView: View {
                             points: triggerSeriesPoints(from: triggerRecoveryInsight),
                             accent: actionAccent,
                             comparison: Color.secondary.opacity(colorScheme == .dark ? 0.45 : 0.35),
-                            valueLabel: "Índice"
+                            valueLabel: "bem-estar"
                         )
                     }
                     .padding(18)
@@ -344,8 +395,8 @@ struct HomeActionReasonView: View {
                                         .foregroundColor(VenusTheme.text)
 
                                     HStack(spacing: 8) {
-                                        HomeMiniMetric(title: "D+3", value: signedPoints(projection.day3Delta))
-                                        HomeMiniMetric(title: "D+7", value: signedPoints(projection.day7Delta))
+                                        HomeMiniMetric(title: "em 3 dias", value: humanDelta(projection.day3Delta))
+                                        HomeMiniMetric(title: "em 7 dias", value: humanDelta(projection.day7Delta))
                                     }
 
                                     Text("\(Int((projection.confidence * 100).rounded()))% confiança")
@@ -359,20 +410,20 @@ struct HomeActionReasonView: View {
                         }
                     } else if !isPro, triggerRecoveryInsight.lockedAdditionalAreasCount > 0 {
                         HomeLockedInsightCard(
-                            title: "Mais áreas destravadas no Pro",
-                            detail: "\(triggerRecoveryInsight.lockedAdditionalAreasCount) leituras extras de gatilho ficam disponíveis com a projeção completa."
+                            title: "Tem mais no Pro",
+                            detail: "\(triggerRecoveryInsight.lockedAdditionalAreasCount) áreas da sua vida que também são afetadas — só no Pro."
                         )
                     }
                 } else {
                     HomeLockedInsightCard(
-                        title: "Ainda coletando impacto",
-                        detail: "Continue registrando check-ins para liberar a comparação entre cenário com ação e sem ação."
+                        title: "Ainda te conhecendo",
+                        detail: "Quanto mais você me conta como tá, mais certeiro eu fico em mostrar o que muda."
                     )
                 }
 
                 if let confidenceInsight {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("Autoeficácia esperada")
+                        Text("Como isso afeta sua confiança")
                             .font(.system(.headline, design: .rounded).weight(.bold))
                             .foregroundColor(VenusTheme.text)
 
@@ -422,8 +473,8 @@ struct HomeActionReasonView: View {
 
     private var contextSection: some View {
         HomeReasonSection(
-            title: "Contexto da semana",
-            subtitle: "O pano de fundo da semana por trás dessa sugestão.",
+            title: "Como tá sendo sua semana",
+            subtitle: "O que aconteceu nos últimos dias que entrou nessa escolha.",
             icon: "calendar.badge.exclamationmark",
             tint: VenusTheme.accentBlue
         ) {
@@ -440,14 +491,14 @@ struct HomeActionReasonView: View {
 
                         if let weeklyInsights {
                             HomeContextCard(
-                                title: "Alavanca",
-                                value: percent(weeklyInsights.leverageScore),
+                                title: "impacto no seu perfil",
+                                value: humanLeverage(weeklyInsights.leverageScore),
                                 tint: VenusTheme.accentGreen
                             )
 
                             HomeContextCard(
-                                title: "Qualidade do streak",
-                                value: percent(weeklyInsights.streakQualityScore),
+                                title: "consistência recente",
+                                value: humanStreak(weeklyInsights.streakQualityScore),
                                 tint: VenusTheme.primary
                             )
                         }
@@ -456,7 +507,7 @@ struct HomeActionReasonView: View {
                     if let weeklyInsights {
                         VStack(alignment: .leading, spacing: 12) {
                             HomeNarrativeCard(
-                                eyebrow: "Foco comportamental",
+                                eyebrow: "no que focar agora",
                                 title: weeklyInsights.behavioralFocus,
                                 detail: weeklyInsights.worstRecurringPattern,
                                 tint: VenusTheme.primary
@@ -475,7 +526,7 @@ struct HomeActionReasonView: View {
 
                     if let patternAlert {
                         HomeNarrativeCard(
-                            eyebrow: "Alerta ativo",
+                            eyebrow: "atenção nisso",
                             title: patternAlert.title,
                             detail: patternAlert.detail,
                             tint: VenusTheme.primary
@@ -483,8 +534,8 @@ struct HomeActionReasonView: View {
                     }
                 } else {
                     HomeLockedInsightCard(
-                        title: "Semana ainda em leitura",
-                        detail: "Conforme você registra mais dias, essa área passa a mostrar gatilhos, janelas críticas e protocolos de recuperação."
+                        title: "Sua semana ainda tá em leitura",
+                        detail: "Quanto mais dias você registrar, mais eu consigo te mostrar o que tá pesando e o que tá funcionando."
                     )
                 }
             }
@@ -494,8 +545,8 @@ struct HomeActionReasonView: View {
     @ViewBuilder
     private var forecastSection: some View {
         HomeReasonSection(
-            title: "Cenário com ação vs sem ação",
-            subtitle: "A diferença projetada entre agir agora e deixar esse momento passar.",
+            title: "E se você não fizer nada?",
+            subtitle: "O que eu projeto que acontece se esse momento passar.",
             icon: "chart.line.text.clipboard",
             tint: VenusTheme.accentGreen
         ) {
@@ -504,11 +555,11 @@ struct HomeActionReasonView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack {
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Leitura de 7 dias")
+                                Text("nos próximos 7 dias")
                                     .font(.system(.headline, design: .rounded).weight(.bold))
                                     .foregroundColor(VenusTheme.text)
 
-                                Text("Baseline \(scoreText(proForecast.baselineScore))")
+                                Text("ponto de partida de hoje")
                                     .font(.system(.caption, design: .rounded).weight(.bold))
                                     .foregroundColor(VenusTheme.textSecondary)
                             }
@@ -526,7 +577,7 @@ struct HomeActionReasonView: View {
                             points: forecastSeries(from: proForecast),
                             accent: VenusTheme.accentGreen,
                             comparison: Color.secondary.opacity(colorScheme == .dark ? 0.45 : 0.35),
-                            valueLabel: "Score"
+                            valueLabel: "bem-estar"
                         )
 
                         Text(proForecast.rationale)
@@ -543,10 +594,10 @@ struct HomeActionReasonView: View {
                 }
             } else {
                 HomeLockedInsightCard(
-                    title: "A curva completa fica no Venus Pro",
+                    title: "Previsão completa no Pro",
                     detail: (triggerRecoveryInsight?.lockedAdditionalAreasCount ?? 0) > 0
-                    ? "Além da linha principal, você também destrava projeções extras de gatilho e cenários comparativos."
-                    : "No modo Pro você vê a diferença entre cenário com ação e sem ação em uma linha temporal completa."
+                    ? "No Pro você vê a linha completa — com projeções extras e o que muda em cada cenário."
+                    : "No Pro você vê exatamente o que acontece com você se agir agora vs se deixar passar."
                 )
             }
         }
@@ -555,8 +606,8 @@ struct HomeActionReasonView: View {
     @ViewBuilder
     private var protocolLibrarySection: some View {
         HomeReasonSection(
-            title: "Biblioteca de protocolos",
-            subtitle: "Estratégias que esse momento costuma aceitar melhor quando você precisa variar.",
+            title: "Outras formas de chegar lá️",
+            subtitle: "Caminhos diferentes que também funcionam pro seu perfil.",
             icon: "books.vertical.fill",
             tint: VenusTheme.primary
         ) {
@@ -584,15 +635,15 @@ struct HomeActionReasonView: View {
                         }
                     } else if weeklyInsights?.recoveryProtocol == nil {
                         HomeLockedInsightCard(
-                            title: "Ainda coletando protocolos",
-                            detail: "Conforme seu histórico cresce, o app passa a montar uma pequena biblioteca do que costuma funcionar melhor para você."
+                            title: "Ainda aprendendo seu estilo",
+                            detail: "Quanto mais você usa, mais eu entendo o que funciona de verdade pro seu jeito."
                         )
                     }
                 }
             } else {
                 HomeLockedInsightCard(
-                    title: "Biblioteca adaptativa no Pro",
-                    detail: "No modo Pro você ganha protocolos prontos e sugestões adicionais organizadas por contexto, energia e duração."
+                    title: "Mais caminhos no Pro",
+                    detail: "No Pro você ganha sugestões extras feitas pro seu jeito — organizadas pelo que funciona melhor pra você."
                 )
             }
         }
@@ -601,8 +652,8 @@ struct HomeActionReasonView: View {
     @ViewBuilder
     private var confidenceScoreSection: some View {
         HomeReasonSection(
-            title: "Confiança da leitura",
-            subtitle: "Quão forte está o sinal que sustenta essa recomendação hoje.",
+            title: "O quanto eu confio nisso",
+            subtitle: "Baseado no que você me contou e no seu histórico.",
             icon: "target",
             tint: VenusTheme.accentBlue
         ) {
@@ -624,8 +675,8 @@ struct HomeActionReasonView: View {
                 }
             } else {
                 HomeLockedInsightCard(
-                    title: "Confiança ainda em formação",
-                    detail: "Com mais check-ins e resposta às ações, esse bloco passa a mostrar o quanto podemos confiar nessa recomendação."
+                    title: "Ainda calibrando isso",
+                    detail: "Quanto mais você me conta e responde às ações, mais certeiro eu fico."
                 )
             }
         }
@@ -633,8 +684,8 @@ struct HomeActionReasonView: View {
 
     private func expandedActionSection(option: HomeExpandedActionOption) -> some View {
         HomeReasonSection(
-            title: "Plano ampliado",
-            subtitle: "Se hoje couber mais energia, essa é a versão ampliada da estratégia.",
+            title: "Quer ir mais fundo?",
+            subtitle: "Se tiver mais tempo e energia hoje, essa é a versão completa.",
             icon: "arrow.up.right.circle.fill",
             tint: VenusTheme.primary
         ) {
@@ -668,7 +719,7 @@ struct HomeActionReasonView: View {
     private var evidenceItems: [ActionWhyEvidence] {
         var items: [ActionWhyEvidence] = [
             ActionWhyEvidence(
-                title: "Evidência principal",
+                title: "o que mais pesou",
                 detail: actionModel.strategicReason
             )
         ]
@@ -717,8 +768,8 @@ struct HomeActionReasonView: View {
     private var introHighlights: [HomeReasonQuickHighlight] {
         var items: [HomeReasonQuickHighlight] = [
             HomeReasonQuickHighlight(
-                title: "Formato",
-                value: actionModel.isHighImpactVariant ? "Profundo" : "Leve",
+                title: "Como é",
+                value: actionModel.isHighImpactVariant ? "vai fundo" : "leve e direto",
                 icon: actionModel.isHighImpactVariant ? "bolt.fill" : "leaf.fill",
                 tint: actionAccent
             ),
@@ -767,25 +818,25 @@ struct HomeActionReasonView: View {
     private var causalHighlights: [HomeReasonQuickHighlight] {
         [
             HomeReasonQuickHighlight(
-                title: "Sinal",
+                title: "o que chamou atenção",
                 value: signalSummary,
                 icon: "dot.scope",
                 tint: VenusTheme.accentBlue
             ),
             HomeReasonQuickHighlight(
-                title: "Padrão",
+                title: "o que se repete",
                 value: patternSummary,
                 icon: "waveform.path.ecg",
                 tint: VenusTheme.primary
             ),
             HomeReasonQuickHighlight(
-                title: "Por que agora",
+                title: "por que agora",
                 value: whyNowSummary,
                 icon: "clock.badge.checkmark",
                 tint: actionAccent
             ),
             HomeReasonQuickHighlight(
-                title: "Impacto esperado",
+                title: "o que muda",
                 value: expectedImpactSummary,
                 icon: "chart.line.uptrend.xyaxis",
                 tint: VenusTheme.accentGreen
@@ -803,7 +854,7 @@ struct HomeActionReasonView: View {
         if let trigger = weeklyInsights?.dominantTrigger {
             return trigger
         }
-        return "Sinal em formação"
+        return "ainda captando sinais"
     }
 
     private var patternSummary: String {
@@ -813,7 +864,7 @@ struct HomeActionReasonView: View {
         if let patternAlert {
             return patternAlert.detail
         }
-        return "Ainda estamos consolidando padrão suficiente."
+        return "ainda juntando dados pra te conhecer melhor."
     }
 
     private var whyNowSummary: String {
@@ -833,7 +884,7 @@ struct HomeActionReasonView: View {
         if let proForecast {
             return forecastDeltaText(from: proForecast)
         }
-        return "Mais clareza e menos atrito no próximo passo."
+        return "algo muda — mesmo que seja só um pouco mais leve."
     }
 
     private var confidenceSummary: String {
@@ -931,6 +982,108 @@ struct HomeActionReasonView: View {
         let delta = forecast.points.first(where: { $0.dayOffset == 7 })?.actionDelta ?? forecast.points.last?.actionDelta ?? 0
         return signedPoints(delta)
     }
+
+    private func confidenceLabel(_ value: Double) -> String {
+        let pct = Int((value * 100).rounded())
+        switch pct {
+        case ..<50: return "ainda calibrando"
+        case ..<70: return "razoavelmente certo"
+        case ..<85: return "bem certo disso"
+        default:    return "muito certo disso"
+        }
+    }
+
+    private func humanDelta(_ value: Double) -> String {
+        switch value {
+        case ..<(-0.15): return "bem mais pesado"
+        case ..<(-0.05): return "um pouco mais pesado"
+        case ..<0.05:    return "parecido"
+        case ..<0.15:    return "um pouco mais leve"
+        default:         return "bem mais leve"
+        }
+    }
+
+    private func humanLeverage(_ value: Double) -> String {
+        switch value {
+        case ..<0.4: return "impacto baixo"
+        case ..<0.7: return "impacto médio"
+        default:     return "alto impacto"
+        }
+    }
+
+    private func humanStreak(_ value: Double) -> String {
+        switch value {
+        case ..<0.4: return "começando agora"
+        case ..<0.7: return "indo bem"
+        default:     return "consistente"
+        }
+    }
+}
+
+private struct ComingSoonSheet: View {
+    let actionTitle: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 32) {
+            VenusMoodMascotOrb(mood: .happy, size: 120)
+                .padding(.top, 8)
+
+            VStack(spacing: 10) {
+                Text("em breve")
+                    .font(.system(.caption, design: .rounded).weight(.black))
+                    .foregroundColor(VenusTheme.moodMintStrong)
+                    .tracking(1.2)
+
+                Text("a execução guiada tá chegando")
+                    .font(.system(size: 24, weight: .black, design: .rounded))
+                    .foregroundColor(VenusTheme.text)
+                    .multilineTextAlignment(.center)
+
+                Text("Logo você vai poder começar \"\(actionTitle)\" direto por aqui, com timer, passos e registro automático.")
+                    .font(.system(.subheadline, design: .rounded).weight(.medium))
+                    .foregroundColor(VenusTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(spacing: 8) {
+                featureRow(icon: "play.circle.fill", text: "execução guiada passo a passo", tint: VenusTheme.accentGreen)
+                featureRow(icon: "timer", text: "timer integrado", tint: VenusTheme.accentBlue)
+                featureRow(icon: "checkmark.circle.fill", text: "registro automático ao concluir", tint: VenusTheme.accentOrange)
+                featureRow(icon: "sparkles", text: "feedback do mascot ao final", tint: VenusTheme.accentPurple)
+            }
+
+            Button {
+                dismiss()
+            } label: {
+                Text("entendi")
+                    .font(.system(.subheadline, design: .rounded).weight(.bold))
+                    .foregroundColor(VenusTheme.text)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(VenusTheme.cardSurface)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(VenusTheme.cardBorder, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func featureRow(icon: String, text: String, tint: Color) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(tint)
+                .frame(width: 20)
+            Text(text)
+                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                .foregroundColor(VenusTheme.textSecondary)
+            Spacer()
+        }
+    }
 }
 
 private struct HomeReasonSection<Content: View>: View {
@@ -955,28 +1108,21 @@ private struct HomeReasonSection<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(tint.opacity(0.14))
-                        .frame(width: 40, height: 40)
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
                     Image(systemName: icon)
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundColor(tint)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(.system(.title3, design: .rounded).weight(.black))
+                        .font(.system(.headline, design: .rounded).weight(.bold))
                         .foregroundColor(VenusTheme.text)
-                    Text(subtitle)
-                        .font(.system(.subheadline, design: .rounded).weight(.medium))
-                        .foregroundColor(VenusTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
+                Text(subtitle)
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundColor(VenusTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-
             content
         }
         .venusScrollMotion(.strong)
@@ -1483,7 +1629,7 @@ private struct HomeProtocolLibraryCard: View {
 
                 Spacer()
 
-                Text("\(Int((suggestion.matchScore * 100).rounded()))% fit")
+                Text(suggestion.matchScore >= 0.7 ? "combina muito" : "pode funcionar")
                     .font(.system(.caption2, design: .rounded).weight(.bold))
                     .foregroundColor(VenusTheme.moodMintStrong)
             }
@@ -1539,7 +1685,7 @@ private struct HomeConfidenceScoreCard: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Confiança da recomendação")
+                    Text("o quanto eu confio nisso")
                         .font(.system(.headline, design: .rounded).weight(.bold))
                         .foregroundColor(VenusTheme.text)
 
