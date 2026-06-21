@@ -20,21 +20,6 @@ struct MainTabView: View {
                 Label("home", systemImage: "house")
             }
             
-//            DailyPracticesView(viewModel: DependencyContainer.shared.makeActivitiesListViewModel())
-//                .tabItem {
-//                    Label("Práticas", systemImage: "leaf.fill")
-//                }
-            
-//            TodoListView(viewModel: DependencyContainer.shared.makeTodoListViewModel())
-//                .tabItem {
-//                    Label("Agenda", systemImage: "calendar")
-//                }
-//            
-//            ActivitiesListView(viewModel: DependencyContainer.shared.makeActivitiesListViewModel())
-//                .tabItem {
-//                    Label("Explorar", systemImage: "sparkles.rectangle.stack")
-//                }
-            
             NavigationStack {
                 SettingsView()
             }

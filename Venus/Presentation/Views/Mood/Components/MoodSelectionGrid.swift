@@ -34,77 +34,21 @@ struct MoodShortcutOption: Identifiable, Hashable {
 
 struct EnergySelectionGrid: View {
     let selectedEnergy: EnergyLevel?
+    var tint: Color = VenusTheme.primary
     let onSelect: (EnergyLevel) -> Void
 
     var body: some View {
         VStack(spacing: 12) {
             ForEach(EnergyLevel.allCases, id: \.self) { energy in
-                EnergyOptionCard(
-                    energy: energy,
+                OnboardingSelectionRow(
+                    title: energy.displayName,
+                    detail: energy.supportCopy,
+                    systemImage: energy.sfSymbolName,
                     isSelected: selectedEnergy == energy,
-                    onTap: { onSelect(energy) }
+                    tint: tint,
+                    action: { onSelect(energy) }
                 )
             }
-        }
-    }
-}
-
-private struct EnergyOptionCard: View {
-    let energy: EnergyLevel
-    let isSelected: Bool
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 16) {
-                Image(systemName: energy.sfSymbolName)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(tint)
-                    .frame(width: 42, height: 42)
-                    .background(
-                        Circle()
-                            .fill(tint.opacity(0.14))
-                    )
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(energy.displayName)
-                        .font(.system(.headline, design: .rounded).weight(.bold))
-                        .foregroundColor(VenusTheme.text)
-
-                    Text(energy.supportCopy)
-                        .font(.system(.footnote, design: .rounded))
-                        .foregroundColor(VenusTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 12)
-
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(isSelected ? tint : VenusTheme.textSecondary.opacity(0.5))
-            }
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(isSelected ? tint.opacity(0.12) : VenusTheme.cardSurface)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(isSelected ? tint.opacity(0.4) : VenusTheme.cardBorder, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var tint: Color {
-        switch energy {
-        case .critical:
-            return VenusTheme.validationError
-        case .regular:
-            return VenusTheme.accentBlue
-        case .full:
-            return VenusTheme.accentGreen
         }
     }
 }

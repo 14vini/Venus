@@ -21,34 +21,6 @@ struct BehaviorActivityBlueprint: Sendable {
 }
 
 extension PatternEngineUseCase {
-    static func mapActivitiesToBlueprints(_ activities: [Activity]) -> [BehaviorActivityBlueprint] {
-        activities.map { activity in
-            let titleNormalized = BehaviorMoodScorer.normalize(activity.title)
-            let descriptionNormalized = BehaviorMoodScorer.normalize(activity.description)
-            let categoryNormalized = BehaviorMoodScorer.normalize(activity.category.rawValue)
-            let stepsNormalized = (activity.steps ?? []).map(BehaviorMoodScorer.normalize)
-
-            let semanticBag = (
-                [titleNormalized, descriptionNormalized, categoryNormalized] +
-                stepsNormalized
-            )
-            .joined(separator: " ")
-
-            return BehaviorActivityBlueprint(
-                title: activity.title,
-                description: activity.description,
-                categoryDisplayName: activity.category.rawValue,
-                categoryNormalized: categoryNormalized,
-                durationMinutes: activity.durationMinutes,
-                iconName: activity.iconName,
-                targetMoodKeys: (activity.targetEmotions ?? []).map { BehaviorMoodScorer.normalize($0.rawValue) },
-                semanticBag: semanticBag,
-                titleNormalized: titleNormalized,
-                descriptionNormalized: descriptionNormalized
-            )
-        }
-    }
-
     static func buildConfidenceInsight(
         analysis: BehaviorPatternAnalysis,
         weeklyInsights: WeeklyStrategicInsights,

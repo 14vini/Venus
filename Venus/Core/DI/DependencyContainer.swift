@@ -19,8 +19,7 @@ class DependencyContainer {
         do {
             let schema = Schema([
                 UserProfileModel.self,
-                MoodModel.self,
-                TodoModel.self
+                MoodModel.self
             ])
             let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
             self.modelContainer = try ModelContainer(for: schema, configurations: [modelConfiguration])
@@ -58,20 +57,6 @@ class DependencyContainer {
         return CheckInAllowanceUseCase(subscriptionStatusProvider: makeSubscriptionStatusProvider())
     }
     
-    // MARK: - Activities Factories
-    
-    func makeActivityRepository() -> ActivityRepositoryProtocol {
-        return ActivityRepositoryImpl()
-    }
-    
-    func makeGetActivitiesUseCase() -> GetActivitiesUseCaseProtocol {
-        return GetActivitiesUseCase(repository: makeActivityRepository())
-    }
-    
-    func makeActivitiesListViewModel() -> ActivitiesListViewModel {
-        return ActivitiesListViewModel(getActivitiesUseCase: makeGetActivitiesUseCase())
-    }
-    
     // MARK: - AI Service
     
     func makeGeminiService() -> GeminiServiceProtocol {
@@ -83,10 +68,6 @@ class DependencyContainer {
     }
     
     // MARK: - Recommendation Engine
-    
-    func makeSmartRecommendationUseCase() -> SmartRecommendationUseCaseProtocol {
-        return SmartRecommendationUseCase(activityRepository: makeActivityRepository())
-    }
 
     func makeBehaviorFeedbackStore() -> BehaviorFeedbackStoreProtocol {
         behaviorFeedbackStore
@@ -95,8 +76,6 @@ class DependencyContainer {
     func makePatternEngineUseCase() -> PatternEngineUseCaseProtocol {
         return PatternEngineUseCase(
             moodRepository: makeMoodRepository(),
-            todoRepository: makeTodoRepository(),
-            activityRepository: makeActivityRepository(),
             userProfileRepository: makeUserProfileRepository(),
             subscriptionStatusProvider: makeSubscriptionStatusProvider(),
             feedbackStore: makeBehaviorFeedbackStore()
@@ -107,26 +86,5 @@ class DependencyContainer {
     
     func makeChatRepository() -> ChatRepositoryProtocol {
         return ChatRepositoryImpl()
-    }
-    
-    // MARK: - Todo
-    
-    @MainActor
-    func makeTodoRepository() -> TodoRepositoryProtocol {
-        return TodoRepositoryImpl(modelContainer: modelContainer)
-    }
-    
-    @MainActor
-    func makeGenerateScheduleUseCase() -> GenerateScheduleUseCase {
-        return GenerateScheduleUseCase(todoRepository: makeTodoRepository())
-    }
-    
-    @MainActor
-    func makeTodoListViewModel() -> TodoListViewModel {
-        return TodoListViewModel(
-            todoRepository: makeTodoRepository(),
-            generateScheduleUseCase: makeGenerateScheduleUseCase(),
-            userProfileRepository: makeUserProfileRepository()
-        )
     }
 }

@@ -408,9 +408,8 @@ struct HomeReflectionsPreviewSection: View {
     let weeklyTrend: WeeklyEmotionalTrend?
     let patternAlert: PatternAlert?
     let weeklyInsights: WeeklyStrategicInsights?
-    let action: NextBestAction?
     let isLoadingInsights: Bool
-    var onReasonTap: (() -> Void)? = nil
+    var onLookIntoMirror: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -438,12 +437,50 @@ struct HomeReflectionsPreviewSection: View {
                 isLoading: isLoadingInsights
             )
 
-            // Card de ação — só aparece quando há ação
-            if let action {
-                ReflectionActionCard(
-                    action: action,
-                    onTap: onReasonTap
-                )
+            // Botão Olhar no Espelho (Mirror)
+            if mood != nil && !isLoadingInsights {
+                Button {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    onLookIntoMirror()
+                } label: {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(VenusTheme.moodMintStrong.opacity(0.14))
+                                .frame(width: 44, height: 44)
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(VenusTheme.moodMintStrong)
+                        }
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Olhar no Espelho")
+                                .font(.system(.subheadline, design: .rounded).weight(.bold))
+                                .foregroundColor(VenusTheme.text)
+
+                            Text("veja os insights profundos do seu cérebro hoje")
+                                .font(.system(.caption2, design: .rounded).weight(.semibold))
+                                .foregroundColor(VenusTheme.textSecondary)
+                        }
+
+                        Spacer(minLength: 0)
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(VenusTheme.textSecondary)
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .fill(colorScheme == .dark ? Color(hex: "1E2E20") : Color.white.opacity(0.96))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(VenusTheme.moodMintStrong.opacity(0.18), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -504,12 +541,7 @@ struct HomeReflectionsPreviewSection: View {
             }
         }
 
-        var closing = ""
-        if let action = action {
-            closing = " Para te ajudar a cuidar desse momento, que tal fazer uma pausa de uns \(action.estimatedMinutes) minutinhos para \(action.title.lowercased())? Pode ser um ótimo respiro."
-        } else {
-            closing = " Tire um momento para respirar fundo e respeitar o seu ritmo de hoje."
-        }
+        let closing = " Tire um momento para respirar fundo e respeitar o seu ritmo de hoje."
 
         let fullText = [opening, middle, trendText, closing]
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -574,69 +606,7 @@ private struct ReflectionNarrativeCard: View {
 
 // MARK: - Action Card
 
-private struct ReflectionActionCard: View {
-    let action: NextBestAction
-    var onTap: (() -> Void)?
 
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var tint: Color {
-        switch action.kind.category {
-        case .execution:     return VenusTheme.accentOrange
-        case .planning:      return VenusTheme.accentBlue
-        case .communication: return VenusTheme.accentPink
-        case .movement:      return VenusTheme.accentGreen
-        case .recovery:      return VenusTheme.accentPurple
-        }
-    }
-
-    var body: some View {
-        Button {
-            onTap?()
-        } label: {
-            HStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(tint.opacity(0.14))
-                        .frame(width: 44, height: 44)
-                    Image(systemName: action.kind.iconName)
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(tint)
-                }
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(action.title)
-                        .font(.system(.subheadline, design: .rounded).weight(.bold))
-                        .foregroundColor(VenusTheme.text)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text("\(action.estimatedMinutes) min · toque para entender o porquê")
-                        .font(.system(.caption2, design: .rounded).weight(.semibold))
-                        .foregroundColor(VenusTheme.textSecondary)
-                }
-
-                Spacer(minLength: 0)
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(VenusTheme.textSecondary)
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(colorScheme == .dark ? Color(hex: "1E2E20") : Color.white.opacity(0.96))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(tint.opacity(0.18), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(onTap == nil)
-    }
-}
 private struct HomeReflectionLeadCard: View {
     let title: String
     let detail: String

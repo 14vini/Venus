@@ -17,7 +17,6 @@ struct AppResetService {
     func resetAllLocalData() throws {
         try deleteUserProfile()
         try deleteMoods()
-        try deleteTodos()
     }
 
     private func deleteUserProfile() throws {
@@ -30,14 +29,6 @@ struct AppResetService {
 
     private func deleteMoods() throws {
         let models = try context.fetch(FetchDescriptor<MoodModel>())
-        for model in models {
-            context.delete(model)
-        }
-        try context.save()
-    }
-
-    private func deleteTodos() throws {
-        let models = try context.fetch(FetchDescriptor<TodoModel>())
         for model in models {
             context.delete(model)
         }

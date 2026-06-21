@@ -11,21 +11,33 @@ import Combine
 
 enum MoodRequiredField: String, CaseIterable, Identifiable {
     case energyLevel
+    case mood
+    case tags
+    case affectedArea
+    case availableTime
+    case controlLevel
+    case sleepQuality
+    case bodySignals
+    case note
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .energyLevel:
-            return "Energia"
+        case .energyLevel: return "Energia"
+        case .mood: return "Sentimento"
+        case .tags: return "Gatilhos"
+        case .affectedArea: return "Área Afetada"
+        case .availableTime: return "Tempo Disponível"
+        case .controlLevel: return "Controle"
+        case .sleepQuality: return "Qualidade do Sono"
+        case .bodySignals: return "Sinais no Corpo"
+        case .note: return "Nota Curta"
         }
     }
 
     var inlineTitle: String {
-        switch self {
-        case .energyLevel:
-            return "energia"
-        }
+        title.lowercased()
     }
 }
 
@@ -56,36 +68,40 @@ class MoodCheckInViewModel: ObservableObject {
     let sleepQualities = MoodSleepQuality.allCases
 
     var isReadyToSave: Bool {
-        selectedMood != nil && missingRequiredFields.isEmpty
+        missingRequiredFields.isEmpty
     }
 
     var missingRequiredFields: [MoodRequiredField] {
         var missing: [MoodRequiredField] = []
-
-        if selectedEnergyLevel == nil {
-            missing.append(.energyLevel)
-        }
+        if selectedZenithEnergy == nil { missing.append(.energyLevel) }
+        if selectedMood == nil { missing.append(.mood) }
+        if selectedTags.isEmpty { missing.append(.tags) }
+        if selectedAffectedArea == nil { missing.append(.affectedArea) }
+        if selectedAvailableTime == nil { missing.append(.availableTime) }
+        if selectedControlLevel == nil { missing.append(.controlLevel) }
+        if selectedSleepQuality == nil { missing.append(.sleepQuality) }
+        if selectedBodySignals.isEmpty { missing.append(.bodySignals) }
+        if note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { missing.append(.note) }
         return missing
     }
 
     var shouldShowValidationHint: Bool {
-        selectedZenithEnergy == nil && validationHintVisible
+        !missingRequiredFields.isEmpty && validationHintVisible
     }
 
     var validationHintTitle: String {
-        "Escolha sua energia"
+        "Faltam informações"
     }
 
     var validationHintBody: String {
-        "Marque se sua bateria esta critica, regular ou cheia."
+        "Preencha todos os campos obrigatórios para salvar."
     }
 
     var requiredFieldsSummary: String {
-        if selectedZenithEnergy != nil {
+        if isReadyToSave {
             return "Tudo pronto para salvar."
         }
-
-        return "Falta escolher sua energia."
+        return "Complete todas as etapas."
     }
 
     func triggerValidationHint() {

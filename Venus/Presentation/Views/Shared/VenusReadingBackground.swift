@@ -117,36 +117,6 @@ struct VenusReadingBackground: View {
 
             GeometryReader { geometry in
                 ZStack {
-                    Circle()
-                        .fill(accent.opacity(colorScheme == .dark ? 0.28 : 0.18))
-                        .frame(width: 380, height: 380)
-                        .blur(radius: 110)
-                        .scaleEffect(animateAmbient ? 1.06 : 0.96)
-                        .offset(
-                            x: -geometry.size.width * 0.24 + (animateAmbient ? 28 : -10),
-                            y: -geometry.size.height * 0.18 + (animateAmbient ? 10 : -14)
-                        )
-
-                    Circle()
-                        .fill(secondaryAccent.opacity(colorScheme == .dark ? 0.20 : 0.13))
-                        .frame(width: 340, height: 340)
-                        .blur(radius: 116)
-                        .scaleEffect(animateAmbient ? 0.94 : 1.04)
-                        .offset(
-                            x: geometry.size.width * 0.34 + (animateAmbient ? -24 : 14),
-                            y: geometry.size.height * 0.26 + (animateAmbient ? 20 : -12)
-                        )
-
-                    Circle()
-                        .fill(tertiaryAccent.opacity(colorScheme == .dark ? 0.16 : 0.10))
-                        .frame(width: 280, height: 280)
-                        .blur(radius: 100)
-                        .scaleEffect(animateAmbient ? 1.04 : 0.98)
-                        .offset(
-                            x: geometry.size.width * 0.1 + (animateAmbient ? 12 : -8),
-                            y: geometry.size.height * 0.7 + (animateAmbient ? -18 : 10)
-                        )
-
                     LinearGradient(
                         colors: [
                             accent.opacity(colorScheme == .dark ? 0.12 : 0.14),

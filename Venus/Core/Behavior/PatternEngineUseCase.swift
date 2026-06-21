@@ -13,8 +13,6 @@ protocol PatternEngineUseCaseProtocol {
 
 final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
     private let moodRepository: MoodRepositoryProtocol
-    private let todoRepository: TodoRepositoryProtocol
-    private let activityRepository: ActivityRepositoryProtocol
     private let userProfileRepository: UserProfileRepositoryProtocol
     private let subscriptionStatusProvider: SubscriptionStatusProviderProtocol
     private let feedbackStore: BehaviorFeedbackStoreProtocol
@@ -26,8 +24,6 @@ final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
 
     init(
         moodRepository: MoodRepositoryProtocol,
-        todoRepository: TodoRepositoryProtocol,
-        activityRepository: ActivityRepositoryProtocol,
         userProfileRepository: UserProfileRepositoryProtocol,
         subscriptionStatusProvider: SubscriptionStatusProviderProtocol,
         feedbackStore: BehaviorFeedbackStoreProtocol,
@@ -38,8 +34,6 @@ final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
         snapshotAlgorithmVersion: String = "behavior-home-v6"
     ) {
         self.moodRepository = moodRepository
-        self.todoRepository = todoRepository
-        self.activityRepository = activityRepository
         self.userProfileRepository = userProfileRepository
         self.subscriptionStatusProvider = subscriptionStatusProvider
         self.feedbackStore = feedbackStore
@@ -57,8 +51,6 @@ final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
         let window = DateInterval(start: windowStart, end: windowEnd)
 
         async let moodsTask = moodRepository.getMoods(from: windowStart, to: referenceDate)
-        async let todosTask = todoRepository.getTodos(from: windowStart, to: referenceDate)
-        async let activitiesTask = activityRepository.getActivities()
         async let profileTask = userProfileRepository.load()
         async let planTask = subscriptionStatusProvider.currentPlan()
         async let feedbackTask = feedbackStore.loadRecent(days: homeWindowDays, referenceDate: referenceDate)
@@ -69,17 +61,15 @@ final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
             return nil
         }
 
-        let todos = try await todosTask
-        let activities = await activitiesTask
         let profile = try await profileTask
         let currentPlan = await planTask
         let feedbackRecords = await feedbackTask
 
         let profileContext = BehaviorEventIngestion.makeProfileContext(from: profile, calendar: calendar)
         let moodEvents = BehaviorEventIngestion.makeMoodEvents(from: moods, calendar: calendar)
-        let todoEvents = BehaviorEventIngestion.makeTodoEvents(from: todos, calendar: calendar)
+        let todoEvents: [BehaviorTodoEvent] = []
         let feedbackEvents = BehaviorEventIngestion.makeFeedbackEvents(from: feedbackRecords, calendar: calendar)
-        let activityBlueprints = Self.mapActivitiesToBlueprints(activities)
+        let activityBlueprints: [BehaviorActivityBlueprint] = []
 
         let dataVersion = makeDataVersion(
             dayKey: dayKey,

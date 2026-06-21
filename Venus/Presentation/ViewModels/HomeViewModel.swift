@@ -56,8 +56,7 @@ class HomeViewModel: ObservableObject {
     @Published var showVenusChat: Bool = false
     @Published var showChatHistory: Bool = false
     @Published var showVenusProPlans: Bool = false
-    @Published var showWrapped: Bool = false
-    @Published var actionReasonAction: NextBestAction?
+    @Published var showMirror: Bool = false
 
     @Published var showCheckInHint: Bool = false
     @Published var checkInPrefilledMood: MoodType?
@@ -94,16 +93,10 @@ class HomeViewModel: ObservableObject {
     }
     @Published var showMoodCheckIn: Bool = false
     @Published var showUpgradePrompt: Bool = false
-    @Published var nextBestAction: NextBestAction?
-    @Published var alternativeActions: [NextBestAction] = []
     @Published var weeklyTrend: WeeklyEmotionalTrend?
     @Published var patternAlert: PatternAlert?
     @Published var weeklyInsights: WeeklyStrategicInsights?
-    @Published var actionWhy: ActionWhyInsight?
     @Published var proMoodForecast: ProMoodForecast?
-    @Published var confidenceInsight: ConfidenceImprovementInsight?
-    @Published var triggerRecoveryInsight: TriggerRecoveryInsight?
-    @Published var exploreActionSuggestions: [ExploreActionSuggestion] = []
     @Published var isLoadingInsights: Bool = false
     @Published var todayMoodType: MoodType?
     @Published var todayMoodIntensity: Int?
@@ -207,7 +200,7 @@ class HomeViewModel: ObservableObject {
 
     func retryInsights() {
         Task {
-            await refreshPatternInsights(allowNextBestAction: hasCheckedInToday)
+            await refreshPatternInsights()
         }
     }
 
@@ -248,25 +241,6 @@ class HomeViewModel: ObservableObject {
         showMoodCheckIn = true
     }
 
-    func handleActionReasonTap() {
-        guard let action = displayedActionModel else { return }
-        actionReasonAction = action
-        showWrapped = true
-    }
-
-    func selectAlternativeAction(_ action: NextBestAction) {
-        guard nextBestAction?.actionKey != action.actionKey else { return }
-
-        let previousPrimary = nextBestAction
-        nextBestAction = action
-
-        var reordered = alternativeActions.filter { $0.actionKey != action.actionKey }
-        if let previousPrimary, previousPrimary.actionKey != action.actionKey {
-            reordered.insert(previousPrimary, at: 0)
-        }
-        alternativeActions = Array(reordered.prefix(4))
-    }
-
     private func checkIfCheckedIn() async {
         await refreshMoodStatus()
     }
@@ -305,13 +279,6 @@ class HomeViewModel: ObservableObject {
                 todayMoodSleepQuality = nil
                 todayMoodBodySignals = []
                 dayOverDayTrend = nil
-                nextBestAction = nil
-                alternativeActions = []
-                actionWhy = nil
-                proMoodForecast = nil
-                confidenceInsight = nil
-                triggerRecoveryInsight = nil
-                exploreActionSuggestions = []
                 weeklyTrend = nil
                 patternAlert = nil
                 weeklyInsights = nil
@@ -321,7 +288,7 @@ class HomeViewModel: ObservableObject {
             let streakStartDate = Calendar.current.date(byAdding: .day, value: -365, to: Date()) ?? Date()
             let moods = try await moodRepository.getMoods(from: streakStartDate, to: Date())
             checkInStreakDays = calculateCheckInStreak(from: moods)
-            await refreshPatternInsights(allowNextBestAction: hasCheckedInToday)
+            await refreshPatternInsights()
         } catch {
             insightsTask?.cancel()
             insightsTask = nil
@@ -331,7 +298,7 @@ class HomeViewModel: ObservableObject {
         }
     }
 
-    private func refreshPatternInsights(allowNextBestAction: Bool) async {
+    private func refreshPatternInsights() async {
         insightsTask?.cancel()
         let requestID = UUID()
         insightsRequestID = requestID
@@ -349,14 +316,7 @@ class HomeViewModel: ObservableObject {
                     self.weeklyTrend = snapshot?.weeklyTrend
                     self.patternAlert = snapshot?.patternAlert
                     self.weeklyInsights = snapshot?.weeklyInsights
-                    let action = allowNextBestAction ? snapshot?.nextBestAction : nil
-                    self.nextBestAction = action
-                    self.alternativeActions = action != nil ? (snapshot?.alternativeActions ?? []) : []
-                    self.actionWhy = action != nil ? snapshot?.actionWhy : nil
                     self.proMoodForecast = snapshot?.proMoodForecast
-                    self.confidenceInsight = snapshot?.confidenceInsight
-                    self.triggerRecoveryInsight = snapshot?.triggerRecoveryInsight
-                    self.exploreActionSuggestions = snapshot?.exploreActionSuggestions ?? []
                     self.isCriticalRiskNow = self.evaluateCriticalRisk(
                         patternAlert: snapshot?.patternAlert,
                         weeklyTrend: snapshot?.weeklyTrend,
@@ -364,188 +324,18 @@ class HomeViewModel: ObservableObject {
                     )
                     self.isLoadingInsights = false
                     self.insightsErrorMessage = nil
-
-                    if self.nextBestAction == nil {
-                        self.useRichFallback()
-                    }
                 }
             } catch is CancellationError {
                 return
             } catch {
                 guard !Task.isCancelled, self.insightsRequestID == requestID else { return }
-                self.nextBestAction = nil
-                self.alternativeActions = []
                 self.weeklyInsights = nil
-                self.actionWhy = nil
                 self.proMoodForecast = nil
-                self.confidenceInsight = nil
-                self.triggerRecoveryInsight = nil
-                self.exploreActionSuggestions = []
                 self.isCriticalRiskNow = false
                 self.isLoadingInsights = false
                 self.insightsErrorMessage = "Não consegui analisar seus padrões agora."
-                self.useRichFallback()
                 print("Error generating pattern insights: \(error)")
             }
-        }
-    }
-
-    private func useRichFallback() {
-        guard let moodCluster = todayMoodType?.cluster else { return }
-
-        let moderators = Moderators(
-            tempoMinutos: todayMoodAvailableTime?.maxMinutes,
-            energia: todayMoodEnergyLevel.map { level in
-                switch level {
-                case .low: return "baixa"
-                case .medium: return "media"
-                case .high: return "alta"
-                }
-            },
-            controle: todayMoodControlLevel.map { level in
-                switch level {
-                case .low: return "baixo"
-                case .medium: return "medio"
-                case .high: return "alto"
-                }
-            },
-            clareza: todayMoodMentalClarity.map { clarity in
-                if clarity <= 3 { return "baixa" }
-                if clarity <= 7 { return "media" }
-                return "alta"
-            },
-            area: todayMoodAffectedArea.map { area in
-                switch area {
-                case .work: return "trabalho"
-                case .relationship: return "relacao"
-                case .health: return "saude"
-                case .discipline: return "disciplina"
-                case .finances: return "finanças"
-                case .studies: return "estudo"
-                case .social: return "social"
-                case .family: return "familia"
-                case .personal: return "pessoal"
-                }
-            },
-            riscoAlto: false,
-            horario: Date()
-        )
-
-        let context = UserContext(
-            mood: moodCluster,
-            intensity: todayMoodIntensity ?? 5,
-            moderators: moderators,
-            valuePriority: nil,
-            area: moderators.area,
-            blockedTask: nil,
-            easyTask: nil,
-            helpsHistory: [:],
-            lastActionCategory: nil
-        )
-
-        let variants = richEngine.rankedSuggestions(for: context, limit: 5)
-        guard let primaryVariant = variants.first else { return }
-        let copyWhy = RichRecommendationEngine.defaultPlaybook[moodCluster]?.copyWhy.randomElement()
-
-        let fallbackAction = buildFallbackAction(
-            from: primaryVariant,
-            moodCluster: moodCluster,
-            reason: copyWhy
-        )
-        let alternatives = variants
-            .dropFirst()
-            .map { buildFallbackAction(from: $0, moodCluster: moodCluster, reason: copyWhy) }
-
-        withAnimation {
-            self.nextBestAction = fallbackAction
-            self.alternativeActions = Array(alternatives.prefix(4))
-            self.actionWhy = copyWhy.map {
-                ActionWhyInsight(
-                    summary: $0,
-                    evidence: [],
-                    confidence: 0.55
-                )
-            }
-        }
-    }
-
-    private func buildFallbackAction(
-        from variant: ActionVariant,
-        moodCluster: MoodCluster,
-        reason: String?
-    ) -> NextBestAction {
-        NextBestAction(
-            actionKey: variant.id.uuidString,
-            kind: fallbackKind(for: variant),
-            title: variant.title,
-            detail: variant.detail,
-            strategicReason: reason ?? fallbackReason(for: moodCluster),
-            estimatedMinutes: variant.duration
-        )
-    }
-
-    private func fallbackKind(for variant: ActionVariant) -> NextBestActionKind {
-        let title = BehaviorMoodScorer.normalize(variant.title)
-        let category = BehaviorMoodScorer.normalize(variant.category)
-
-        switch category {
-        case "respiracao":
-            return .breathReset
-        case "movimento":
-            if title.contains("along") { return .softStretch }
-            if title.contains("caminh") || title.contains("passeio") { return .walkingRegulation }
-            return .quickExercise
-        case "organizacao":
-            if title.contains("brain dump") || title.contains("anotar o que drena") { return .mentalUnload }
-            if title.contains("dividir") { return .taskBreakdown }
-            if title.contains("remova") || title.contains("prior") { return .scopeReduction }
-            if title.contains("proteger") || title.contains("janela") { return .protectPeakWindow }
-            if title.contains("primeiro") || title.contains("tijolo") { return .firstStepActivation }
-            return .paperPlanning
-        case "conexao":
-            return title.contains("coisa boa") || title.contains("encontro") ? .shareGoodMoment : .supportMessage
-        case "auto_cuidado":
-            if title.contains("agua") || title.contains("hidr") || title.contains("checagem") { return .hydrationReset }
-            if title.contains("musica") { return .pleasureBoost }
-            if title.contains("sono") || title.contains("noite") { return .sleepReset }
-            return .mechanicalCare
-        case "act_valor":
-            return .valueReconnect
-        case "behavioral_activation":
-            if title.contains("sprint") { return .timerSprint }
-            if title.contains("finalizar") || title.contains("fechar") { return .finishSmallWin }
-            return .resolveAvoidedTask
-        case "manutencao":
-            return .environmentReset
-        case "sono":
-            return title.contains("microdescanso") || title.contains("soneca") ? .microRest : .sleepReset
-        case "relacionamento":
-            return title.contains("rascunho") ? .safeDraft : .difficultMessage
-        case "gratidao":
-            return .gratitudeMoment
-        case "motivacao":
-            return .celebrationBreak
-        default:
-            return .deepDisconnect
-        }
-    }
-
-    private func fallbackReason(for cluster: MoodCluster) -> String {
-        switch cluster {
-        case .ansioso, .estressado:
-            return "Essa ação tende a funcionar porque reduz pressão e devolve mais controle para o agora."
-        case .sobrecarregado:
-            return "Essa ação ajuda a cortar excesso e te devolver sensação de direção."
-        case .irritado:
-            return "Essa ação serve para baixar impulso antes de qualquer decisão maior."
-        case .triste, .desmotivado:
-            return "Essa ação busca te devolver movimento sem exigir demais de uma vez."
-        case .apatico:
-            return "Essa ação quebra a inércia de um jeito leve e mais fácil de cumprir."
-        case .cansadoFisico, .cansadoMental:
-            return "Essa ação poupa energia e ajuda seu corpo e sua cabeça a recuperarem ritmo."
-        case .calmo, .feliz, .energizado, .focado:
-            return "Essa ação aproveita o seu melhor estado para transformar isso em progresso real."
         }
     }
 
@@ -746,14 +536,7 @@ class HomeViewModel: ObservableObject {
         hasCheckedInToday ? "feito hoje" : "pendente hoje"
     }
 
-    var displayedActionModel: NextBestAction? {
-        guard let baseAction = nextBestAction else { return nil }
-        return preferHighImpactAction ? baseAction.asHighImpactVariant() : baseAction
-    }
 
-    var displayedAlternativeActions: [NextBestAction] {
-        alternativeActions.filter { $0.actionKey != nextBestAction?.actionKey }
-    }
 
     var checkInFloatingButtonTitle: String {
         if !hasCheckedInToday {

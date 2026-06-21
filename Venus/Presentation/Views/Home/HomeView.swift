@@ -20,29 +20,29 @@ struct HomeView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
-                    if viewModel.userProfile != nil {
-                        HStack {
-                            HStack(spacing: 6) {
-                                Image(systemName: viewModel.routineStatusIcon)
-                                    .font(.system(size: 12, weight: .bold))
-                                Text(viewModel.routineStatusLabel)
-                                    .font(.system(.caption, design: .rounded).weight(.bold))
-                            }
-                            .foregroundColor(Color(hex: viewModel.routineStatusColorHex))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color(hex: viewModel.routineStatusColorHex).opacity(0.12))
-                            .clipShape(Capsule())
-                            .overlay(
-                                Capsule()
-                                    .stroke(Color(hex: viewModel.routineStatusColorHex).opacity(0.24), lineWidth: 1)
-                            )
-                            
-                            Spacer()
-                        }
-                        .padding(.top, 8)
-                        .padding(.horizontal, 4)
-                    }
+//                    if viewModel.userProfile != nil {
+//                        HStack {
+//                            HStack(spacing: 6) {
+//                                Image(systemName: viewModel.routineStatusIcon)
+//                                    .font(.system(size: 12, weight: .bold))
+//                                Text(viewModel.routineStatusLabel)
+//                                    .font(.system(.caption, design: .rounded).weight(.bold))
+//                            }
+//                            .foregroundColor(Color(hex: viewModel.routineStatusColorHex))
+//                            .padding(.horizontal, 12)
+//                            .padding(.vertical, 6)
+//                            .background(Color(hex: viewModel.routineStatusColorHex).opacity(0.12))
+//                            .clipShape(Capsule())
+//                            .overlay(
+//                                Capsule()
+//                                    .stroke(Color(hex: viewModel.routineStatusColorHex).opacity(0.24), lineWidth: 1)
+//                            )
+//                            
+//                            Spacer()
+//                        }
+//                        .padding(.top, 8)
+//                        .padding(.horizontal, 4)
+//                    }
 
                     HomeImmersiveCheckInHeroSection(
                         selectedMood: viewModel.heroSelectedMood,
@@ -65,9 +65,8 @@ struct HomeView: View {
                         weeklyTrend: viewModel.weeklyTrend,
                         patternAlert: viewModel.patternAlert,
                         weeklyInsights: viewModel.weeklyInsights,
-                        action: viewModel.displayedActionModel,
                         isLoadingInsights: viewModel.isLoadingInsights,
-                        onReasonTap: viewModel.handleActionReasonTap
+                        onLookIntoMirror: { viewModel.showMirror = true }
                     )
                 }
                 .padding(.horizontal,20)
@@ -122,18 +121,14 @@ struct HomeView: View {
                 }
             }
         }
-        .sheet(isPresented: $viewModel.showMoodCheckIn, onDismiss: {
+        .fullScreenCover(isPresented: $viewModel.showMoodCheckIn, onDismiss: {
             inlineCheckInViewModel.startNewCheckIn()
         }) {
-            NavigationStack {
-                MoodCheckInView(
-                    viewModel: inlineCheckInViewModel,
-                    ritualProgressLabel: viewModel.ritualProgressLabel,
-                    onCompleted: viewModel.handleMoodCheckInCompleted
-                )
-            }
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
+            MoodCheckInView(
+                viewModel: inlineCheckInViewModel,
+                ritualProgressLabel: viewModel.ritualProgressLabel,
+                onCompleted: viewModel.handleMoodCheckInCompleted
+            )
         }
         .fullScreenCover(isPresented: $viewModel.showVenusChat) {
             VenusChatView()
@@ -163,34 +158,12 @@ struct HomeView: View {
                 }
             )
         }
-        .navigationDestination(item: $viewModel.actionReasonAction) { actionModel in
-            HomeActionReasonView(
-                actionModel: actionModel,
+        .sheet(isPresented: $viewModel.showMirror) {
+            MirrorInsightView(
+                weeklyTrend: viewModel.weeklyTrend,
                 weeklyInsights: viewModel.weeklyInsights,
-                patternAlert: viewModel.patternAlert,
-                actionWhy: viewModel.actionWhy,
-                proForecast: viewModel.proMoodForecast,
-                isPro: viewModel.checkInAllowance.plan == .pro,
-                confidenceInsight: viewModel.confidenceInsight,
-                triggerRecoveryInsight: viewModel.triggerRecoveryInsight,
-                alternativeActions: viewModel.displayedAlternativeActions,
-                exploreSuggestions: viewModel.exploreActionSuggestions
+                patternAlert: viewModel.patternAlert
             )
-        }
-        .fullScreenCover(isPresented: $viewModel.showWrapped) {
-            if let action = viewModel.actionReasonAction {
-                HomeWrappedView(
-                    actionModel: action,
-                    weeklyInsights: viewModel.weeklyInsights,
-                    patternAlert: viewModel.patternAlert,
-                    actionWhy: viewModel.actionWhy,
-                    proForecast: viewModel.proMoodForecast,
-                    isPro: viewModel.checkInAllowance.plan == .pro,
-                    confidenceInsight: viewModel.confidenceInsight,
-                    triggerRecoveryInsight: viewModel.triggerRecoveryInsight,
-                    weeklyTrend: viewModel.weeklyTrend
-                )
-            }
         }
     }
 }

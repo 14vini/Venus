@@ -34,6 +34,12 @@ enum BehaviorDayPeriod: String, Codable, CaseIterable, Hashable, Sendable {
     case night
 }
 
+enum TodoType: String, Codable, CaseIterable, Hashable, Sendable {
+    case routine
+    case health
+    case generic
+}
+
 struct BehaviorMoodEvent: Identifiable, Equatable, Sendable {
     let id: UUID
     let timestamp: Date

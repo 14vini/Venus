@@ -49,22 +49,6 @@ enum BehaviorEventIngestion {
             )
         }
     }
-
-    static func makeTodoEvents(
-        from todos: [TodoItem],
-        calendar: Calendar
-    ) -> [BehaviorTodoEvent] {
-        todos.map { todo in
-            BehaviorTodoEvent(
-                id: todo.id,
-                dayKey: calendar.startOfDay(for: todo.date),
-                isCompleted: todo.isCompleted,
-                type: todo.type,
-                isSystemGenerated: todo.isSystemGenerated
-            )
-        }
-    }
-
     static func makeFeedbackEvents(
         from records: [ActionFeedbackRecord],
         calendar: Calendar
