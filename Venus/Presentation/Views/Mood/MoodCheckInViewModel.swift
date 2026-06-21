@@ -10,42 +10,28 @@ import SwiftUI
 import Combine
 
 enum MoodRequiredField: String, CaseIterable, Identifiable {
-    case affectedArea
     case energyLevel
-    case availableTime
-    case controlLevel
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .affectedArea:
-            return "Área mais afetada"
         case .energyLevel:
             return "Energia"
-        case .availableTime:
-            return "Tempo disponível agora"
-        case .controlLevel:
-            return "Está sob seu controle?"
         }
     }
 
     var inlineTitle: String {
         switch self {
-        case .affectedArea:
-            return "área afetada"
         case .energyLevel:
             return "energia"
-        case .availableTime:
-            return "tempo disponível"
-        case .controlLevel:
-            return "nível de controle"
         }
     }
 }
 
 @MainActor
 class MoodCheckInViewModel: ObservableObject {
+    @Published var selectedZenithEnergy: EnergyLevel?
     @Published var selectedMood: MoodType?
     @Published var note: String = ""
     @Published var selectedIntensity: Double = 5
@@ -76,44 +62,30 @@ class MoodCheckInViewModel: ObservableObject {
     var missingRequiredFields: [MoodRequiredField] {
         var missing: [MoodRequiredField] = []
 
-        if selectedAffectedArea == nil {
-            missing.append(.affectedArea)
-        }
         if selectedEnergyLevel == nil {
             missing.append(.energyLevel)
         }
-        if selectedAvailableTime == nil {
-            missing.append(.availableTime)
-        }
-        if selectedControlLevel == nil {
-            missing.append(.controlLevel)
-        }
-
         return missing
     }
 
     var shouldShowValidationHint: Bool {
-        selectedMood != nil && (!missingRequiredFields.isEmpty || validationHintVisible)
+        selectedZenithEnergy == nil && validationHintVisible
     }
 
     var validationHintTitle: String {
-        missingRequiredFields.count == 1
-        ? "Falta 1 campo obrigatório"
-        : "Faltam \(missingRequiredFields.count) campos obrigatórios"
+        "Escolha sua energia"
     }
 
     var validationHintBody: String {
-        let fields = missingRequiredFields.map(\.inlineTitle)
-        guard !fields.isEmpty else { return "Tudo pronto para salvar seu check-in." }
-        return "Complete \(fields.joined(separator: ", ")) para liberar o salvar."
+        "Marque se sua bateria esta critica, regular ou cheia."
     }
 
     var requiredFieldsSummary: String {
-        if missingRequiredFields.isEmpty {
+        if selectedZenithEnergy != nil {
             return "Tudo pronto para salvar."
         }
 
-        return "Campos em vermelho: \(missingRequiredFields.map(\.inlineTitle).joined(separator: ", "))."
+        return "Falta escolher sua energia."
     }
 
     func triggerValidationHint() {
@@ -148,6 +120,7 @@ class MoodCheckInViewModel: ObservableObject {
         savedSuccess = false
         isSaving = false
         validationHintVisible = false
+        selectedZenithEnergy = nil
         selectedMood = prefilledMood
         note = ""
         selectedIntensity = 5
@@ -159,6 +132,11 @@ class MoodCheckInViewModel: ObservableObject {
         selectedMentalClarity = 5
         selectedSleepQuality = nil
         selectedBodySignals = []
+
+        if let prefilledMood {
+            selectedZenithEnergy = mapZenithEnergy(from: prefilledMood)
+            selectedEnergyLevel = mapMoodEnergy(from: selectedZenithEnergy)
+        }
     }
     
     func toggleTag(_ tag: String) {
@@ -173,8 +151,23 @@ class MoodCheckInViewModel: ObservableObject {
         selectedAffectedArea = selectedAffectedArea == area ? nil : area
     }
 
+    func selectZenithEnergy(_ energy: EnergyLevel) {
+        selectedZenithEnergy = energy
+        selectedEnergyLevel = mapMoodEnergy(from: energy)
+        selectedMood = mapMoodType(from: energy)
+        validationHintVisible = false
+    }
+
     func selectEnergyLevel(_ level: MoodEnergyLevel) {
         selectedEnergyLevel = selectedEnergyLevel == level ? nil : level
+        guard let selectedEnergyLevel else {
+            selectedZenithEnergy = nil
+            selectedMood = nil
+            return
+        }
+        let mappedEnergy = mapZenithEnergy(from: selectedEnergyLevel)
+        selectedZenithEnergy = mappedEnergy
+        selectedMood = mapMoodType(from: mappedEnergy)
     }
 
     func selectAvailableTime(_ availableTime: MoodAvailableTime) {
@@ -247,5 +240,51 @@ class MoodCheckInViewModel: ObservableObject {
             return ["Sem sintomas"]
         }
         return selectedBodySignals.sorted()
+    }
+
+    private func mapMoodType(from energy: EnergyLevel) -> MoodType {
+        switch energy {
+        case .critical:
+            return .tired
+        case .regular:
+            return .calm
+        case .full:
+            return .energetic
+        }
+    }
+
+    private func mapMoodEnergy(from energy: EnergyLevel?) -> MoodEnergyLevel? {
+        switch energy {
+        case .critical:
+            return .low
+        case .regular:
+            return .medium
+        case .full:
+            return .high
+        case .none:
+            return nil
+        }
+    }
+
+    private func mapZenithEnergy(from mood: MoodType) -> EnergyLevel {
+        switch mood {
+        case .tired, .sad, .stressed:
+            return .critical
+        case .calm, .happy:
+            return .regular
+        case .energetic:
+            return .full
+        }
+    }
+
+    private func mapZenithEnergy(from energyLevel: MoodEnergyLevel) -> EnergyLevel {
+        switch energyLevel {
+        case .low:
+            return .critical
+        case .medium:
+            return .regular
+        case .high:
+            return .full
+        }
     }
 }

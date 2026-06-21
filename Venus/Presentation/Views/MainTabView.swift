@@ -9,6 +9,7 @@ import SwiftUI
 
 struct MainTabView: View {
     let userName: String
+    @Environment(UserProfile.self) private var userProfile
     
     var body: some View {
         TabView {
@@ -19,10 +20,10 @@ struct MainTabView: View {
                 Label("home", systemImage: "house")
             }
             
-            DailyPracticesView(viewModel: DependencyContainer.shared.makeActivitiesListViewModel())
-                .tabItem {
-                    Label("Práticas", systemImage: "leaf.fill")
-                }
+//            DailyPracticesView(viewModel: DependencyContainer.shared.makeActivitiesListViewModel())
+//                .tabItem {
+//                    Label("Práticas", systemImage: "leaf.fill")
+//                }
             
 //            TodoListView(viewModel: DependencyContainer.shared.makeTodoListViewModel())
 //                .tabItem {
@@ -42,11 +43,12 @@ struct MainTabView: View {
             }
 
 
-            // Profile Placeholder (Future)
-//            Text("Perfil (Em construção)")
-//                .tabItem {
-//                    Label("Perfil", systemImage: "person")
-//                }
+            NavigationStack {
+                ProfileView()
+            }
+            .tabItem {
+                Label("Perfil", systemImage: "person.fill")
+            }
         }
         .tint(VenusTheme.primary)
         .preferredColorScheme(nil) // Permite que o sistema controle o modo escuro
@@ -60,22 +62,12 @@ private struct MainTabViewPreviewHost: View {
                 previewPlaceholder(title: "Hoje", subtitle: "Preview leve da tab principal")
             }
             .tabItem {
-                Label("Hoje", systemImage: "sparkles")
+                Label("Hoje", systemImage: "house")
             }
 
             previewPlaceholder(title: "Práticas", subtitle: "Preview leve")
                 .tabItem {
                     Label("Práticas", systemImage: "leaf.fill")
-                }
-
-            TodoListView(viewModel: TodoListPreviewFactory.makeViewModel())
-                .tabItem {
-                    Label("Agenda", systemImage: "calendar")
-                }
-
-            previewPlaceholder(title: "Explorar", subtitle: "Preview leve")
-                .tabItem {
-                    Label("Explorar", systemImage: "sparkles.rectangle.stack")
                 }
 
             NavigationStack {

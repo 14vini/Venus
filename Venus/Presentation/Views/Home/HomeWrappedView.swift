@@ -26,6 +26,7 @@ struct HomeWrappedView: View {
     @State private var progressFill: CGFloat = 0
     @State private var autoAdvanceTask: Task<Void, Never>? = nil
     @State private var showFullDetail = false
+    @State private var showExecution = false
     @State private var dragOffset: CGFloat = 0
     @State private var isPaused = false
     @State private var accumulatedProgress: CGFloat = 0
@@ -73,15 +74,7 @@ struct HomeWrappedView: View {
             ))
         }
 
-        // 5 — Se você agir agora
-        if triggerRecoveryInsight != nil || proForecast != nil {
-            result.append(WrappedSlideData(
-                kind: .impact,
-                mascotMood: .energetic,
-                bgColor: VenusTheme.accentGreen,
-                intensity: 8
-            ))
-        }
+        // Removido: 5 — Se você agir agora
 
         // 6 — Sua confiança
         if confidenceInsight != nil {
@@ -188,11 +181,11 @@ struct HomeWrappedView: View {
 
                 Spacer()
 
-                // Mascot + waveform
-                VStack(spacing: 0) {
-                    VenusMoodMascotOrb(
+                // Orb + waveform
+                VStack(spacing: 8) {
+                    VenusMoodOrb(
                         mood: currentSlide.mascotMood,
-                        size: 190
+                        size: 140
                     )
                     .animation(.spring(response: 0.45, dampingFraction: 0.62), value: currentSlide.mascotMood)
 
@@ -228,20 +221,10 @@ struct HomeWrappedView: View {
         }
         .offset(y: dragOffset)
         .sheet(isPresented: $showFullDetail) {
-            NavigationStack {
-                HomeActionReasonView(
-                    actionModel: actionModel,
-                    weeklyInsights: weeklyInsights,
-                    patternAlert: patternAlert,
-                    actionWhy: actionWhy,
-                    proForecast: proForecast,
-                    isPro: isPro,
-                    confidenceInsight: confidenceInsight,
-                    triggerRecoveryInsight: triggerRecoveryInsight,
-                    alternativeActions: [],
-                    exploreSuggestions: []
-                )
-            }
+            MirrorInsightView(insightText: actionWhy?.summary ?? "Estou aprendendo sobre você. Aos poucos me tornarei o seu melhor reflexo.")
+        }
+        .fullScreenCover(isPresented: $showExecution) {
+            ActionExecutionView(actionModel: actionModel)
         }
         .onAppear { startSlide() }
         .onChange(of: currentIndex) { _, _ in startSlide() }
@@ -328,7 +311,7 @@ struct HomeWrappedView: View {
                 )
                 HStack(spacing: 12) {
                     Button {
-                        // começar — em breve
+                        showExecution = true
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "play.fill")
@@ -348,7 +331,7 @@ struct HomeWrappedView: View {
                     Button {
                         showFullDetail = true
                     } label: {
-                        Text("ver tudo")
+                        Text("o seu espelho")
                             .font(.system(.subheadline, design: .rounded).weight(.semibold))
                             .foregroundColor(VenusTheme.textSecondary)
                             .padding(.horizontal, 18)
@@ -414,10 +397,14 @@ struct HomeWrappedView: View {
 
     private func startSlide() {
         textVisible = false
-        progressFill = 0
-        accumulatedProgress = 0
-        isPaused = false
         autoAdvanceTask?.cancel()
+        
+        withAnimation(.linear(duration: 0)) {
+            progressFill = 0
+            accumulatedProgress = 0
+        }
+        
+        isPaused = false
         seenSlides.insert(currentIndex)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
@@ -426,10 +413,12 @@ struct HomeWrappedView: View {
             }
         }
 
-        withAnimation(.linear(duration: slideDuration)) { progressFill = 1 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            withAnimation(.linear(duration: slideDuration)) { progressFill = 1 }
+        }
 
         autoAdvanceTask = Task {
-            try? await Task.sleep(nanoseconds: UInt64(slideDuration * 1_000_000_000))
+            try? await Task.sleep(nanoseconds: UInt64((slideDuration + 0.05) * 1_000_000_000))
             guard !Task.isCancelled else { return }
             await MainActor.run { goForward() }
         }
@@ -547,20 +536,20 @@ private struct WrappedTextBlock: View {
     let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             Text(eyebrow)
-                .font(.system(.caption, design: .rounded).weight(.black))
+                .font(.system(.subheadline, design: .rounded).weight(.black))
                 .foregroundColor(tint)
                 .tracking(0.8)
 
             Text(title)
-                .font(.system(size: 30, weight: .black, design: .rounded))
+                .font(.system(size: 34, weight: .black, design: .rounded))
                 .foregroundColor(VenusTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(2)
+                .lineSpacing(4)
 
             Text(detail)
-                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                .font(.system(.body, design: .rounded).weight(.medium))
                 .foregroundColor(VenusTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -590,42 +579,24 @@ private struct WrappedWeekBars: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .bottom, spacing: 20) {
-                barColumn(label: "semana passada", value: appeared ? prev : 0, pct: Int(prev * 100), color: VenusTheme.textSecondary.opacity(0.35))
-                barColumn(label: "essa semana", value: appeared ? curr : 0, pct: Int(curr * 100), color: tint)
-            }
-            .frame(height: 90)
-
-            HStack(spacing: 6) {
-                Image(systemName: delta > 0.02 ? "arrow.up.right" : delta < -0.02 ? "arrow.down.right" : "minus")
-                    .font(.system(size: 10, weight: .black))
-                    .foregroundColor(deltaColor)
+        HStack(spacing: 8) {
+            Image(systemName: delta > 0.02 ? "arrow.up.right.circle.fill" : delta < -0.02 ? "arrow.down.right.circle.fill" : "minus.circle.fill")
+                .font(.system(size: 24))
+                .foregroundColor(deltaColor)
+            VStack(alignment: .leading, spacing: 2) {
                 Text(deltaLabel)
-                    .font(.system(.caption2, design: .rounded).weight(.bold))
-                    .foregroundColor(deltaColor)
+                    .font(.system(.headline, design: .rounded).weight(.bold))
+                    .foregroundColor(VenusTheme.text)
                 Text("em relação à semana passada")
-                    .font(.system(.caption2, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded))
                     .foregroundColor(VenusTheme.textSecondary)
             }
         }
+        .padding(16)
+        .background(deltaColor.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .onAppear {
             withAnimation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.2)) { appeared = true }
-        }
-    }
-
-    private func barColumn(label: String, value: Double, pct: Int, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("\(pct)%")
-                .font(.system(.caption2, design: .rounded).weight(.black))
-                .foregroundColor(color == tint ? tint : VenusTheme.textSecondary)
-            Spacer(minLength: 0)
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(color)
-                .frame(width: 48, height: max(12, 72 * value))
-            Text(label)
-                .font(.system(.caption2, design: .rounded).weight(.bold))
-                .foregroundColor(VenusTheme.textSecondary)
         }
     }
 }

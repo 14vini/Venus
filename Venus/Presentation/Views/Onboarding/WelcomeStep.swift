@@ -19,8 +19,8 @@ struct WelcomeStep: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Mascot
-            VenusMascot3DCute(mood: .happy, size: 240)
+            // Orb
+            VenusMoodOrb(mood: .happy, size: 140)
                 .padding(.top, 8)
                 .opacity(showGreeting ? 1 : 0)
                 .scaleEffect(showGreeting ? 1 : 0.82)

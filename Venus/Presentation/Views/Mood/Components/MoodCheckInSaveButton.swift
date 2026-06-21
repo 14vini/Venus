@@ -10,6 +10,7 @@ struct MoodCheckInSaveButton: View {
     let isSaving: Bool
     var isReady: Bool = true
     let action: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button(action: action) {
@@ -19,29 +20,21 @@ struct MoodCheckInSaveButton: View {
                         .tint(.white)
                         .scaleEffect(0.8)
                 } else {
-                    Image(systemName: isReady ? "checkmark.seal.fill" : "exclamationmark.circle.fill")
+                    Image(systemName: isReady ? "checkmark.seal.fill" : "battery.25")
                         .font(.system(size: 16, weight: .bold))
                 }
 
-                Text(isSaving ? "Salvando..." : (isReady ? "Salvar check-in" : "Campos faltando"))
+                Text(isSaving ? "Salvando..." : (isReady ? "Salvar" : "Escolher energia"))
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
             }
-            .foregroundColor(.white)
+            .foregroundColor(isReady ? Color(UIColor.systemBackground) : .white)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(
                 Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: isReady
-                                ? [VenusTheme.moodMintStrong, VenusTheme.accentGreen]
-                                : [VenusTheme.validationError.opacity(0.85), VenusTheme.validationError],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(isReady ? Color.primary : VenusTheme.validationError.opacity(0.8))
             )
-            .shadow(color: (isReady ? VenusTheme.moodMintStrong : VenusTheme.validationError).opacity(0.28), radius: 12, x: 0, y: 6)
+            .shadow(color: (isReady ? Color.primary : VenusTheme.validationError).opacity(0.15), radius: 8, x: 0, y: 4)
         }
         .buttonStyle(.plain)
         .disabled(isSaving)

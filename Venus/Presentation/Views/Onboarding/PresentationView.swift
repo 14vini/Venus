@@ -35,8 +35,8 @@ struct PresentationView: View {
                     VStack(spacing: 0) {
                         Spacer()
 
-                        // Mascot
-                        VenusMascot3DCute(mood: .happy, size: 240)
+                        // Orb
+                        VenusMoodOrb(mood: .happy, size: 140)
                             .opacity(orbAppear ? 1 : 0)
                             .scaleEffect(orbAppear ? 1 : 0.78)
                             .animation(.spring(response: 0.7, dampingFraction: 0.68), value: orbAppear)

@@ -50,25 +50,25 @@ extension NextBestAction {
 
         switch kind.category {
         case .execution:
-            expandedTitle = "Bloco guiado: \(title)"
-            expandedDetail = "Expanda isso para \(expandedMinutes) minutos com começo claro, foco protegido e um fechamento simples para sair com sensação de avanço real."
-            expandedReason = "Quando você transforma um passo curto em bloco protegido, cresce a chance de sair da trava e terminar com sensação de domínio."
+            expandedTitle = "Foco dedicado: \(title)"
+            expandedDetail = "Que tal focar com calma por \(expandedMinutes) minutos nessa tarefa? Um começo tranquilo e sem pressa pode te ajudar a dar o primeiro passo."
+            expandedReason = "Criar um momento só para essa tarefa ajuda a diminuir a ansiedade e clarear o caminho."
         case .recovery:
-            expandedTitle = "Protocolo completo: \(title)"
-            expandedDetail = "Use \(expandedMinutes) minutos para reduzir estímulo, recuperar o corpo e deixar seu estado mais estável pelo resto do dia."
-            expandedReason = "Quando o cansaço ou a pressão estão altos, uma recuperação mais completa costuma funcionar melhor do que só uma pausa rápida."
+            expandedTitle = "Momento de calma: \(title)"
+            expandedDetail = "Tire \(expandedMinutes) minutos para se desligar do barulho externo, respirar e recuperar a sua energia."
+            expandedReason = "Quando o corpo ou a mente pedem arrego, um descanso um pouco maior ajuda a restaurar o equilíbrio de verdade."
         case .planning:
-            expandedTitle = "Mapa claro para seguir"
-            expandedDetail = "Reserve \(expandedMinutes) minutos para organizar a cabeça, cortar excesso e sair com um plano enxuto e fácil de cumprir."
-            expandedReason = "Dar estrutura ao que está difuso diminui o peso mental e deixa a ação seguinte muito mais provável."
+            expandedTitle = "Ajustando a rota"
+            expandedDetail = "Tire \(expandedMinutes) minutos para colocar as ideias no papel, tirar o que não é urgente e clarear os próximos passos."
+            expandedReason = "Organizar o que está na cabeça diminui o peso e ajuda a dar o próximo passo com mais leveza."
         case .communication:
-            expandedTitle = "Versão preparada da conversa"
-            expandedDetail = "Use \(expandedMinutes) minutos para escrever, revisar e deixar a mensagem mais calma, objetiva e segura antes de agir."
-            expandedReason = "Quando existe carga emocional em volta da conversa, preparar com calma costuma evitar impulso e reduzir arrependimento."
+            expandedTitle = "Preparando a conversa com calma"
+            expandedDetail = "Reserve \(expandedMinutes) minutos para rascunhar o que quer dizer de forma tranquila e no seu próprio tempo."
+            expandedReason = "Rascunhar antes te ajuda a organizar os sentimentos e conversar sem o calor do momento."
         case .movement:
-            expandedTitle = "Sessão completa: \(title)"
-            expandedDetail = "Transforme isso em \(expandedMinutes) minutos de movimento contínuo para descarregar tensão e devolver presença ao corpo."
-            expandedReason = "Sustentar o movimento por mais tempo tende a regular melhor a ativação física e limpar a mente."
+            expandedTitle = "Movimentando o corpo: \(title)"
+            expandedDetail = "Aproveite \(expandedMinutes) minutos de movimento contínuo para soltar as tensões e recuperar a presença física."
+            expandedReason = "Colocar o corpo em movimento ajuda a descarregar a adrenalina e acalmar os pensamentos."
         }
 
         return NextBestAction(

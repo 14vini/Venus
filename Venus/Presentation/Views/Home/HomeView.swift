@@ -20,13 +20,37 @@ struct HomeView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
+                    if viewModel.userProfile != nil {
+                        HStack {
+                            HStack(spacing: 6) {
+                                Image(systemName: viewModel.routineStatusIcon)
+                                    .font(.system(size: 12, weight: .bold))
+                                Text(viewModel.routineStatusLabel)
+                                    .font(.system(.caption, design: .rounded).weight(.bold))
+                            }
+                            .foregroundColor(Color(hex: viewModel.routineStatusColorHex))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color(hex: viewModel.routineStatusColorHex).opacity(0.12))
+                            .clipShape(Capsule())
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color(hex: viewModel.routineStatusColorHex).opacity(0.24), lineWidth: 1)
+                            )
+                            
+                            Spacer()
+                        }
+                        .padding(.top, 8)
+                        .padding(.horizontal, 4)
+                    }
+
                     HomeImmersiveCheckInHeroSection(
                         selectedMood: viewModel.heroSelectedMood,
                         hasCheckedInToday: viewModel.hasCheckedInToday,
                         progressLabel: viewModel.ritualProgressLabel,
                         statusLabel: viewModel.checkInStatusLabel,
                         isSelectionLocked: viewModel.hasCheckedInToday && !viewModel.checkInAllowance.canCheckIn,
-                        mascotSpeech: viewModel.homeHeadline,
+                        greetingText: viewModel.homeHeadline,
                         moodIntensity: viewModel.todayMoodIntensity,
                         onSelectMood: viewModel.handleInlineMoodSelection
                     )

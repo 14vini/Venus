@@ -489,18 +489,18 @@ extension RichRecommendationEngine {
       "risco": ["ataques de pânico frequentes", "uso de álcool/remédios para acalmar"]
     },
     "micro": [
-      { "id": "11111111-1111-1111-1111-111111111111", "title": "Respiração box 4-4-4", "detail": "3–5 min, contar 4-4-4, ritmo lento.", "duration": 5, "category": "respiracao", "cautions": ["evitar retenção longa se problema respiratório/cardiaco"], "isRich": false },
-      { "id": "11111111-1111-1111-1111-111111111112", "title": "Mini passo da tarefa travada", "detail": "Abra o TODO e faça só o primeiro passo (ex.: abrir arquivo).", "duration": 5, "category": "organizacao", "cautions": [], "isRich": true, "areaTag": "trabalho" },
-      { "id": "11111111-1111-1111-1111-111111111113", "title": "Brain dump de 3 minutos", "detail": "Liste tudo sem organizar; esvazie a cabeça.", "duration": 3, "category": "organizacao", "cautions": [], "isRich": true }
+      { "id": "11111111-1111-1111-1111-111111111111", "title": "Pausa para respirar (4-4-4)", "detail": "Inspire por 4 segundos, segure por 4 e expire por 4. Faça no seu tempo.", "duration": 5, "category": "respiracao", "cautions": ["evitar retenção longa se problema respiratório/cardiaco"], "isRich": false },
+      { "id": "11111111-1111-1111-1111-111111111112", "title": "Dar o primeiro micro-passo", "detail": "Escolha uma tarefa e faça apenas o primeiro passo simples, como abrir o arquivo ou a página.", "duration": 5, "category": "organizacao", "cautions": [], "isRich": true, "areaTag": "trabalho" },
+      { "id": "11111111-1111-1111-1111-111111111113", "title": "Esvaziar a cabeça no papel", "detail": "Escreva tudo o que está na sua mente em um papel, sem julgamentos, apenas para esvaziar a cabeça.", "duration": 3, "category": "organizacao", "cautions": [], "isRich": true }
     ],
     "altoImpacto": [
-      { "id": "11111111-1111-1111-1111-111111111114", "title": "Resolver um problema (PST light)", "detail": "1 frase do problema, 3 soluções, escolha 1 e planeje hoje.", "duration": 20, "category": "problem_solving", "cautions": [], "isRich": true, "areaTag": "trabalho" },
-      { "id": "11111111-1111-1111-1111-111111111115", "title": "Caminhada + expiração longa", "detail": "20 min andando, expira 2x mais longo que inspira.", "duration": 20, "category": "movimento", "cautions": ["evitar HIIT se muito ativado"], "isRich": false },
-      { "id": "11111111-1111-1111-1111-111111111116", "title": "Revisão de amanhã (anti-caos)", "detail": "Escolha 3 prioridades + 1 coisa que NÃO fará.", "duration": 15, "category": "organizacao", "isRich": true }
+      { "id": "11111111-1111-1111-1111-111111111114", "title": "Simplificar um problema difícil", "detail": "Escreva o problema em uma linha, pense em três saídas simples, escolha uma e dê o primeiro passo hoje.", "duration": 20, "category": "problem_solving", "cautions": [], "isRich": true, "areaTag": "trabalho" },
+      { "id": "11111111-1111-1111-1111-111111111115", "title": "Caminhada leve para respirar", "detail": "Caminhe calmamente por 20 minutos, soltando o ar pela boca bem devagar.", "duration": 20, "category": "movimento", "cautions": ["evitar HIIT se muito ativado"], "isRich": false },
+      { "id": "11111111-1111-1111-1111-111111111116", "title": "Planejar o dia de amanhã", "detail": "Apenas escolha três coisas importantes para focar amanhã e uma que você vai deixar para depois sem culpa.", "duration": 15, "category": "organizacao", "isRich": true }
     ],
     "copyWhy": [
-      "Sugerimos respiração porque você relatou tensão no corpo.",
-      "Propusemos resolver 1 passo do trabalho para reduzir pressão imediata."
+      "Pensei nessa respiração para te ajudar a soltar um pouco da tensão acumulada que você relatou.",
+      "Que tal focar em apenas um passo simples do trabalho hoje? Isso ajuda a tirar aquela sensação de que está tudo acumulado."
     ]
   },
   {
@@ -513,18 +513,18 @@ extension RichRecommendationEngine {
       "risco": ["abandono de responsabilidades", "choro frequente"]
     },
     "micro": [
-      { "id": "22222222-2222-2222-2222-222222222221", "title": "Escolher o que sai da lista", "detail": "Remova 1 tarefa do dia sem culpa.", "duration": 5, "category": "organizacao", "isRich": true },
-      { "id": "22222222-2222-2222-2222-222222222222", "title": "Dividir tarefa gigante em 3 passos", "detail": "Escreva só 3 subpassos simples.", "duration": 5, "category": "organizacao", "isRich": true },
-      { "id": "22222222-2222-2222-2222-222222222223", "title": "Água + pausa sensorial", "detail": "Beber água e olhar para longe 2 min.", "duration": 3, "category": "auto_cuidado", "isRich": false }
+      { "id": "22222222-2222-2222-2222-222222222221", "title": "Desapegar de uma tarefa hoje", "detail": "Olhe para a sua lista e escolha uma tarefa para riscar ou adiar hoje. Sinta o alívio de simplificar.", "duration": 5, "category": "organizacao", "isRich": true },
+      { "id": "22222222-2222-2222-2222-222222222222", "title": "Quebrar a tarefa em 3 mini-passos", "detail": "Pegue aquela tarefa que parece enorme e escreva três passos bem pequenininhos para começar.", "duration": 5, "category": "organizacao", "isRich": true },
+      { "id": "22222222-2222-2222-2222-222222222223", "title": "Beber um copo d'água com calma", "detail": "Tome um copo d'água devagar e olhe pela janela por dois minutos, descansando a vista.", "duration": 3, "category": "auto_cuidado", "isRich": false }
     ],
     "altoImpacto": [
-      { "id": "22222222-2222-2222-2222-222222222224", "title": "Sessão de priorização 20 min", "detail": "Marque A/B/C; mantenha só A hoje.", "duration": 20, "category": "organizacao", "isRich": true },
-      { "id": "22222222-2222-2222-2222-222222222225", "title": "Delegar ou adiar 1 item", "detail": "Escolha algo para delegar/adiar conscientemente.", "duration": 15, "category": "problem_solving", "isRich": true },
-      { "id": "22222222-2222-2222-2222-222222222226", "title": "Caminhada descarrego", "detail": "15 min ritmo moderado, longe de telas.", "duration": 15, "category": "movimento", "isRich": false }
+      { "id": "22222222-2222-2222-2222-222222222224", "title": "Definir a prioridade principal", "detail": "Separe suas tarefas entre urgentes e secundárias. Foque apenas no que realmente precisa de atenção hoje.", "duration": 20, "category": "organizacao", "isRich": true },
+      { "id": "22222222-2222-2222-2222-222222222225", "title": "Passar adiante ou adiar uma pendência", "detail": "Escolha uma tarefa para passar para outra pessoa ou deixar para a semana que vem, aliviando o seu dia.", "duration": 15, "category": "problem_solving", "isRich": true },
+      { "id": "22222222-2222-2222-2222-222222222226", "title": "Caminhada rápida para desanuviar", "detail": "Dê uma volta de 15 minutos ao ar livre, no seu ritmo e sem olhar para o celular.", "duration": 15, "category": "movimento", "isRich": false }
     ],
     "copyWhy": [
-      "Remover itens reduz carga percebida e devolve controle.",
-      "Priorizar A/B/C corta ruído e baixa sobrecarga."
+      "Limpar algumas tarefas da sua lista ajuda a tirar o peso das costas e devolve a sensação de controle.",
+      "Organizar o dia com foco no que realmente importa ajuda a diminuir o barulho mental e a sobrecarga."
     ]
   },
   {
@@ -537,17 +537,17 @@ extension RichRecommendationEngine {
       "risco": ["agressões verbais/físicas"]
     },
     "micro": [
-      { "id": "33333333-3333-3333-3333-333333333331", "title": "Mudança de cena dirigida", "detail": "Vá para outro cômodo, note 3 coisas da mesma cor.", "duration": 4, "category": "grounding", "isRich": true },
-      { "id": "33333333-3333-3333-3333-333333333332", "title": "Água fria nas mãos + 3 respirações", "detail": "DBT TIPP light para baixar ativação.", "duration": 3, "category": "dbt", "isRich": true },
-      { "id": "33333333-3333-3333-3333-333333333333", "title": "Escrever o que NÃO vai dizer", "detail": "1 frase que quer evitar falar no impulso.", "duration": 2, "category": "distress_tolerance", "isRich": true }
+      { "id": "33333333-3333-3333-3333-333333333331", "title": "Mudar de ambiente por uns instantes", "detail": "Mude de cômodo e observe três objetos simples ao seu redor para trazer a mente de volta ao presente.", "duration": 4, "category": "grounding", "isRich": true },
+      { "id": "33333333-3333-3333-3333-333333333332", "title": "Refrescar o rosto e respirar", "detail": "Lave as mãos ou o rosto com água fria e faça três respirações profundas para dar um respiro à mente.", "duration": 3, "category": "dbt", "isRich": true },
+      { "id": "33333333-3333-3333-3333-333333333333", "title": "Anotar desabafos em um rascunho", "detail": "Se estiver no impulso de responder algo, escreva em um papel tudo o que quer evitar dizer em público.", "duration": 2, "category": "distress_tolerance", "isRich": true }
     ],
     "altoImpacto": [
-      { "id": "33333333-3333-3333-3333-333333333334", "title": "STOP guiado", "detail": "Stop, Tomar ar, Observar, Proceder com intenção.", "duration": 10, "category": "dbt", "isRich": true },
-      { "id": "33333333-3333-3333-3333-333333333335", "title": "Descarga física segura", "detail": "10–15 min caminhada vigorosa ou alongamento forte.", "duration": 15, "category": "movimento", "isRich": false },
-      { "id": "33333333-3333-3333-3333-333333333336", "title": "Rascunho de conversa difícil", "detail": "Escreva e salve; não enviar agora.", "duration": 12, "category": "relacionamento", "isRich": true, "areaTag": "relacao" }
+      { "id": "33333333-3333-3333-3333-333333333334", "title": "Fazer um respiro consciente (STOP)", "detail": "Pare por um instante, respire fundo, observe seus sentimentos e depois decida o que fazer com calma.", "duration": 10, "category": "dbt", "isRich": true },
+      { "id": "33333333-3333-3333-3333-333333333335", "title": "Alongamento firme para soltar a tensão", "detail": "Faça um alongamento um pouco mais firme ou caminhe num ritmo ativo para descarregar a tensão física.", "duration": 15, "category": "movimento", "isRich": false },
+      { "id": "33333333-3333-3333-3333-333333333336", "title": "Escrever rascunho de conversa difícil", "detail": "Escreva o que você gostaria de falar naquela conversa difícil, mas guarde apenas como rascunho por enquanto.", "duration": 12, "category": "relacionamento", "isRich": true, "areaTag": "relacao" }
     ],
     "copyWhy": [
-      "Grounding reduz impulso; STOP dá intervalo para escolher resposta."
+      "Trazer a mente de volta para o presente acalma os impulsos e te dá um respiro para decidir o que fazer com calma."
     ]
   },
   {
@@ -560,18 +560,18 @@ extension RichRecommendationEngine {
       "risco": ["ideação de morte", "isolamento extremo"]
     },
     "micro": [
-      { "id": "44444444-4444-4444-4444-444444444441", "title": "Mensagem curta para alguém seguro", "detail": "Envie 1 frase começando com “Hoje eu me senti…”", "duration": 3, "category": "conexao", "isRich": true, "areaTag": "relacao" },
-      { "id": "44444444-4444-4444-4444-444444444442", "title": "Música-medicina", "detail": "Ouça 1 faixa que combina com o momento.", "duration": 4, "category": "auto_cuidado", "isRich": false },
-      { "id": "44444444-4444-4444-4444-444444444443", "title": "Prazer mínimo conhecido", "detail": "2 min de algo que marcou como prazeroso (ex.: meme).", "duration": 2, "category": "behavioral_activation", "isRich": true, "valueTag": "conexao" }
+      { "id": "44444444-4444-4444-4444-444444444441", "title": "Mandar uma mensagem para um amigo", "detail": "Mande uma mensagem curta para alguém de confiança dividindo um pouco de como foi o seu dia.", "duration": 3, "category": "conexao", "isRich": true, "areaTag": "relacao" },
+      { "id": "44444444-4444-4444-4444-444444444442", "title": "Ouvir sua música favorita", "detail": "Escolha uma música que combine com o seu estado de espírito e reserve quatro minutos para apenas ouvi-la.", "duration": 4, "category": "auto_cuidado", "isRich": false },
+      { "id": "44444444-4444-4444-4444-444444444443", "title": "Um momento rápido de diversão", "detail": "Tire dois minutinhos para ver algo leve que te faça sorrir, como um meme ou um vídeo curto.", "duration": 2, "category": "behavioral_activation", "isRich": true, "valueTag": "conexao" }
     ],
     "altoImpacto": [
-      { "id": "44444444-4444-4444-4444-444444444444", "title": "Bloco de valor (ACT)", "detail": "15–20 min em algo ligado a um valor escolhido.", "duration": 20, "category": "act_valor", "isRich": true },
-      { "id": "44444444-4444-4444-4444-444444444445", "title": "Passeio leve com áudio", "detail": "20 min ao ar livre ouvindo algo que acalme ou combine.", "duration": 20, "category": "movimento", "isRich": false },
-      { "id": "44444444-4444-4444-4444-444444444446", "title": "Finalizar algo pequeno", "detail": "Concluir uma parte de um projeto para senso de domínio.", "duration": 15, "category": "behavioral_activation", "isRich": true }
+      { "id": "44444444-4444-4444-4444-444444444444", "title": "Fazer algo que te dê orgulho", "detail": "Dedique 15 a 20 minutos a uma atividade simples que se alinhe com o que você valoriza na vida.", "duration": 20, "category": "act_valor", "isRich": true },
+      { "id": "44444444-4444-4444-4444-444444444445", "title": "Caminhada leve ouvindo música ou podcast", "detail": "Faça uma caminhada tranquila ouvindo uma música suave ou uma história leve.", "duration": 20, "category": "movimento", "isRich": false },
+      { "id": "44444444-4444-4444-4444-444444444446", "title": "Terminar uma pequena pendência", "detail": "Termine uma tarefa bem simples que estava pendente para sentir aquela boa sensação de dever cumprido.", "duration": 15, "category": "behavioral_activation", "isRich": true }
     ],
     "copyWhy": [
-      "Conexão e pequenas vitórias elevam prazer/domínio.",
-      "Ação baseada em valor alinha humor e propósito."
+      "Conversar com quem gostamos e concluir pequenas coisas ajuda a trazer um sentimento bom de acolhimento e capacidade.",
+      "Agir em sintonia com o que você valoriza traz mais sentido ao seu dia e melhora o ânimo de forma leve."
     ]
   },
   {
@@ -584,18 +584,18 @@ extension RichRecommendationEngine {
       "risco": ["abandono de metas importantes"]
     },
     "micro": [
-      { "id": "55555555-5555-5555-5555-555555555551", "title": "Pegar impulso de 2 min", "detail": "Trabalhe 2 min em algo que importa (valor).", "duration": 2, "category": "behavioral_activation", "isRich": true },
-      { "id": "55555555-5555-5555-5555-555555555552", "title": "Primeiro tijolo", "detail": "Escolha 1 tarefa travada e faça só o setup.", "duration": 3, "category": "organizacao", "isRich": true },
-      { "id": "55555555-5555-5555-5555-555555555553", "title": "Micro-recompensa", "detail": "Combine 5 min de esforço + 2 min de algo gostoso.", "duration": 7, "category": "motivacao", "isRich": true }
+      { "id": "55555555-5555-5555-5555-555555555551", "title": "Focar em algo por apenas 2 minutos", "detail": "Escolha algo que queira começar e concorde em trabalhar nele por apenas dois minutos. O mais difícil é começar.", "duration": 2, "category": "behavioral_activation", "isRich": true },
+      { "id": "55555555-5555-5555-5555-555555555552", "title": "Preparar a mesa ou o material para começar", "detail": "Prepare o ambiente ou abra os materiais para uma tarefa travada. Deixe tudo pronto para quando quiser agir.", "duration": 3, "category": "organizacao", "isRich": true },
+      { "id": "55555555-5555-5555-5555-555555555553", "title": "Combinar um esforço curto com um agrado", "detail": "Faça um esforço focado de 5 minutos e se dê um agrado logo em seguida, como um café ou um descanso curto.", "duration": 7, "category": "motivacao", "isRich": true }
     ],
     "altoImpacto": [
-      { "id": "55555555-5555-5555-5555-555555555554", "title": "Sprint de 15 min (timebox)", "detail": "Timer 15 min; tarefa ligada a valor.", "duration": 15, "category": "behavioral_activation", "isRich": true },
-      { "id": "55555555-5555-5555-5555-555555555555", "title": "Planejar 3 ações amanhã", "detail": "1 obrigatória, 1 de valor, 1 de prazer.", "duration": 15, "category": "organizacao", "isRich": true },
-      { "id": "55555555-5555-5555-5555-555555555556", "title": "Reconectar com valor", "detail": "Escreva 3 linhas sobre por que importa e 1 passo.", "duration": 10, "category": "act_valor", "isRich": true }
+      { "id": "55555555-5555-5555-5555-555555555554", "title": "Foco de 15 minutos sem distrações", "detail": "Coloque um cronômetro de 15 minutos e foque em uma tarefa importante, sem distrações até o alarme tocar.", "duration": 15, "category": "behavioral_activation", "isRich": true },
+      { "id": "55555555-5555-5555-5555-555555555555", "title": "Anotar 3 coisas leves para fazer amanhã", "detail": "Escreva três coisas para amanhã: uma tarefa necessária, uma ligada a algo que você gosta e uma que dê prazer.", "duration": 15, "category": "organizacao", "isRich": true },
+      { "id": "55555555-5555-5555-5555-555555555556", "title": "Lembrar por que essa tarefa é importante", "detail": "Reflita por um instante sobre a importância dessa tarefa para você e defina um passo simples para realizá-la.", "duration": 10, "category": "act_valor", "isRich": true }
     ],
     "copyWhy": [
-      "Tempo curto + valor aumenta chance de começar.",
-      "Misturar obrigação + prazer evita ‘tanto faz’."
+      "Focar em uma tarefa por pouco tempo ajuda a vencer a preguiça e dar o primeiro passo.",
+      "Alternar obrigações com momentos de prazer evita aquela sensação de cansaço e desânimo com a rotina."
     ]
   },
   {
@@ -608,18 +608,18 @@ extension RichRecommendationEngine {
       "risco": ["dificuldade para tarefas básicas"]
     },
     "micro": [
-      { "id": "66666666-6666-6666-6666-666666666661", "title": "Autocuidado mecânico", "detail": "Trocar roupa de cama ou lavar rosto.", "duration": 5, "category": "auto_cuidado", "isRich": true },
-      { "id": "66666666-6666-6666-6666-666666666662", "title": "Hidratar + luz", "detail": "Beber água e 2 min em luz natural.", "duration": 3, "category": "auto_cuidado", "isRich": false },
-      { "id": "66666666-6666-6666-6666-666666666663", "title": "Tarefa de manutenção", "detail": "Rodar lavadora ou tirar lixo.", "duration": 5, "category": "manutencao", "isRich": true }
+      { "id": "66666666-6666-6666-6666-666666666661", "title": "Lavar o rosto ou arrumar a cama", "detail": "Faça um carinho simples em você ou no seu espaço: lave o rosto com água fresca ou arrume a sua cama.", "duration": 5, "category": "auto_cuidado", "isRich": true },
+      { "id": "66666666-6666-6666-6666-666666666662", "title": "Beber água perto de uma janela", "detail": "Beba um bom copo d'água perto de uma janela ou na luz do dia para despertar o corpo e a mente.", "duration": 3, "category": "auto_cuidado", "isRich": false },
+      { "id": "66666666-6666-6666-6666-666666666663", "title": "Arrumar um cantinho da bagunça", "detail": "Organize uma pequena coisa rápida, como levar o lixo para fora ou guardar alguns objetos fora do lugar.", "duration": 5, "category": "manutencao", "isRich": true }
     ],
     "altoImpacto": [
-      { "id": "66666666-6666-6666-6666-666666666664", "title": "Bloco mecânico com sentido", "detail": "20 min arrumando espaço que atrapalha todo dia.", "duration": 20, "category": "manutencao", "isRich": true },
-      { "id": "66666666-6666-6666-6666-666666666665", "title": "Valor mínimo", "detail": "10 min em algo simples ligado a um valor.", "duration": 10, "category": "act_valor", "isRich": true },
-      { "id": "66666666-6666-6666-6666-666666666666", "title": "Ativação física suave", "detail": "15 min alongar/passear devagar, sem meta.", "duration": 15, "category": "movimento", "isRich": false }
+      { "id": "66666666-6666-6666-6666-666666666664", "title": "Arrumar a mesa de trabalho por 20 minutos", "detail": "Tire 20 minutos para arrumar e organizar aquele cantinho da bagunça que te incomoda diariamente.", "duration": 20, "category": "manutencao", "isRich": true },
+      { "id": "66666666-6666-6666-6666-666666666665", "title": "Dedicar 10 minutos a algo valioso para você", "detail": "Dedique 10 minutos a algo que você gosta muito ou que considera importante para o seu crescimento.", "duration": 10, "category": "act_valor", "isRich": true },
+      { "id": "66666666-6666-6666-6666-666666666666", "title": "Caminhada leve para esticar as pernas", "detail": "Faça uma caminhada leve ou um alongamento suave, sem nenhuma cobrança ou meta de desempenho.", "duration": 15, "category": "movimento", "isRich": false }
     ],
     "copyWhy": [
-      "Ação mecânica quebra inércia sem exigir emoção.",
-      "Valor mínimo reinicia senso de propósito."
+      "Fazer algo manual ajuda a movimentar o corpo e quebrar a inércia, sem que você precise se cobrar demais.",
+      "Focar poucos minutos em algo que você ama ajuda a recuperar o ânimo e o sentido do dia."
     ]
   },
   {
@@ -632,18 +632,18 @@ extension RichRecommendationEngine {
       "risco": ["sonolência ao dirigir", "semanas seguidas"]
     },
     "micro": [
-      { "id": "77777777-7777-7777-7777-777777777771", "title": "Checagem básica", "detail": "Comeu? Bebeu água? Banheiro? Resolva 1 agora.", "duration": 4, "category": "auto_cuidado", "isRich": true },
-      { "id": "77777777-7777-7777-7777-777777777772", "title": "Microdescanso sem tela", "detail": "5 min olhos fechados ou olhar janela.", "duration": 5, "category": "sono", "isRich": false },
-      { "id": "77777777-7777-7777-7777-777777777773", "title": "Alongar 3 pontos", "detail": "Pescoço, ombros, lombar (30s cada).", "duration": 3, "category": "movimento", "isRich": false }
+      { "id": "77777777-7777-7777-7777-777777777771", "title": "Cuidar das suas necessidades básicas", "detail": "Faça uma pausa rápida e pergunte-se: preciso comer, beber água ou ir ao banheiro? Cuide disso agora.", "duration": 4, "category": "auto_cuidado", "isRich": true },
+      { "id": "77777777-7777-7777-7777-777777777772", "title": "Fechar os olhos por 5 minutos", "detail": "Feche os olhos ou olhe para a paisagem por 5 minutos, permitindo que a sua mente descanse do excesso de telas.", "duration": 5, "category": "sono", "isRich": false },
+      { "id": "77777777-7777-7777-7777-777777777773", "title": "Alongamento rápido de 3 pontos", "detail": "Estique o pescoço, solte os ombros e relaxe a lombar, segurando cada posição por 30 segundos.", "duration": 3, "category": "movimento", "isRich": false }
     ],
     "altoImpacto": [
-      { "id": "77777777-7777-7777-7777-777777777774", "title": "Soneca curta", "detail": "10–20 min, alarme; evitar >20 min.", "duration": 15, "category": "sono", "isRich": false },
-      { "id": "77777777-7777-7777-7777-777777777775", "title": "Ritual de sono hoje", "detail": "Banho morno, reduzir luz/tela 30 min antes.", "duration": 20, "category": "sono", "isRich": true },
-      { "id": "77777777-7777-7777-7777-777777777776", "title": "Planejar amanhã leve", "detail": "Rebaixar expectativas, bloquear 1 pausa.", "duration": 10, "category": "organizacao", "isRich": true }
+      { "id": "77777777-7777-7777-7777-777777777774", "title": "Mini cochilo revigorante", "detail": "Tire um cochilo rápido de 10 a 20 minutos com um despertador. Evite passar disso para não acordar cansado.", "duration": 15, "category": "sono", "isRich": false },
+      { "id": "77777777-7777-7777-7777-777777777775", "title": "Desacelerar antes de dormir", "detail": "Prepare o seu sono: tome um banho morno e desligue as telas e luzes fortes meia hora antes de deitar.", "duration": 20, "category": "sono", "isRich": true },
+      { "id": "77777777-7777-7777-7777-777777777776", "title": "Reduzir a lista de tarefas de amanhã", "detail": "Olhe para a agenda de amanhã, diminua a cobrança sobre você e garanta que terá pelo menos uma pausa marcada.", "duration": 10, "category": "organizacao", "isRich": true }
     ],
     "copyWhy": [
-      "Resolver necessidades básicas melhora energia rapidamente.",
-      "Sono e luz controlam o ciclo e reduzem fadiga."
+      "Cuidar das necessidades do corpo, como beber água ou comer algo leve, devolve a disposição num instante.",
+      "Um sono de qualidade e contato com a luz do dia são os melhores remédios para combater a fadiga."
     ]
   },
   {
@@ -656,18 +656,18 @@ extension RichRecommendationEngine {
       "risco": ["erros graves", "lapsos de atenção"]
     },
     "micro": [
-      { "id": "88888888-8888-8888-8888-888888888881", "title": "5 min sem telas", "detail": "Olhar longe, respirar diafragmaticamente.", "duration": 5, "category": "grounding", "isRich": false },
-      { "id": "88888888-8888-8888-8888-888888888882", "title": "Atividade analógica", "detail": "Regar planta, arrumar 1 microespaço.", "duration": 7, "category": "manutencao", "isRich": true },
-      { "id": "88888888-8888-8888-8888-888888888883", "title": "Anotar o que drena", "detail": "Liste 3 apps ou tarefas que drenaram hoje.", "duration": 3, "category": "organizacao", "isRich": true }
+      { "id": "88888888-8888-8888-8888-888888888881", "title": "Ficar 5 minutos longe de telas", "detail": "Fique 5 minutos sem olhar nenhuma tela, apenas respirando com calma e descansando os olhos.", "duration": 5, "category": "grounding", "isRich": false },
+      { "id": "88888888-8888-8888-8888-888888888882", "title": "Fazer algo manual e offline", "detail": "Faça algo simples com as mãos e longe do celular, como regar uma planta ou organizar uma gaveta pequena.", "duration": 7, "category": "manutencao", "isRich": true },
+      { "id": "88888888-8888-8888-8888-888888888883", "title": "Anotar o que consumiu sua energia hoje", "detail": "Anote três coisas ou aplicativos que consumiram muito da sua energia mental hoje para ficar de olho.", "duration": 3, "category": "organizacao", "isRich": true }
     ],
     "altoImpacto": [
-      { "id": "88888888-8888-8888-8888-888888888884", "title": "Reset mental offline", "detail": "20 min sem telas: caminhar ou arrumar gaveta.", "duration": 20, "category": "manutencao", "isRich": true },
-      { "id": "88888888-8888-8888-8888-888888888885", "title": "Planejar amanhã em papel", "detail": "3 ações em papel; sem apps.", "duration": 10, "category": "organizacao", "isRich": true },
-      { "id": "88888888-8888-8888-8888-888888888886", "title": "Respiração coerente 6 cpm", "detail": "10 min (in 5s, out 5s).", "duration": 10, "category": "respiracao", "isRich": false }
+      { "id": "88888888-8888-8888-8888-888888888884", "title": "Desconexão total offline por 20 minutos", "detail": "Tire 20 minutos de desconexão total: caminhe sem rumo, arrume uma gaveta ou folheie um livro físico.", "duration": 20, "category": "manutencao", "isRich": true },
+      { "id": "88888888-8888-8888-8888-888888888885", "title": "Rascunhar o dia de amanhã no papel", "detail": "Anote em um papel físico três coisas importantes para o seu dia de amanhã, deixando os aplicativos de lado.", "duration": 10, "category": "organizacao", "isRich": true },
+      { "id": "88888888-8888-8888-8888-888888888886", "title": "Respiração pausada e ritmada", "detail": "Faça 10 minutos de respiração pausada: inspire contando até cinco e expire contando até cinco.", "duration": 10, "category": "respiracao", "isRich": false }
     ],
     "copyWhy": [
-      "Reduzir tela e fazer algo físico baixa overload.",
-      "Papel e organização offline clareiam mente saturada."
+      "Ficar longe do celular e movimentar o corpo alivia o cansaço mental causado pelo excesso de informação.",
+      "Organizar o dia usando papel e caneta traz clareza para a mente sem os estímulos das telas."
     ]
   }
 ]
@@ -696,18 +696,18 @@ extension RichRecommendationEngine {
                 risco: ["falsa sensação de que não precisa proteger esse estado"]
             ),
             micro: [
-                action(id: "91000000-0000-0000-0000-000000000001", title: "Registrar o que está funcionando", detail: "Anote em 3 linhas o que deixou seu dia mais leve até aqui.", duration: 3, category: "organizacao", isRich: true),
-                action(id: "91000000-0000-0000-0000-000000000002", title: "Proteger a próxima hora", detail: "Defina só uma prioridade calma para a próxima hora.", duration: 5, category: "organizacao", isRich: true),
-                action(id: "91000000-0000-0000-0000-000000000003", title: "Pausa silenciosa com respiração nasal", detail: "4 minutos para manter o corpo no mesmo ritmo bom.", duration: 4, category: "respiracao", isRich: false)
+                action(id: "91000000-0000-0000-0000-000000000001", title: "Registrar o que está dando certo", detail: "Anote três coisas simples que deixaram o seu dia mais leve e agradável hoje.", duration: 3, category: "organizacao", isRich: true),
+                action(id: "91000000-0000-0000-0000-000000000002", title: "Proteger a próxima hora", detail: "Escolha apenas uma prioridade tranquila para focar na próxima hora, sem pressa.", duration: 5, category: "organizacao", isRich: true),
+                action(id: "91000000-0000-0000-0000-000000000003", title: "Respiração pausada de 4 minutos", detail: "Feche os olhos por quatro minutos e respire devagar para manter esse ritmo bom.", duration: 4, category: "respiracao", isRich: false)
             ],
             altoImpacto: [
-                action(id: "91000000-0000-0000-0000-000000000004", title: "Bloco sereno de foco", detail: "20 minutos em uma tarefa importante sem interrupção.", duration: 20, category: "behavioral_activation", isRich: true, areaTag: "trabalho"),
-                action(id: "91000000-0000-0000-0000-000000000005", title: "Preparar a noite com calma", detail: "Deixe roupas, água e o começo de amanhã resolvidos.", duration: 15, category: "organizacao", isRich: true),
-                action(id: "91000000-0000-0000-0000-000000000006", title: "Organizar um espaço de apoio", detail: "Arrume o ponto da casa que mais ajuda seu ritmo.", duration: 15, category: "manutencao", isRich: true)
+                action(id: "91000000-0000-0000-0000-000000000004", title: "Momento de foco tranquilo", detail: "Dedique 20 minutos a uma atividade importante, trabalhando com calma e sem interrupções.", duration: 20, category: "behavioral_activation", isRich: true, areaTag: "trabalho"),
+                action(id: "91000000-0000-0000-0000-000000000005", title: "Preparar o fim do dia", detail: "Organize o ambiente e deixe tudo pronto para a sua noite ser tranquila e sem pendências.", duration: 15, category: "organizacao", isRich: true),
+                action(id: "91000000-0000-0000-0000-000000000006", title: "Ajustar um cantinho acolhedor", detail: "Organize ou limpe o espaço físico que mais ajuda você a se sentir em paz.", duration: 15, category: "manutencao", isRich: true)
             ],
             copyWhy: [
-                "Como você está mais estável agora, vale transformar essa janela boa em clareza para o resto do dia.",
-                "Quando o estado está calmo, pequenas decisões bem feitas costumam render muito mais."
+                "Como o seu momento está mais calmo, vale a pena usar essa clareza para planejar o restante do dia com tranquilidade.",
+                "Quando estamos em paz, pequenas decisões tomadas com calma costumam render excelentes frutos."
             ]
         ),
         MoodPlaybook(
@@ -720,17 +720,17 @@ extension RichRecommendationEngine {
                 risco: ["gastar toda a energia sem intenção"]
             ),
             micro: [
-                action(id: "92000000-0000-0000-0000-000000000001", title: "Compartilhar uma coisa boa", detail: "Mande uma mensagem curta contando algo positivo do seu dia.", duration: 3, category: "conexao", isRich: true, areaTag: "relacao"),
-                action(id: "92000000-0000-0000-0000-000000000002", title: "Gratidão rápida do dia", detail: "Liste 3 coisas pequenas que fizeram bem hoje.", duration: 3, category: "gratidao", isRich: true),
-                action(id: "92000000-0000-0000-0000-000000000003", title: "Fechar uma pendência no embalo", detail: "Aproveite a leveza para concluir uma tarefa simples.", duration: 5, category: "behavioral_activation", isRich: true)
+                action(id: "92000000-0000-0000-0000-000000000001", title: "Dividir uma alegria curta", detail: "Mande uma mensagem rápida para alguém querido contando algo legal do seu dia.", duration: 3, category: "conexao", isRich: true, areaTag: "relacao"),
+                action(id: "92000000-0000-0000-0000-000000000002", title: "Agradecimento rápido", detail: "Lembre-se de três coisas simples pelas quais você se sente grato hoje.", duration: 3, category: "gratidao", isRich: true),
+                action(id: "92000000-0000-0000-0000-000000000003", title: "Aproveitar o embalo para resolver algo", detail: "Use a leveza deste momento para terminar uma tarefa simples de forma rápida.", duration: 5, category: "behavioral_activation", isRich: true)
             ],
             altoImpacto: [
-                action(id: "92000000-0000-0000-0000-000000000004", title: "Celebração com intenção", detail: "Pare 15 minutos para reconhecer o progresso sem correr para a próxima cobrança.", duration: 15, category: "motivacao", isRich: true),
+                action(id: "92000000-0000-0000-0000-000000000004", title: "Reconhecer seu progresso", detail: "Tire 15 minutos para valorizar o que você já conquistou, sem correr direto para a próxima cobrança.", duration: 15, category: "motivacao", isRich: true),
                 action(id: "92000000-0000-0000-0000-000000000005", title: "Avanço importante no embalo bom", detail: "Use essa energia para mover uma frente que importa para você.", duration: 20, category: "behavioral_activation", isRich: true, areaTag: "trabalho"),
-                action(id: "92000000-0000-0000-0000-000000000006", title: "Encontro leve com alguém que te faz bem", detail: "Marque ou faça um contato curto com alguém seguro.", duration: 15, category: "conexao", isRich: true, areaTag: "relacao")
+                action(id: "92000000-0000-0000-0000-000000000006", title: "Conectar-se com alguém querido", detail: "Marque ou faça um contato curto com alguém seguro.", duration: 15, category: "conexao", isRich: true, areaTag: "relacao")
             ],
             copyWhy: [
-                "Seu estado está mais aberto agora, então faz sentido usar isso para reforçar conexão e progresso.",
+                "Aproveite que o seu astral está bom para espalhar essa energia positiva e fortalecer conexões.",
                 "Momentos bons costumam render ainda mais quando viram memória de avanço real."
             ]
         ),
@@ -744,18 +744,18 @@ extension RichRecommendationEngine {
                 risco: ["dispersão", "assumir coisa demais"]
             ),
             micro: [
-                action(id: "93000000-0000-0000-0000-000000000001", title: "Canalizar energia em 1 meta", detail: "Escolha uma meta clara para essa energia ir na direção certa.", duration: 4, category: "behavioral_activation", isRich: true),
-                action(id: "93000000-0000-0000-0000-000000000002", title: "Pausa curta para não dispersar", detail: "Respire e decida o próximo passo antes de sair fazendo tudo.", duration: 3, category: "grounding", isRich: true),
-                action(id: "93000000-0000-0000-0000-000000000003", title: "Limpar distrações antes do impulso cair", detail: "Feche abas, silencia notificações e deixa só o essencial.", duration: 5, category: "organizacao", isRich: true)
+                action(id: "93000000-0000-0000-0000-000000000001", title: "Canalizar sua energia", detail: "Escolha um único objetivo para a próxima hora e direcione sua disposição para ele.", duration: 4, category: "behavioral_activation", isRich: true),
+                action(id: "93000000-0000-0000-0000-000000000002", title: "Uma pausa para respirar fundo", detail: "Faça um momento de pausa rápida para decidir o próximo passo antes de sair fazendo tudo ao mesmo tempo.", duration: 3, category: "grounding", isRich: true),
+                action(id: "93000000-0000-0000-0000-000000000003", title: "Limpar as distrações ao redor", detail: "Silencie notificações e feche abas desnecessárias para manter o foco no que importa.", duration: 5, category: "organizacao", isRich: true)
             ],
             altoImpacto: [
-                action(id: "93000000-0000-0000-0000-000000000004", title: "Sprint forte de 20 minutos", detail: "Bloco curto, direto e intenso em algo relevante.", duration: 20, category: "behavioral_activation", isRich: true),
-                action(id: "93000000-0000-0000-0000-000000000005", title: "Caminhada acelerada ou mobilidade", detail: "Use parte da energia no corpo para não virar ansiedade dispersa.", duration: 15, category: "movimento", isRich: false),
-                action(id: "93000000-0000-0000-0000-000000000006", title: "Proteger sua janela de alta energia", detail: "Reserve o resto da sua melhor faixa para a tarefa certa.", duration: 10, category: "organizacao", isRich: true)
+                action(id: "93000000-0000-0000-0000-000000000004", title: "Foco intenso de 20 minutos", detail: "Dedique 20 minutos a uma tarefa importante, aproveitando seu pique máximo.", duration: 20, category: "behavioral_activation", isRich: true),
+                action(id: "93000000-0000-0000-0000-000000000005", title: "Alongar e movimentar o corpo", detail: "Faça uma caminhada ativa ou alongamentos para usar essa disposição física de forma saudável.", duration: 15, category: "movimento", isRich: false),
+                action(id: "93000000-0000-0000-0000-000000000006", title: "Proteger seu momento produtivo", detail: "Garanta que você terá tempo reservado hoje para focar na sua tarefa mais importante.", duration: 10, category: "organizacao", isRich: true)
             ],
             copyWhy: [
-                "Quando a energia está alta, o melhor é dar direção antes que ela vire dispersão.",
-                "Seu corpo está pronto para agir; a ideia é transformar isso em progresso e não em ruído."
+                "Com a energia em alta, o ideal é dar uma direção clara para evitar a sensação de dispersão.",
+                "Sua disposição está excelente! Vamos aproveitar para avançar com foco no que realmente importa."
             ]
         ),
         MoodPlaybook(
@@ -768,14 +768,14 @@ extension RichRecommendationEngine {
                 risco: ["passar do ponto e esquecer pausas"]
             ),
             micro: [
-                action(id: "94000000-0000-0000-0000-000000000001", title: "Fechar a etapa mais crítica", detail: "Use 5 minutos para encerrar o pedaço mais importante que está aberto.", duration: 5, category: "behavioral_activation", isRich: true, areaTag: "trabalho"),
-                action(id: "94000000-0000-0000-0000-000000000002", title: "Anotar o próximo passo antes de parar", detail: "Deixe a continuidade fácil para você mais tarde.", duration: 3, category: "organizacao", isRich: true),
-                action(id: "94000000-0000-0000-0000-000000000003", title: "Blindar 30 min sem distração", detail: "Silencie o que rouba atenção e preserve essa clareza.", duration: 4, category: "organizacao", isRich: true)
+                action(id: "94000000-0000-0000-0000-000000000001", title: "Concluir uma etapa importante", detail: "Aproveite os próximos 5 minutos para fechar a parte mais urgente que está aberto.", duration: 5, category: "behavioral_activation", isRich: true, areaTag: "trabalho"),
+                action(id: "94000000-0000-0000-0000-000000000002", title: "Anotar o próximo passo simples", detail: "Antes de fazer uma pausa, anote qual será o próximo mini-passo para facilitar a volta.", duration: 3, category: "organizacao", isRich: true),
+                action(id: "94000000-0000-0000-0000-000000000003", title: "Blindar seu tempo de trabalho", detail: "Silencie o celular e avise as pessoas para proteger essa ótima janela de foco.", duration: 4, category: "organizacao", isRich: true)
             ],
             altoImpacto: [
-                action(id: "94000000-0000-0000-0000-000000000004", title: "Bloco profundo de execução", detail: "20 minutos focados na frente que mais muda o seu dia.", duration: 20, category: "behavioral_activation", isRich: true, areaTag: "trabalho"),
-                action(id: "94000000-0000-0000-0000-000000000005", title: "Revisão do progresso e próximo marco", detail: "Feche o que avançou e defina o próximo marco ainda com a cabeça clara.", duration: 12, category: "organizacao", isRich: true),
-                action(id: "94000000-0000-0000-0000-000000000006", title: "Encerrar o ciclo com checklist final", detail: "Faça uma revisão curta para evitar pendências invisíveis.", duration: 10, category: "organizacao", isRich: true)
+                action(id: "94000000-0000-0000-0000-000000000004", title: "Trabalho profundo de 20 minutos", detail: "Foque por 20 minutos em uma única atividade que fará a maior diferença no seu dia.", duration: 20, category: "behavioral_activation", isRich: true, areaTag: "trabalho"),
+                action(id: "94000000-0000-0000-0000-000000000005", title: "Organizar o progresso recente", detail: "Registre o que você já fez e defina a próxima meta enquanto sua mente está bem clara.", duration: 12, category: "organizacao", isRich: true),
+                action(id: "94000000-0000-0000-0000-000000000006", title: "Fazer uma revisão de encerramento", detail: "Faça um checklist rápido de 10 minutos para garantir que não restaram pendências invisíveis.", duration: 10, category: "organizacao", isRich: true)
             ],
             copyWhy: [
                 "Você está numa boa faixa de clareza agora, então vale proteger isso para render de verdade.",
@@ -792,17 +792,17 @@ extension RichRecommendationEngine {
                 risco: ["agir no impulso", "espalhar a tensão no resto do dia"]
             ),
             micro: [
-                action(id: "95000000-0000-0000-0000-000000000001", title: "Respiração 4-6 com ombros soltos", detail: "Puxe por 4, solte por 6 e relaxe o corpo a cada ciclo.", duration: 4, category: "respiracao", isRich: false),
-                action(id: "95000000-0000-0000-0000-000000000002", title: "Tirar 3 pressões da frente visual", detail: "Feche o que distrai e deixe só o que importa agora.", duration: 5, category: "organizacao", isRich: true),
-                action(id: "95000000-0000-0000-0000-000000000003", title: "Nomear o que está te apertando", detail: "Escreva em uma frase o peso principal deste momento.", duration: 3, category: "organizacao", isRich: true)
+                action(id: "95000000-0000-0000-0000-000000000001", title: "Respiração lenta com ombros soltos", detail: "Inspire devagar e solte o ar soprando suavemente, relaxando os ombros a cada ciclo.", duration: 4, category: "respiracao", isRich: false),
+                action(id: "95000000-0000-0000-0000-000000000002", title: "Limpar a mesa de trabalho", detail: "Organize ou guarde papéis e objetos ao seu redor para diminuir a bagunça visual.", duration: 5, category: "organizacao", isRich: true),
+                action(id: "95000000-0000-0000-0000-000000000003", title: "Nomear o que está pesando", detail: "Escreva em um papel, de forma simples, o que mais está preocupando você neste momento.", duration: 3, category: "organizacao", isRich: true)
             ],
             altoImpacto: [
-                action(id: "95000000-0000-0000-0000-000000000004", title: "Caminhada de regulação com expiração longa", detail: "Ande por 15 a 20 min soltando o ar mais devagar que a inspiração.", duration: 20, category: "movimento", isRich: false),
-                action(id: "95000000-0000-0000-0000-000000000005", title: "Reset do ambiente + água + silêncio", detail: "Faça um mini protocolo físico para baixar a pressão do corpo.", duration: 12, category: "auto_cuidado", isRich: true),
-                action(id: "95000000-0000-0000-0000-000000000006", title: "Plano de contenção das próximas 3 horas", detail: "Decida o que manter, adiar e ignorar até a pressão baixar.", duration: 15, category: "organizacao", isRich: true)
+                action(id: "95000000-0000-0000-0000-000000000004", title: "Caminhada tranquila para respirar", detail: "Caminhe calmamente por 15 a 20 minutos, soltando o ar bem devagar para acalmar o corpo.", duration: 20, category: "movimento", isRich: false),
+                action(id: "95000000-0000-0000-0000-000000000005", title: "Pausa em silêncio com água fresca", detail: "Tome um copo d'água devagar, sente-se em um lugar silencioso e respire sem cobranças.", duration: 12, category: "auto_cuidado", isRich: true),
+                action(id: "95000000-0000-0000-0000-000000000006", title: "Definir prioridades para as próximas horas", detail: "Decida o que você realmente precisa fazer hoje, o que pode adiar e o que vai ignorar por enquanto.", duration: 15, category: "organizacao", isRich: true)
             ],
             copyWhy: [
-                "Seu corpo está pedindo contenção, então a ação ideal precisa baixar a pressão antes de pedir mais de você.",
+                "Seu corpo e sua mente estão pedindo um respiro. Vamos baixar a pressão antes de exigir mais esforço.",
                 "Quando o estresse sobe, reduzir o ruído e dar direção clara costuma funcionar melhor do que insistir na força."
             ]
         )

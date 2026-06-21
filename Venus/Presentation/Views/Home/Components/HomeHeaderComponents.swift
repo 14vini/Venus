@@ -23,10 +23,9 @@ struct HomeHeaderSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Mascot + speech bubble
-            HStack(alignment: .bottom, spacing: 0) {
-                VenusMoodMascotOrb(mood: mood, size: 88)
-                    .offset(y: 8)
+            // Header: Orb + Hint Card
+            HStack(alignment: .center, spacing: 12) {
+                VenusMoodOrb(mood: mood, size: 64)
 
                 VenusFloatingHintBubble(
                     title: title,

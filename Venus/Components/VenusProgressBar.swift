@@ -61,7 +61,7 @@ struct VenusProgressBar: View {
         .accessibilityValue("Passo \(safeCurrentStep) de \(safeTotalSteps)")
         .padding(.vertical, 10)
         .padding(.horizontal, 16)
-        .glassEffect(.clear.interactive())
+        .glassEffect(.regular.interactive())
     }
 
     private func segmentColor(for index: Int) -> Color {

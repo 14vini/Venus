@@ -35,7 +35,7 @@ final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
         snapshotCache: PatternSnapshotCache = PatternSnapshotCache(),
         calendar: Calendar = .current,
         homeWindowDays: Int = 21,
-        snapshotAlgorithmVersion: String = "behavior-home-v5"
+        snapshotAlgorithmVersion: String = "behavior-home-v6"
     ) {
         self.moodRepository = moodRepository
         self.todoRepository = todoRepository
@@ -149,6 +149,7 @@ final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
             referenceDate: input.referenceDate,
             profile: input.profileContext
         )
+        let baseline = Self.patternBaseline(from: aggregates, moodEvents: input.moodEvents)
 
         let latestAggregate = aggregates.last(where: { $0.dayKey == input.dayKey }) ?? aggregates.last
         let actionPolicyEngine = BehaviorActionPolicyEngine(calendar: workerCalendar)
@@ -170,7 +171,7 @@ final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
         )
         let forecastEngine = BehaviorMoodForecastEngine(calendar: workerCalendar)
         let proForecast: ProMoodForecast?
-        if input.plan == .pro {
+        if input.plan == .pro && baseline.isReadyForWeeklyPatterns {
             proForecast = forecastEngine.makeForecast(
                 aggregates: aggregates,
                 moodEvents: input.moodEvents,
@@ -182,51 +183,74 @@ final class PatternEngineUseCase: PatternEngineUseCaseProtocol {
         } else {
             proForecast = nil
         }
-        let actionWhy = insightComposer.composeActionWhy(
-            nextAction: nextBestAction,
-            analysis: analysis,
-            weeklyInsights: weeklyInsights,
-            proForecast: proForecast
-        )
-        let confidenceInsight = Self.buildConfidenceInsight(
-            analysis: analysis,
-            weeklyInsights: weeklyInsights,
-            aggregates: aggregates,
-            actionHistory: input.actionHistory,
-            profile: input.profileContext
-        )
-        let triggerRecoveryInsight = Self.buildTriggerRecoveryInsight(
-            analysis: analysis,
-            weeklyInsights: weeklyInsights,
-            confidenceInsight: confidenceInsight,
-            latestMood: input.latestMoodEvent,
-            nextAction: nextBestAction,
-            proForecast: proForecast,
-            profile: input.profileContext,
-            referenceDate: input.referenceDate,
-            plan: input.plan
-        )
-        let exploreActionSuggestions = Self.buildExploreActionSuggestions(
-            activities: input.activityBlueprints,
-            analysis: analysis,
-            nextAction: nextBestAction,
-            latestMood: input.latestMoodEvent,
-            profile: input.profileContext,
-            actionHistory: input.actionHistory,
-            referenceDate: input.referenceDate
-        )
+        let actionWhy: ActionWhyInsight?
+        let confidenceInsight: ConfidenceImprovementInsight?
+        let triggerRecoveryInsight: TriggerRecoveryInsight?
+        let exploreActionSuggestions: [ExploreActionSuggestion]
+
+        if baseline.isReadyForWeeklyPatterns {
+            actionWhy = insightComposer.composeActionWhy(
+                nextAction: nextBestAction,
+                analysis: analysis,
+                weeklyInsights: weeklyInsights,
+                proForecast: proForecast
+            )
+            confidenceInsight = Self.buildConfidenceInsight(
+                analysis: analysis,
+                weeklyInsights: weeklyInsights,
+                aggregates: aggregates,
+                actionHistory: input.actionHistory,
+                profile: input.profileContext
+            )
+            triggerRecoveryInsight = Self.buildTriggerRecoveryInsight(
+                analysis: analysis,
+                weeklyInsights: weeklyInsights,
+                confidenceInsight: confidenceInsight,
+                latestMood: input.latestMoodEvent,
+                nextAction: nextBestAction,
+                proForecast: proForecast,
+                profile: input.profileContext,
+                referenceDate: input.referenceDate,
+                plan: input.plan
+            )
+            exploreActionSuggestions = Self.buildExploreActionSuggestions(
+                activities: input.activityBlueprints,
+                analysis: analysis,
+                nextAction: nextBestAction,
+                latestMood: input.latestMoodEvent,
+                profile: input.profileContext,
+                actionHistory: input.actionHistory,
+                referenceDate: input.referenceDate
+            )
+        } else {
+            actionWhy = nil
+            confidenceInsight = nil
+            triggerRecoveryInsight = nil
+            exploreActionSuggestions = []
+        }
 
         return PatternInsightsSnapshot(
             nextBestAction: nextBestAction,
             alternativeActions: actionSelection.alternatives,
             weeklyTrend: analysis.weeklyTrend,
-            patternAlert: analysis.primaryAlert,
-            weeklyInsights: weeklyInsights,
+            patternAlert: baseline.isReadyForWeeklyPatterns ? analysis.primaryAlert : nil,
+            weeklyInsights: baseline.isReadyForWeeklyPatterns ? weeklyInsights : nil,
             actionWhy: actionWhy,
             proMoodForecast: proForecast,
             confidenceInsight: confidenceInsight,
             triggerRecoveryInsight: triggerRecoveryInsight,
             exploreActionSuggestions: exploreActionSuggestions
+        )
+    }
+
+    private static func patternBaseline(
+        from aggregates: [BehaviorDailyAggregate],
+        moodEvents: [BehaviorMoodEvent]
+    ) -> PatternBaseline {
+        let activeMoodDays = aggregates.filter { $0.moodEntries > 0 }.count
+        return PatternBaseline(
+            activeMoodDays: activeMoodDays,
+            moodEntries: moodEvents.count
         )
     }
 
@@ -383,6 +407,15 @@ private struct PatternEngineWorkerInput: Sendable {
     let plan: VenusPlan
     let latestMoodEvent: BehaviorMoodEvent?
     let actionHistory: ActionHistorySummary
+}
+
+private struct PatternBaseline: Sendable {
+    let activeMoodDays: Int
+    let moodEntries: Int
+
+    var isReadyForWeeklyPatterns: Bool {
+        activeMoodDays >= 3 && moodEntries >= 4
+    }
 }
 
 actor PatternSnapshotCache {

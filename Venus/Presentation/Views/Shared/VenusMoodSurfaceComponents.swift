@@ -133,332 +133,69 @@ struct VenusMoodWaveform: View {
     }
 }
 
-struct VenusMoodMascotOrb: View {
+struct VenusMoodOrb: View {
     var mood: MoodType? = nil
     var size: CGFloat = 258
-
-    @State private var animateFloat = false
-
-    // MARK: - Mood-driven colors
-
-    private var orbColors: (light: String, mid: String, deep: String) {
-        mood?.orbColors ?? ("D6FFB9", "9BF66F", "59D85A")
+    
+    @State private var animate = false
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var highlightColor: Color {
+        guard let mood else { return Color(hex: "D6FFB9") }
+        return Color(hex: mood.orbColors.light)
     }
-
-    private var orbGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                Color(hex: orbColors.light),
-                Color(hex: orbColors.mid),
-                Color(hex: orbColors.deep)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+    
+    private var baseColor: Color {
+        guard let mood else { return Color(hex: "9BF66F") }
+        return Color(hex: mood.orbColors.mid)
     }
-
-    private var glowColor: Color {
-        Color(hex: orbColors.mid)
-    }
-
-    private var faceInk: Color {
-        Color(hex: mood?.faceColorHex ?? "27603F")
-    }
-
-    private var eyeInk: Color {
-        // Slightly darker than face ink for contrast
-        Color(hex: mood?.faceColorHex ?? "1A251D").opacity(0.9)
+    
+    private var deepColor: Color {
+        guard let mood else { return Color(hex: "59D85A") }
+        return Color(hex: mood.orbColors.deep)
     }
 
     var body: some View {
         ZStack {
-            // Ambient glow
+            // Outer glow
             Circle()
-                .fill(glowColor.opacity(0.28))
-                .frame(width: size * 1.12, height: size * 1.12)
-                .blur(radius: 32)
-                .scaleEffect(animateFloat ? 1.03 : 0.97)
-                .animation(.spring(response: 0.55, dampingFraction: 0.7), value: mood)
-
-            mascotEar(rotation: -26)
-                .offset(x: -size * 0.22, y: -size * 0.38)
-
-            mascotEar(rotation: 26)
-                .offset(x: size * 0.22, y: -size * 0.38)
-
-            ZStack {
-                mascotArm(rotation: -34)
-                    .offset(x: -size * 0.45, y: size * 0.06)
-
-                mascotArm(rotation: 34)
-                    .offset(x: size * 0.45, y: size * 0.06)
-
-                Circle()
-                    .fill(orbGradient)
-                    .overlay(
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.34), Color.clear],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                .fill(
+                    RadialGradient(
+                        colors: [baseColor.opacity(0.32), baseColor.opacity(0)],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: size * 0.5
                     )
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white.opacity(0.5), lineWidth: 1.2)
-                    )
-                    .animation(.spring(response: 0.45, dampingFraction: 0.62), value: mood)
-
-                Circle()
-                    .fill(Color.white.opacity(0.22))
-                    .frame(width: size * 0.52, height: size * 0.3)
-                    .blur(radius: 10)
-                    .offset(x: -size * 0.1, y: -size * 0.22)
-
-                MascotFace(mood: mood, size: size, faceInk: faceInk, eyeInk: eyeInk)
-
-
-            }
-            .frame(width: size, height: size)
-            .offset(y: animateFloat ? -8 : 6)
-            .scaleEffect(animateFloat ? 1.02 : 0.98)
-        }
-        .frame(width: size * 1.4, height: size * 1.28)
-        .onAppear {
-            guard !animateFloat else { return }
-            withAnimation(.easeInOut(duration: 4.2).repeatForever(autoreverses: true)) {
-                animateFloat = true
-            }
-        }
-    }
-
-    private func mascotEar(rotation: Double) -> some View {
-        Capsule(style: .continuous)
-            .fill(orbGradient)
-            .overlay(
-                Capsule(style: .continuous)
-                    .stroke(Color.white.opacity(0.42), lineWidth: 1)
-            )
-            .frame(width: size * 0.11, height: size * 0.24)
-            .rotationEffect(.degrees(rotation + (animateFloat ? 4 : -4)))
-            .animation(.spring(response: 0.45, dampingFraction: 0.62), value: mood)
-    }
-
-    private func mascotArm(rotation: Double) -> some View {
-        Capsule(style: .continuous)
-            .fill(orbGradient)
-            .overlay(
-                Capsule(style: .continuous)
-                    .stroke(Color.white.opacity(0.28), lineWidth: 1)
-            )
-            .frame(width: size * 0.13, height: size * 0.34)
-            .rotationEffect(.degrees(rotation + (animateFloat ? 10 : -8)))
-            .offset(y: animateFloat ? -4 : 4)
-            .animation(.spring(response: 0.45, dampingFraction: 0.62), value: mood)
-    }
-}
-
-private struct MascotFace: View {
-    let mood: MoodType?
-    let size: CGFloat
-    let faceInk: Color
-    let eyeInk: Color
-
-    private var expression: MascotExpression {
-        switch mood {
-        case .happy:
-            return MascotExpression(eyeStyle: .round, mouthStyle: .bigSmile, leftBrowAngle: 0, rightBrowAngle: 0, cheekOpacity: 0.16)
-        case .calm:
-            return MascotExpression(eyeStyle: .calm, mouthStyle: .softSmile, leftBrowAngle: 0, rightBrowAngle: 0, cheekOpacity: 0.08)
-        case .energetic:
-            return MascotExpression(eyeStyle: .alert, mouthStyle: .bigSmile, leftBrowAngle: -6, rightBrowAngle: 6, cheekOpacity: 0.12)
-        case .stressed:
-            return MascotExpression(eyeStyle: .stressed, mouthStyle: .flat, leftBrowAngle: 18, rightBrowAngle: -18, cheekOpacity: 0)
-        case .sad:
-            return MascotExpression(eyeStyle: .sad, mouthStyle: .frown, leftBrowAngle: -14, rightBrowAngle: 14, cheekOpacity: 0)
-        case .tired:
-            return MascotExpression(eyeStyle: .sleepy, mouthStyle: .sleepy, leftBrowAngle: -4, rightBrowAngle: 4, cheekOpacity: 0)
-        case nil:
-            return MascotExpression(eyeStyle: .round, mouthStyle: .softSmile, leftBrowAngle: 0, rightBrowAngle: 0, cheekOpacity: 0.05)
-        }
-    }
-
-    var body: some View {
-        ZStack {
-            if expression.cheekOpacity > 0 {
-                HStack(spacing: size * 0.3) {
-                    Circle()
-                        .fill(Color.white.opacity(expression.cheekOpacity))
-                        .frame(width: size * 0.08, height: size * 0.08)
-
-                    Circle()
-                        .fill(Color.white.opacity(expression.cheekOpacity))
-                        .frame(width: size * 0.08, height: size * 0.08)
-                }
-                .offset(y: size * 0.06)
-            }
-
-            if expression.leftBrowAngle != 0 || expression.rightBrowAngle != 0 {
-                HStack(spacing: size * 0.2) {
-                    MascotBrow(angle: expression.leftBrowAngle, ink: faceInk)
-                    MascotBrow(angle: expression.rightBrowAngle, ink: faceInk)
-                }
-                .offset(y: -size * 0.12)
-            }
-
-            HStack(spacing: size * 0.22) {
-                VenusMascotEye(style: expression.eyeStyle, ink: eyeInk)
-                VenusMascotEye(style: expression.eyeStyle, ink: eyeInk)
-            }
-            .offset(y: -size * 0.02)
-
-            VStack(spacing: size * 0.02) {
-                Circle()
-                    .fill(faceInk)
-                    .frame(width: size * 0.042, height: size * 0.042)
-
-                mouthView
-            }
-            .offset(y: size * 0.17)
-        }
-        .animation(.easeInOut(duration: 0.5), value: mood)
-    }
-
-    @ViewBuilder
-    private var mouthView: some View {
-        switch expression.mouthStyle {
-        case .softSmile:
-            MascotSmileShape()
-                .stroke(faceInk, style: StrokeStyle(lineWidth: 5.2, lineCap: .round, lineJoin: .round))
-                .frame(width: size * 0.18, height: size * 0.09)
-        case .bigSmile:
-            MascotSmileShape()
-                .stroke(faceInk, style: StrokeStyle(lineWidth: 6.2, lineCap: .round, lineJoin: .round))
-                .frame(width: size * 0.22, height: size * 0.11)
-        case .flat:
-            Capsule(style: .continuous)
-                .fill(faceInk)
-                .frame(width: size * 0.16, height: 5)
-        case .frown:
-            MascotFrownShape()
-                .stroke(faceInk, style: StrokeStyle(lineWidth: 5.2, lineCap: .round, lineJoin: .round))
-                .frame(width: size * 0.18, height: size * 0.09)
-        case .sleepy:
-            Capsule(style: .continuous)
-                .fill(faceInk.opacity(0.9))
-                .frame(width: size * 0.12, height: 4)
-        }
-    }
-}
-
-private struct MascotExpression {
-    let eyeStyle: MascotEyeStyle
-    let mouthStyle: MascotMouthStyle
-    let leftBrowAngle: Double
-    let rightBrowAngle: Double
-    let cheekOpacity: Double
-}
-
-private enum MascotEyeStyle {
-    case round, calm, alert, stressed, sad, sleepy
-}
-
-private enum MascotMouthStyle {
-    case softSmile, bigSmile, flat, frown, sleepy
-}
-
-private struct VenusMascotEye: View {
-    let style: MascotEyeStyle
-    let ink: Color
-
-    var body: some View {
-        switch style {
-        case .sleepy:
-            Capsule(style: .continuous)
-                .fill(ink)
-                .frame(width: 28, height: 9)
-                .overlay(
-                    Capsule(style: .continuous)
-                        .fill(Color.white.opacity(0.3))
-                        .frame(width: 11, height: 3)
-                        .offset(x: -4, y: -1)
                 )
-        case .calm:
-            eyeOrb(width: 28, height: 22, yOffset: 1)
-        case .alert:
-            eyeOrb(width: 32, height: 32, yOffset: 0)
-        case .stressed:
-            eyeOrb(width: 30, height: 24, yOffset: 1)
-                .rotationEffect(.degrees(4))
-        case .sad:
-            eyeOrb(width: 28, height: 22, yOffset: 3)
-        case .round:
-            eyeOrb(width: 30, height: 30, yOffset: 0)
+                .blur(radius: 12)
+                .scaleEffect(animate ? 1.08 : 0.94)
+            
+            // Inner glowing core
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [highlightColor, baseColor, deepColor],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: size * 0.76, height: size * 0.76)
+                .overlay(
+                    Circle()
+                        .stroke(LinearGradient(
+                            colors: [.white.opacity(0.45), .white.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ), lineWidth: 1.5)
+                )
+                .shadow(color: baseColor.opacity(0.3), radius: 18, x: 0, y: 8)
+                .scaleEffect(animate ? 1.03 : 0.97)
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
+                animate = true
+            }
         }
     }
-
-    private func eyeOrb(width: CGFloat, height: CGFloat, yOffset: CGFloat) -> some View {
-        ZStack(alignment: .topLeading) {
-            Circle()
-                .fill(ink)
-                .frame(width: width, height: height)
-
-            Circle()
-                .fill(Color.white.opacity(0.96))
-                .frame(width: width * 0.32, height: width * 0.32)
-                .offset(x: width * 0.18, y: width * 0.16)
-
-            Circle()
-                .fill(Color.white.opacity(0.72))
-                .frame(width: width * 0.16, height: width * 0.16)
-                .offset(x: width * 0.52, y: width * 0.46)
-        }
-        .offset(y: yOffset)
-    }
 }
 
-private struct MascotBrow: View {
-    let angle: Double
-    let ink: Color
-
-    var body: some View {
-        Capsule(style: .continuous)
-            .fill(ink)
-            .frame(width: 26, height: 4)
-            .rotationEffect(.degrees(angle))
-    }
-}
-
-private struct MascotSmileShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX + rect.width * 0.18, y: rect.minY + rect.height * 0.2))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.midX, y: rect.maxY),
-            control: CGPoint(x: rect.minX + rect.width * 0.34, y: rect.maxY * 0.96)
-        )
-        path.addQuadCurve(
-            to: CGPoint(x: rect.maxX - rect.width * 0.18, y: rect.minY + rect.height * 0.2),
-            control: CGPoint(x: rect.maxX - rect.width * 0.34, y: rect.maxY * 0.96)
-        )
-        return path
-    }
-}
-
-private struct MascotFrownShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX + rect.width * 0.18, y: rect.maxY))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.midX, y: rect.minY + rect.height * 0.1),
-            control: CGPoint(x: rect.minX + rect.width * 0.34, y: rect.minY + rect.height * 0.08)
-        )
-        path.addQuadCurve(
-            to: CGPoint(x: rect.maxX - rect.width * 0.18, y: rect.maxY),
-            control: CGPoint(x: rect.maxX - rect.width * 0.34, y: rect.minY + rect.height * 0.08)
-        )
-        return path
-    }
-}

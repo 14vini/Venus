@@ -5,6 +5,110 @@
 
 import SwiftUI
 
+struct MoodShortcutOption: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let emoji: String
+    let mood: MoodType
+
+    init(id: String, title: String, emoji: String, mood: MoodType) {
+        self.id = id
+        self.title = title
+        self.emoji = emoji
+        self.mood = mood
+    }
+
+    var tint: Color {
+        Color(hex: mood.colorHex)
+    }
+
+    static let indecisive: [MoodShortcutOption] = [
+        MoodShortcutOption(id: "neutral", title: "Neutro", emoji: "🙂", mood: .calm),
+        MoodShortcutOption(id: "anxious", title: "Ansioso", emoji: "😬", mood: .stressed),
+        MoodShortcutOption(id: "overwhelmed", title: "Sobrecarregado", emoji: "🫠", mood: .stressed),
+        MoodShortcutOption(id: "demotivated", title: "Sem pique", emoji: "🥱", mood: .tired),
+        MoodShortcutOption(id: "sensitive", title: "Sensível", emoji: "🥺", mood: .sad),
+        MoodShortcutOption(id: "excited", title: "Animado", emoji: "🤩", mood: .happy)
+    ]
+}
+
+struct EnergySelectionGrid: View {
+    let selectedEnergy: EnergyLevel?
+    let onSelect: (EnergyLevel) -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ForEach(EnergyLevel.allCases, id: \.self) { energy in
+                EnergyOptionCard(
+                    energy: energy,
+                    isSelected: selectedEnergy == energy,
+                    onTap: { onSelect(energy) }
+                )
+            }
+        }
+    }
+}
+
+private struct EnergyOptionCard: View {
+    let energy: EnergyLevel
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 16) {
+                Image(systemName: energy.sfSymbolName)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(tint)
+                    .frame(width: 42, height: 42)
+                    .background(
+                        Circle()
+                            .fill(tint.opacity(0.14))
+                    )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(energy.displayName)
+                        .font(.system(.headline, design: .rounded).weight(.bold))
+                        .foregroundColor(VenusTheme.text)
+
+                    Text(energy.supportCopy)
+                        .font(.system(.footnote, design: .rounded))
+                        .foregroundColor(VenusTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 12)
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(isSelected ? tint : VenusTheme.textSecondary.opacity(0.5))
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(isSelected ? tint.opacity(0.12) : VenusTheme.cardSurface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(isSelected ? tint.opacity(0.4) : VenusTheme.cardBorder, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var tint: Color {
+        switch energy {
+        case .critical:
+            return VenusTheme.validationError
+        case .regular:
+            return VenusTheme.accentBlue
+        case .full:
+            return VenusTheme.accentGreen
+        }
+    }
+}
+
 struct MoodSelectionGrid: View {
     let selectedMood: MoodType?
     let onSelect: (MoodType) -> Void
@@ -21,6 +125,55 @@ struct MoodSelectionGrid: View {
                     isSelected: selectedMood == mood,
                     onTap: { onSelect(mood) }
                 )
+            }
+        }
+    }
+}
+
+struct MoodShortcutStrip: View {
+    let title: String
+    let options: [MoodShortcutOption]
+    let onSelect: (MoodType) -> Void
+
+    private let columns = [
+        GridItem(.adaptive(minimum: 100), spacing: 10)
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.system(.footnote, design: .rounded).weight(.bold))
+                .foregroundColor(VenusTheme.textSecondary)
+
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(options) { option in
+                    Button {
+                        onSelect(option.mood)
+                    } label: {
+                        HStack(spacing: 8) {
+//                            Text(option.emoji)
+//                                .font(.system(size: 18))
+
+                            Text(option.title)
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundColor(VenusTheme.text)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.9)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 11)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(option.tint.opacity(0.10))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(option.tint.opacity(0.24), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }

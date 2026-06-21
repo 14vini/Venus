@@ -24,7 +24,7 @@ struct VenusSplashView: View {
             VStack(spacing: 18) {
                 Spacer(minLength: 0)
 
-                VenusMoodMascotOrb(mood: .happy, size: 180)
+                VenusMoodOrb(mood: .happy, size: 140)
                     .scaleEffect(isRevealing ? 1.06 : (breathe ? 1.02 : 0.98))
                     .opacity(isRevealing ? 0 : 1)
                     .animation(.spring(response: 0.6, dampingFraction: 0.78), value: breathe)

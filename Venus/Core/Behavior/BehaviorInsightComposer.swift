@@ -270,12 +270,8 @@ struct BehaviorInsightComposer {
         analysis: BehaviorPatternAnalysis,
         weeklyInsights: WeeklyStrategicInsights
     ) -> String {
-        if let trigger = weeklyInsights.dominantTrigger {
-            return "Sua ação foi priorizada porque o gatilho '\(trigger)' voltou a se repetir."
-        }
-        if let firstSignal = analysis.signals.first {
-            return "A ação foi escolhida para reduzir o padrão mais forte detectado: \(firstSignal.suggestedFocus.lowercased())."
-        }
-        return "A ação foi escolhida para proteger seu equilíbrio emocional no contexto atual."
+        let mirrorEngine = MirrorEngine()
+        let insight = mirrorEngine.generateReflection(insights: weeklyInsights, analysis: analysis)
+        return insight.reflectionText
     }
 }

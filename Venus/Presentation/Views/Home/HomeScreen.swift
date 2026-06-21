@@ -9,6 +9,7 @@ import SwiftUI
 
 struct HomeScreen: View {
     let userName: String
+    @Environment(UserProfile.self) private var userProfile
 
     @StateObject private var viewModel = HomeViewModel(
         patternEngineUseCase: DependencyContainer.shared.makePatternEngineUseCase(),
@@ -23,7 +24,10 @@ struct HomeScreen: View {
             viewModel: viewModel,
             inlineCheckInViewModel: inlineCheckInViewModel
         )
-        .onAppear(perform: viewModel.onAppear)
+        .onAppear {
+            viewModel.configure(userProfile: userProfile)
+            viewModel.onAppear()
+        }
         .onChange(of: viewModel.showMoodCheckIn) { _, isPresented in
             guard isPresented else { return }
             inlineCheckInViewModel.startNewCheckIn(prefilledMood: viewModel.checkInPrefilledMood)

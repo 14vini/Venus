@@ -115,6 +115,18 @@ struct BehaviorPatternDetector {
         currentWeek: [BehaviorDailyAggregate],
         previousWeek: [BehaviorDailyAggregate]
     ) -> WeeklyEmotionalTrend {
+        let currentMoodDays = currentWeek.filter { $0.moodEntries > 0 }.count
+        let currentMoodEntries = currentWeek.reduce(0) { $0 + $1.moodEntries }
+
+        guard currentMoodDays >= 3, currentMoodEntries >= 4 else {
+            return WeeklyEmotionalTrend(
+                direction: .stable,
+                summary: "Ainda estou montando sua linha de base. Com mais alguns check-ins, consigo comparar sua semana com mais precisão.",
+                currentWeekScore: averageMoodScore(currentWeek) ?? 0,
+                previousWeekScore: nil
+            )
+        }
+
         let currentScore = averageMoodScore(currentWeek) ?? 0
         let previousScore = averageMoodScore(previousWeek)
         let delta = currentScore - (previousScore ?? currentScore)

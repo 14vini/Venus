@@ -45,6 +45,12 @@ enum DayOverDayTrendDirection: Equatable {
 
 @MainActor
 class HomeViewModel: ObservableObject {
+    @Published var userProfile: UserProfile?
+
+    func configure(userProfile: UserProfile) {
+        self.userProfile = userProfile
+    }
+
     // MARK: - Home UI state
 
     @Published var showVenusChat: Bool = false
@@ -791,23 +797,128 @@ class HomeViewModel: ObservableObject {
 
     var checkInHintBody: String {
         if !hasSeenFirstLaunchGuide {
-            return "Comece por aqui. Ao tocar no humor ou no pop-up, eu abro o check-in completo em uma sheet."
+            return "Vamos registrar como você está? Toque no seu humor atual ou no botão abaixo para começarmos."
         }
         if !hasSeenCheckInFloatingHint {
-            return "Esse botão de vidro abre o check-in completo sem pesar a Home."
+            return "Este botão flutuante abre o check-in completo sempre que você precisar se atualizar."
         }
         if !hasCheckedInToday {
-            return "Leva poucos segundos e prepara a Home e a dashboard para o resto do dia."
+            return "Leva só alguns segundos para cuidar de você."
         }
         if checkInAllowance.canCheckIn {
-            return "Se o seu dia mudou, toque aqui para abrir uma nova atualização do check-in."
+            return "Só abra novamente se sentir que o seu momento mudou."
         }
-        return "No plano atual, novas atualizações ficam limitadas depois do primeiro check-in."
+        return "No plano gratuito, focamos em um check-in caprichado por dia."
+    }
+
+    enum RoutineStatus {
+        case working
+        case studying
+        case leisure
+    }
+
+    var currentRoutineStatus: RoutineStatus {
+        guard let profile = userProfile else { return .leisure }
+        
+        let now = Date()
+        let calendar = Calendar.current
+        let currentHour = calendar.component(.hour, from: now)
+        let currentMinute = calendar.component(.minute, from: now)
+        let totalMinutesNow = currentHour * 60 + currentMinute
+        
+        // Check Work
+        if let work = profile.workSchedule, work.hasWork {
+            let startHour = calendar.component(.hour, from: work.startTime)
+            let startMinute = calendar.component(.minute, from: work.startTime)
+            let endHour = calendar.component(.hour, from: work.endTime)
+            let endMinute = calendar.component(.minute, from: work.endTime)
+            
+            let startTotal = startHour * 60 + startMinute
+            let endTotal = endHour * 60 + endMinute
+            
+            if startTotal <= endTotal {
+                if totalMinutesNow >= startTotal && totalMinutesNow <= endTotal {
+                    return .working
+                }
+            } else {
+                // Crosses midnight
+                if totalMinutesNow >= startTotal || totalMinutesNow <= endTotal {
+                    return .working
+                }
+            }
+        }
+        
+        // Check Study
+        if profile.studySchedule.studies {
+            let startHour = calendar.component(.hour, from: profile.studySchedule.startTime)
+            let startMinute = calendar.component(.minute, from: profile.studySchedule.startTime)
+            let endHour = calendar.component(.hour, from: profile.studySchedule.endTime)
+            let endMinute = calendar.component(.minute, from: profile.studySchedule.endTime)
+            
+            let startTotal = startHour * 60 + startMinute
+            let endTotal = endHour * 60 + endMinute
+            
+            if startTotal <= endTotal {
+                if totalMinutesNow >= startTotal && totalMinutesNow <= endTotal {
+                    return .studying
+                }
+            } else {
+                // Crosses midnight
+                if totalMinutesNow >= startTotal || totalMinutesNow <= endTotal {
+                    return .studying
+                }
+            }
+        }
+        
+        return .leisure
+    }
+
+    var routineStatusLabel: String {
+        switch currentRoutineStatus {
+        case .working:
+            return "Expediente de Trabalho"
+        case .studying:
+            return "Estudo Ativo"
+        case .leisure:
+            return "Tempo de Lazer"
+        }
+    }
+    
+    var routineStatusIcon: String {
+        switch currentRoutineStatus {
+        case .working:
+            return "briefcase.fill"
+        case .studying:
+            return "book.closed.fill"
+        case .leisure:
+            return "sparkles"
+        }
+    }
+    
+    var routineStatusColorHex: String {
+        switch currentRoutineStatus {
+        case .working:
+            return "3B82F6"
+        case .studying:
+            return "8B5CF6"
+        case .leisure:
+            return "10B981"
+        }
     }
 
     var homeHeadline: String {
         if !hasCheckedInToday {
-            return dayMoment.greeting
+            switch currentRoutineStatus {
+            case .working:
+                return "Expediente ativo! 💼 Lembre-se de fazer micro-pausas para manter a clareza mental."
+            case .studying:
+                return "Momento de dedicação! 📚 Como está o seu foco e clareza nos estudos agora?"
+            case .leisure:
+                if let profile = userProfile, let firstHobby = profile.currentHobbies.first ?? profile.desiredHobbies.first {
+                    return "Tempo de lazer! 🌟 Já pensou em praticar um de seus hobbies hoje, como \(firstHobby.lowercased())?"
+                }
+                return dayMoment.greeting
+            }
         }
 
         let streak = displayedStreakDays
@@ -855,6 +966,12 @@ class HomeViewModel: ObservableObject {
     }
 
     private func presentCheckInHint() {
+        let shouldShowHint = !hasSeenFirstLaunchGuide || !hasSeenCheckInFloatingHint
+        guard shouldShowHint else {
+            showCheckInHint = false
+            return
+        }
+
         checkInHintSequence += 1
         let sequence = checkInHintSequence
 

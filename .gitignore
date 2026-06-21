@@ -1,0 +1,28 @@
+.DS_Store
+
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+*.xcscmblueprint
+
+# User-specific Xcode data
+xcuserdata/
+**/xcuserdata/
+
+# Swift Package Manager
+.build/
+Packages/.build/
+
+# Fastlane / diagnostics
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+*.log
+
+# Local secrets and environment files
+.env
+.env.*
+

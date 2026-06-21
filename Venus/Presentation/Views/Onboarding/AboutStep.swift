@@ -56,7 +56,7 @@ struct AboutStep: View {
         VStack(spacing: 18) {
             HStack {
                 Spacer()
-                VenusMascot3DCute(mood: .calm, size: 220)
+                VenusMoodOrb(mood: .calm, size: 130)
                     .opacity(reveal ? 1 : 0)
                     .scaleEffect(reveal ? 1 : 0.86)
                     .animation(.spring(response: 0.7, dampingFraction: 0.72), value: reveal)

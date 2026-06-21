@@ -13,19 +13,15 @@ struct MoodCheckInDetailsCard: View {
     let affectedAreas: [MoodAffectedArea]
     @Binding var selectedAffectedArea: MoodAffectedArea?
     let onSelectAffectedArea: (MoodAffectedArea) -> Void
-    let missingAffectedArea: Bool
     let energyLevels: [MoodEnergyLevel]
     @Binding var selectedEnergyLevel: MoodEnergyLevel?
     let onSelectEnergyLevel: (MoodEnergyLevel) -> Void
-    let missingEnergyLevel: Bool
     let availableTimes: [MoodAvailableTime]
     @Binding var selectedAvailableTime: MoodAvailableTime?
     let onSelectAvailableTime: (MoodAvailableTime) -> Void
-    let missingAvailableTime: Bool
     let controlLevels: [MoodControlLevel]
     @Binding var selectedControlLevel: MoodControlLevel?
     let onSelectControlLevel: (MoodControlLevel) -> Void
-    let missingControlLevel: Bool
     @Binding var selectedMentalClarity: Double
     let sleepQualities: [MoodSleepQuality]
     @Binding var selectedSleepQuality: MoodSleepQuality?
@@ -67,14 +63,14 @@ struct MoodCheckInDetailsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             MoodGroupHeader(
-                title: "Essencial",
-                subtitle: "Complete esses campos para salvar seu check-in.",
+                title: "Agora",
+                subtitle: "O essencial ja foi marcado. Complete so o que ajudar.",
                 tint: VenusTheme.moodMintStrong
             )
 
             MoodDetailSection(
-                title: "O que mais está pesando agora",
-                subtitle: "Escolha o que mais influencia seu dia neste momento.",
+                title: "Contexto do momento",
+                subtitle: "Esses sinais refinam a leitura da Venus.",
                 systemImage: "sparkles"
             ) {
                 VStack(alignment: .leading, spacing: 16) {
@@ -91,9 +87,7 @@ struct MoodCheckInDetailsCard: View {
                     }
 
                     MoodFieldBlock(
-                        title: "Área mais afetada",
-                        isRequired: true,
-                        isMissing: missingAffectedArea
+                        title: "Area mais afetada"
                     ) {
                         LazyVGrid(columns: areasColumns, spacing: 10) {
                             ForEach(affectedAreas, id: \.rawValue) { area in
@@ -109,16 +103,12 @@ struct MoodCheckInDetailsCard: View {
             }
 
             MoodDetailSection(
-                title: "Como você está para agir",
-                subtitle: "Esse contexto deixa a sugestão mais realista para o agora.",
+                title: "Ajustes rapidos",
+                subtitle: "Tudo abaixo e opcional.",
                 systemImage: "figure.walk.motion"
             ) {
                 VStack(alignment: .leading, spacing: 16) {
-                    MoodFieldBlock(
-                        title: "Energia",
-                        isRequired: true,
-                        isMissing: missingEnergyLevel
-                    ) {
+                    MoodFieldBlock(title: "Energia") {
                         LazyVGrid(columns: energyColumns, spacing: 10) {
                             ForEach(energyLevels, id: \.rawValue) { level in
                                 MoodEnergyButton(
@@ -130,11 +120,7 @@ struct MoodCheckInDetailsCard: View {
                         }
                     }
 
-                    MoodFieldBlock(
-                        title: "Tempo disponível agora",
-                        isRequired: true,
-                        isMissing: missingAvailableTime
-                    ) {
+                    MoodFieldBlock(title: "Tempo disponivel agora") {
                         LazyVGrid(columns: timeColumns, spacing: 10) {
                             ForEach(availableTimes, id: \.rawValue) { availableTime in
                                 MoodSelectableChip(
@@ -146,11 +132,7 @@ struct MoodCheckInDetailsCard: View {
                         }
                     }
 
-                    MoodFieldBlock(
-                        title: "Está sob seu controle?",
-                        isRequired: true,
-                        isMissing: missingControlLevel
-                    ) {
+                    MoodFieldBlock(title: "Esta sob seu controle?") {
                         LazyVGrid(columns: controlColumns, spacing: 10) {
                             ForEach(controlLevels, id: \.rawValue) { controlLevel in
                                 MoodSelectableChip(
@@ -167,8 +149,8 @@ struct MoodCheckInDetailsCard: View {
             DisclosureGroup(isExpanded: $isOptionalExpanded) {
                 VStack(alignment: .leading, spacing: 18) {
                     MoodDetailSection(
-                        title: "Intensidade do momento",
-                        subtitle: "Isso ajuda a dosar melhor o que o app te propõe depois.",
+                        title: "Detalhes extras",
+                        subtitle: "Abra so quando fizer sentido colocar mais nuance.",
                         systemImage: "dial.medium.fill"
                     ) {
                         MoodSliderRow(
@@ -182,7 +164,7 @@ struct MoodCheckInDetailsCard: View {
 
                     MoodDetailSection(
                         title: "Corpo e clareza",
-                        subtitle: "Esses sinais ajudam a entender se hoje pede foco, leveza ou recuperação.",
+                        subtitle: "Sinais opcionais para leituras futuras.",
                         systemImage: "brain.head.profile"
                     ) {
                         VStack(alignment: .leading, spacing: 16) {
@@ -221,11 +203,11 @@ struct MoodCheckInDetailsCard: View {
                     }
 
                     MoodDetailSection(
-                        title: "Se quiser, escreva um pouco mais",
-                        subtitle: "Opcional. Uma frase curta já ajuda bastante.",
+                        title: "Uma nota curta",
+                        subtitle: "Opcional.",
                         systemImage: "text.bubble"
                     ) {
-                        TextField("Ex: reunião difícil no trabalho", text: $note, axis: .vertical)
+                        TextField("Ex: reuniao puxada", text: $note, axis: .vertical)
                             .lineLimit(2...5)
                             .font(.system(size: 16, weight: .medium, design: .rounded))
                             .foregroundColor(VenusTheme.text)
@@ -245,8 +227,8 @@ struct MoodCheckInDetailsCard: View {
                 MoodGroupHeader(
                     title: "Opcional",
                     subtitle: isOptionalExpanded
-                    ? "Detalhes extras para deixar a leitura ainda mais precisa."
-                    : "Abra se quiser adicionar contexto extra.",
+                    ? "Feche quando terminar."
+                    : "Mais detalhes, se quiser.",
                     tint: VenusTheme.accentBlue,
                     isExpanded: isOptionalExpanded
                 )
@@ -269,16 +251,6 @@ private struct MoodGroupHeader: View {
                     Text(title)
                         .font(.system(.title3, design: .rounded).weight(.black))
                         .foregroundColor(VenusTheme.text)
-
-                    Text(title == "Essencial" ? "Salvar depende disso" : "Complementa a leitura")
-                        .font(.system(.caption2, design: .rounded).weight(.bold))
-                        .foregroundColor(tint)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(
-                            Capsule()
-                                .fill(tint.opacity(0.12))
-                        )
                 }
 
                 Text(subtitle)
@@ -352,19 +324,13 @@ private struct MoodDetailSection<Content: View>: View {
 
 private struct MoodFieldBlock<Content: View>: View {
     let title: String
-    var isRequired: Bool = false
-    var isMissing: Bool = false
     let content: Content
 
     init(
         title: String,
-        isRequired: Bool = false,
-        isMissing: Bool = false,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
-        self.isRequired = isRequired
-        self.isMissing = isMissing
         self.content = content()
     }
 
@@ -373,33 +339,13 @@ private struct MoodFieldBlock<Content: View>: View {
             HStack(spacing: 8) {
                 Text(title)
                     .font(.system(.footnote, design: .rounded).weight(.bold))
-                    .foregroundColor(isMissing ? VenusTheme.validationError : VenusTheme.text)
-
-                if isRequired {
-                    Text(isMissing ? "Falta preencher" : "Obrigatório")
-                        .font(.system(.caption2, design: .rounded).weight(.bold))
-                        .foregroundColor(isMissing ? VenusTheme.validationError : VenusTheme.textSecondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(
-                            Capsule()
-                                .fill(isMissing ? VenusTheme.validationErrorSoft : VenusTheme.cardSurfaceStrong)
-                        )
-                }
+                    .foregroundColor(VenusTheme.text)
             }
 
             content
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(isMissing ? VenusTheme.validationErrorSoft.opacity(0.68) : Color.clear)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(isMissing ? VenusTheme.validationErrorBorder : Color.clear, lineWidth: 1)
-        )
     }
 }
 
