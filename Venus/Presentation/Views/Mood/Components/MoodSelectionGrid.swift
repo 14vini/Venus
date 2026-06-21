@@ -45,10 +45,21 @@ struct EnergySelectionGrid: View {
                     detail: energy.supportCopy,
                     systemImage: energy.sfSymbolName,
                     isSelected: selectedEnergy == energy,
-                    tint: tint,
+                    tint: tintForEnergy(energy),
                     action: { onSelect(energy) }
                 )
             }
+        }
+    }
+
+    private func tintForEnergy(_ energy: EnergyLevel) -> Color {
+        switch energy {
+        case .critical:
+            return VenusTheme.validationError
+        case .regular:
+            return VenusTheme.accentBlue
+        case .full:
+            return VenusTheme.accentGreen
         }
     }
 }

@@ -187,40 +187,64 @@ struct ZenithEnergyLevelButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 16) {
-                Image(systemName: level.sfSymbolName)
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(iconColor)
-                    .frame(width: 40, height: 40)
-                    .background(
-                        Circle()
-                            .fill(iconColor.opacity(0.14))
-                    )
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(level.displayName)
-                        .font(.system(.headline, design: .rounded, weight: .semibold))
-                        .foregroundStyle(VenusTheme.text)
-
-                    Text(level.supportCopy)
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(VenusTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 12)
-
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(isSelected ? iconColor : VenusTheme.textSecondary.opacity(0.5))
+        Button {
+            UISelectionFeedbackGenerator().selectionChanged()
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                action()
             }
-            .padding(18)
-            .background(
-                glassShape(fill: isSelected ? iconColor.opacity(0.16) : Color.white.opacity(0.14))
-            )
+        } label: {
+            Group {
+                if isSelected {
+                    rowContent
+                        .background(
+                            LinearGradient(
+                                colors: [iconColor, iconColor.opacity(0.72)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            in: RoundedRectangle(cornerRadius: 26, style: .continuous)
+                        )
+                        .shadow(color: iconColor.opacity(0.18), radius: 16, x: 0, y: 10)
+                } else {
+                    rowContent
+                        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+                }
+            }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(level.displayName)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private var rowContent: some View {
+        HStack(alignment: .top, spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(isSelected ? Color.white.opacity(0.22) : iconColor.opacity(0.16))
+                    .frame(width: 44, height: 44)
+
+                Image(systemName: level.sfSymbolName)
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(isSelected ? .white : iconColor)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(level.displayName)
+                    .font(.system(.headline, design: .rounded).weight(.black))
+                    .foregroundStyle(isSelected ? .white : VenusTheme.text)
+
+                Text(level.supportCopy)
+                    .font(.system(.subheadline, design: .rounded).weight(.medium))
+                    .foregroundStyle(isSelected ? .white.opacity(0.8) : VenusTheme.textSecondary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 8)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
     }
 
     private var iconColor: Color {

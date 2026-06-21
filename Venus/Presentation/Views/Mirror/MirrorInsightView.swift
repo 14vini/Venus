@@ -9,6 +9,7 @@ struct MirrorInsightView: View {
     let weeklyTrend: WeeklyEmotionalTrend?
     let weeklyInsights: WeeklyStrategicInsights?
     let patternAlert: PatternAlert?
+    let weekMoods: [Mood]
     
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -177,8 +178,29 @@ struct MirrorInsightView: View {
                                         .stroke(Color.orange.opacity(0.25), lineWidth: 1)
                                 )
                             }
+                            // 4. Mapa Celestial
+                            if !weekMoods.isEmpty {
+                                VStack(alignment: .leading, spacing: 20) {
+                                    Text("Mapa Celestial")
+                                        .font(.system(.subheadline, design: .rounded).weight(.bold))
+                                        .foregroundColor(VenusTheme.moodMintStrong)
+                                        .tracking(0.5)
+
+                                    CelestialMapView(weekMoods: weekMoods)
+                                        .frame(height: 300)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                                .fill(colorScheme == .dark ? Color.white.opacity(0.04) : Color.white.opacity(0.6))
+                                                .background(.ultraThinMaterial)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                                .stroke(VenusTheme.moodMintStrong.opacity(0.15), lineWidth: 1)
+                                        )
+                                }
+                                .padding(.horizontal, 24)
+                            }
                         }
-                        .padding(.horizontal, 24)
                         .padding(.bottom, 40)
                     }
                 } else {
@@ -315,6 +337,7 @@ struct MirrorInsightView: View {
         patternAlert: PatternAlert(
             title: "Alerta de Estresse",
             detail: "Detectamos picos de estresse recorrentes na quinta-feira à tarde."
-        )
+        ),
+        weekMoods: []
     )
 }

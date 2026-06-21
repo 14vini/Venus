@@ -111,6 +111,7 @@ class HomeViewModel: ObservableObject {
     @Published var dayOverDayTrend: DayOverDayTrendSummary?
     @Published var checkInStreakDays: Int = 0
     @Published var checkInsUsedToday: Int = 0
+    @Published var weekMoods: [Mood] = []
     @Published var checkInAllowance: CheckInAllowance = .freeDefault {
         didSet {
             guard checkInAllowance.usedToday != oldValue.usedToday else { return }
@@ -288,6 +289,10 @@ class HomeViewModel: ObservableObject {
             let streakStartDate = Calendar.current.date(byAdding: .day, value: -365, to: Date()) ?? Date()
             let moods = try await moodRepository.getMoods(from: streakStartDate, to: Date())
             checkInStreakDays = calculateCheckInStreak(from: moods)
+            
+            let weekStartDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+            weekMoods = moods.filter { $0.timestamp >= weekStartDate }
+            
             await refreshPatternInsights()
         } catch {
             insightsTask?.cancel()

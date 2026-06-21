@@ -162,7 +162,8 @@ struct HomeView: View {
             MirrorInsightView(
                 weeklyTrend: viewModel.weeklyTrend,
                 weeklyInsights: viewModel.weeklyInsights,
-                patternAlert: viewModel.patternAlert
+                patternAlert: viewModel.patternAlert,
+                weekMoods: viewModel.weekMoods
             )
         }
     }

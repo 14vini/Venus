@@ -20,6 +20,17 @@ struct MoodCheckInView: View {
     @State private var bottomControlsHeight: CGFloat = 0
     @State private var selectedSentimentId: String? = nil
     
+    enum CheckInFlowType {
+        case unset
+        case traditional
+        case somatic
+    }
+    
+    @State private var flowType: CheckInFlowType = .unset
+    @State private var somaticStep: Int = 1
+    @State private var somaticTemperature: String? = nil
+    @State private var somaticTension: String? = nil
+    
     private let totalSteps = 5
 
     struct SentimentOption: Identifiable, Equatable {
@@ -84,6 +95,16 @@ struct MoodCheckInView: View {
     }
 
     private var canProceed: Bool {
+        if flowType == .unset { return false }
+        if flowType == .somatic && currentStep == 1 {
+            switch somaticStep {
+            case 1: return somaticTemperature != nil
+            case 2: return somaticTension != nil
+            case 3: return viewModel.selectedZenithEnergy != nil && viewModel.selectedMood != nil
+            default: return true
+            }
+        }
+        
         switch currentStep {
         case 1:
             return viewModel.selectedZenithEnergy != nil && viewModel.selectedMood != nil
@@ -101,6 +122,16 @@ struct MoodCheckInView: View {
     }
 
     private var validationMessage: String {
+        if flowType == .unset { return "" }
+        if flowType == .somatic && currentStep == 1 {
+            switch somaticStep {
+            case 1: return "Selecione a temperatura do seu corpo"
+            case 2: return "Selecione a tensão do seu corpo"
+            case 3: return "Selecione o sentimento que mais se aproxima"
+            default: return ""
+            }
+        }
+        
         switch currentStep {
         case 1:
             if viewModel.selectedZenithEnergy == nil {
@@ -203,13 +234,6 @@ struct MoodCheckInView: View {
             
             VenusProgressBar(currentStep: currentStep, totalSteps: totalSteps, tint: palette.accent)
                 .allowsHitTesting(false)
-            
-            Text(ritualProgressLabel)
-                .font(.system(.caption, design: .rounded).weight(.bold))
-                .foregroundColor(VenusTheme.textSecondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .glassEffect(.regular, in: Capsule())
         }
         .padding(.horizontal, 24)
     }
@@ -217,13 +241,13 @@ struct MoodCheckInView: View {
     private var topBackButton: some View {
         Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            if currentStep > 1 {
-                goToPreviousStep()
-            } else {
+            if flowType == .unset {
                 dismiss()
+            } else {
+                goToPreviousStep()
             }
         } label: {
-            Image(systemName: currentStep > 1 ? "chevron.left" : "xmark")
+            Image(systemName: (flowType == .unset) ? "xmark" : "chevron.left")
                 .font(.system(size: 14, weight: .black))
                 .foregroundStyle(palette.accent)
                 .frame(width: 40, height: 40)
@@ -232,7 +256,7 @@ struct MoodCheckInView: View {
         }
         .buttonStyle(.plain)
         .buttonStyle(OnboardingPressableButtonStyle())
-        .accessibilityLabel(currentStep > 1 ? "Voltar" : "Fechar")
+        .accessibilityLabel(flowType == .unset ? "Fechar" : "Voltar")
     }
 
     private func progressColor(for index: Int) -> Color {
@@ -243,19 +267,290 @@ struct MoodCheckInView: View {
 
     @ViewBuilder
     private var currentStepView: some View {
-        switch currentStep {
+        if flowType == .unset {
+            triageView
+        } else if flowType == .somatic && currentStep == 1 {
+            somaticStepView
+        } else {
+            switch currentStep {
+            case 1:
+                stepOneView
+            case 2:
+                stepTwoView
+            case 3:
+                stepThreeView
+            case 4:
+                stepFourView
+            case 5:
+                stepFiveView
+            default:
+                EmptyView()
+            }
+        }
+    }
+
+    private var triageView: some View {
+        VStack(alignment: .leading, spacing: 32) {
+            OnboardingStepHeader(
+                eyebrow: "Triagem",
+                title: "Como você prefere fazer seu check-in hoje?",
+                subtitle: "Você pode escolher diretamente o que sente, ou deixar que a gente ajude através dos sinais do seu corpo.",
+                systemImage: "waveform.path.ecg",
+                tint: palette.accent
+            )
+            
+            VStack(spacing: 16) {
+                triageCard(
+                    title: "Sei o que sinto",
+                    subtitle: "Selecionar sentimento predominante diretamente.",
+                    icon: "heart.fill",
+                    color: VenusTheme.accentBlue
+                ) {
+                    transitionDirection = 1
+                    withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                        flowType = .traditional
+                    }
+                }
+                
+                triageCard(
+                    title: "Estou confuso",
+                    subtitle: "Sonda somática guiada pelos sinais do corpo.",
+                    icon: "sparkles",
+                    color: VenusTheme.accentPurple
+                ) {
+                    transitionDirection = 1
+                    withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                        flowType = .somatic
+                        somaticStep = 1
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 24)
+    }
+
+    private func triageCard(title: String, subtitle: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            action()
+        }) {
+            HStack(spacing: 16) {
+                Image(systemName: icon)
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(color)
+                    .frame(width: 48, height: 48)
+                    .glassEffect(.regular, in: Circle())
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(.title3, design: .rounded).weight(.bold))
+                        .foregroundColor(VenusTheme.text)
+                    
+                    Text(subtitle)
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundColor(VenusTheme.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(VenusTheme.textSecondary)
+            }
+            .padding(16)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(VenusTheme.cardBorder, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .buttonStyle(OnboardingPressableButtonStyle())
+    }
+
+    @ViewBuilder
+    private var somaticStepView: some View {
+        switch somaticStep {
         case 1:
-            stepOneView
+            somaticTemperatureView
         case 2:
-            stepTwoView
+            somaticTensionView
         case 3:
-            stepThreeView
-        case 4:
-            stepFourView
-        case 5:
-            stepFiveView
+            somaticSuggestionView
         default:
             EmptyView()
+        }
+    }
+
+    private var somaticTemperatureView: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            OnboardingStepHeader(
+                eyebrow: "Sonda Somática 1/3",
+                title: "Temperatura",
+                subtitle: "Concentre-se no seu corpo. Como está a sua temperatura agora?",
+                systemImage: "thermometer",
+                tint: palette.accent
+            )
+            
+            VStack(spacing: 12) {
+                somaticChoice(title: "Frio / Arrepios", isSelected: somaticTemperature == "Frio") {
+                    somaticTemperature = "Frio"
+                    autoAdvanceSomatic()
+                }
+                somaticChoice(title: "Neutro / Normal", isSelected: somaticTemperature == "Neutro") {
+                    somaticTemperature = "Neutro"
+                    autoAdvanceSomatic()
+                }
+                somaticChoice(title: "Quente / Suor", isSelected: somaticTemperature == "Quente") {
+                    somaticTemperature = "Quente"
+                    autoAdvanceSomatic()
+                }
+            }
+        }
+        .padding(.horizontal, 24)
+    }
+
+    private var somaticTensionView: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            OnboardingStepHeader(
+                eyebrow: "Sonda Somática 2/3",
+                title: "Tensão Muscular",
+                subtitle: "Como você sente seus músculos e a sua respiração?",
+                systemImage: "figure.mind.and.body",
+                tint: palette.accent
+            )
+            
+            VStack(spacing: 12) {
+                somaticChoice(title: "Pesado / Sem energia", isSelected: somaticTension == "Pesado") {
+                    somaticTension = "Pesado"
+                    autoAdvanceSomatic()
+                }
+                somaticChoice(title: "Relaxado / Leve", isSelected: somaticTension == "Relaxado") {
+                    somaticTension = "Relaxado"
+                    autoAdvanceSomatic()
+                }
+                somaticChoice(title: "Tenso / Agitado", isSelected: somaticTension == "Tenso") {
+                    somaticTension = "Tenso"
+                    autoAdvanceSomatic()
+                }
+            }
+        }
+        .padding(.horizontal, 24)
+    }
+
+    private var somaticSuggestionView: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            OnboardingStepHeader(
+                eyebrow: "Sonda Somática 3/3",
+                title: "Reflexo do Espelho",
+                subtitle: "Baseado no seu corpo, aqui estão alguns sentimentos que se conectam ao seu estado atual. Escolha o que mais faz sentido.",
+                systemImage: "sparkles.rectangle.stack",
+                tint: palette.accent
+            )
+            
+            VenusWrappedLayout(spacing: 8, lineSpacing: 12) {
+                ForEach(suggestedMoodsForSomatic()) { option in
+                    VenusInterestChipSimple(
+                        title: option.displayName,
+                        isSelected: selectedSentimentId == option.id,
+                        tint: palette.accent,
+                        onTap: {
+                            selectedSentimentId = option.id
+                            viewModel.selectMood(option.moodType)
+                            viewModel.selectZenithEnergy(energyFor(mood: option.moodType))
+                        }
+                    )
+                }
+            }
+        }
+        .padding(.horizontal, 24)
+    }
+
+    private func somaticChoice(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            action()
+        }) {
+            HStack {
+                Text(title)
+                    .font(.system(.headline, design: .rounded).weight(.bold))
+                    .foregroundColor(isSelected ? .white : VenusTheme.text)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.white)
+                }
+            }
+            .padding()
+            .background(
+                Group {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(LinearGradient(
+                                colors: [palette.accent, palette.accent.opacity(0.72)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ))
+                    } else {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(Color.clear)
+                    }
+                }
+            )
+            .glassEffect(isSelected ? .clear : .regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(isSelected ? palette.accent : VenusTheme.cardBorder, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .buttonStyle(OnboardingPressableButtonStyle())
+    }
+
+    private func autoAdvanceSomatic() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            transitionDirection = 1
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                if somaticStep < 3 {
+                    somaticStep += 1
+                }
+            }
+        }
+    }
+
+    private func suggestedMoodsForSomatic() -> [SentimentOption] {
+        let isLowEnergy = somaticTension == "Pesado"
+        let isHighEnergy = somaticTension == "Tenso"
+        let isWarm = somaticTemperature == "Quente"
+        
+        var suggestions: [SentimentOption] = []
+        
+        if isLowEnergy {
+            suggestions = sentimentOptions.filter { $0.moodType == .tired || $0.moodType == .sad || $0.id == "calm" }
+        } else if isHighEnergy {
+            suggestions = sentimentOptions.filter { $0.moodType == .stressed || $0.moodType == .energetic || $0.id == "anxious" }
+        } else {
+            // Relaxado
+            if isWarm {
+                suggestions = sentimentOptions.filter { $0.moodType == .happy || $0.moodType == .calm || $0.id == "excited" }
+            } else {
+                suggestions = sentimentOptions.filter { $0.moodType == .calm || $0.moodType == .sad || $0.id == "neutral" }
+            }
+        }
+        
+        // Add a few wildcards just in case
+        if !suggestions.contains(where: { $0.id == "neutral" }) {
+            if let n = sentimentOptions.first(where: { $0.id == "neutral" }) { suggestions.append(n) }
+        }
+        
+        return Array(suggestions.prefix(6))
+    }
+
+    private func energyFor(mood: MoodType) -> EnergyLevel {
+        switch mood {
+        case .tired, .sad, .stressed: return .critical
+        case .calm, .happy: return .regular
+        case .energetic: return .full
         }
     }
 
@@ -430,57 +725,59 @@ struct MoodCheckInView: View {
                 }
                 
                 // Next / Conclude Button
-                Button {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    goToNextStep()
-                } label: {
-                    HStack(spacing: 8) {
-                        if viewModel.isSaving {
-                            ProgressView()
-                                .tint(.white)
-                        } else {
-                            Text(currentStep == totalSteps ? "Concluir" : "Próximo")
-                                .font(.system(.headline, design: .rounded).weight(.black))
-                            Image(systemName: currentStep == totalSteps ? "checkmark.circle.fill" : "chevron.right")
-                                .font(.system(size: 14, weight: .black))
+                if flowType != .unset {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        goToNextStep()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if viewModel.isSaving {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Text(currentStep == totalSteps ? "Concluir" : "Próximo")
+                                    .font(.system(.headline, design: .rounded).weight(.black))
+                                Image(systemName: currentStep == totalSteps ? "checkmark.circle.fill" : "chevron.right")
+                                    .font(.system(size: 14, weight: .black))
+                            }
                         }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(
+                            (canProceed ? palette.buttonGradient : palette.disabledGradient),
+                            in: Capsule(style: .continuous)
+                        )
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .fill(LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(colorScheme == .dark ? 0.16 : 0.22),
+                                        Color.clear,
+                                        Color.white.opacity(colorScheme == .dark ? 0.08 : 0.12)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ))
+                                .blendMode(.overlay)
+                        )
+                        .shadow(
+                            color: canProceed ? palette.accent.opacity(colorScheme == .dark ? 0.22 : 0.26) : .clear,
+                            radius: 18,
+                            x: 0,
+                            y: 12
+                        )
                     }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-                    .background(
-                        (canProceed ? palette.buttonGradient : palette.disabledGradient),
-                        in: Capsule(style: .continuous)
-                    )
-                    .overlay(
-                        Capsule(style: .continuous)
-                            .fill(LinearGradient(
-                                colors: [
-                                    Color.white.opacity(colorScheme == .dark ? 0.16 : 0.22),
-                                    Color.clear,
-                                    Color.white.opacity(colorScheme == .dark ? 0.08 : 0.12)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ))
-                            .blendMode(.overlay)
-                    )
-                    .shadow(
-                        color: canProceed ? palette.accent.opacity(colorScheme == .dark ? 0.22 : 0.26) : .clear,
-                        radius: 18,
-                        x: 0,
-                        y: 12
-                    )
-                }
-                .buttonStyle(.plain)
-                .buttonStyle(OnboardingPressableButtonStyle())
-                .disabled(!canProceed || viewModel.isSaving)
-                .opacity(canProceed ? 1 : 0.72)
-                .overlay(alignment: .top) {
-                    VenusGlassCrown(tint: palette.accent)
-                        .padding(.horizontal, 10)
-                        .padding(.top, 3)
-                        .allowsHitTesting(false)
+                    .buttonStyle(.plain)
+                    .buttonStyle(OnboardingPressableButtonStyle())
+                    .disabled(!canProceed || viewModel.isSaving)
+                    .opacity(canProceed ? 1 : 0.72)
+                    .overlay(alignment: .top) {
+                        VenusGlassCrown(tint: palette.accent)
+                            .padding(.horizontal, 10)
+                            .padding(.top, 3)
+                            .allowsHitTesting(false)
+                    }
                 }
             }
             .padding(.horizontal, 24)
@@ -517,6 +814,32 @@ struct MoodCheckInView: View {
     }
 
     private func goToPreviousStep() {
+        if flowType == .unset { return }
+        
+        if flowType == .somatic && currentStep == 1 {
+            if somaticStep > 1 {
+                transitionDirection = -1
+                withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                    somaticStep -= 1
+                }
+                return
+            } else {
+                transitionDirection = -1
+                withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                    flowType = .unset
+                }
+                return
+            }
+        }
+        
+        if flowType == .traditional && currentStep == 1 {
+            transitionDirection = -1
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                flowType = .unset
+            }
+            return
+        }
+        
         guard currentStep > 1 else { return }
         transitionDirection = -1
         withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
@@ -526,6 +849,18 @@ struct MoodCheckInView: View {
 
     private func goToNextStep() {
         guard canProceed else { return }
+        
+        if flowType == .somatic && currentStep == 1 {
+            if somaticStep < 3 {
+                transitionDirection = 1
+                withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                    somaticStep += 1
+                }
+                return
+            }
+            // If we are at somaticStep 3, it proceeds to currentStep 2 below
+        }
+        
         if currentStep < totalSteps {
             transitionDirection = 1
             withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
