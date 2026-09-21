@@ -60,11 +60,21 @@ class DependencyContainer {
     // MARK: - AI Service
     
     func makeGeminiService() -> GeminiServiceProtocol {
-        return GeminiServiceImpl()
+        return GeminiService()
     }
     
     func makeVenusAIService() -> VenusAIServiceProtocol {
-        return VenusAIService()
+        return GeminiService()
+    }
+    
+    // MARK: - Speech & Notifications
+    
+    func makeSpeechRecognitionService() -> SpeechRecognitionServiceProtocol {
+        return SpeechRecognitionService()
+    }
+    
+    func makeNotificationService() -> NotificationServiceProtocol {
+        return NotificationService()
     }
     
     // MARK: - Recommendation Engine
@@ -78,7 +88,9 @@ class DependencyContainer {
             moodRepository: makeMoodRepository(),
             userProfileRepository: makeUserProfileRepository(),
             subscriptionStatusProvider: makeSubscriptionStatusProvider(),
-            feedbackStore: makeBehaviorFeedbackStore()
+            feedbackStore: makeBehaviorFeedbackStore(),
+            chatRepository: makeChatRepository(),
+            venusAI: makeVenusAIService()
         )
     }
     

@@ -7,10 +7,34 @@
 
 import Foundation
 
-protocol GeminiServiceProtocol {
-    /// Generate AI suggestion based on user's current mood and profile
-    func generateSuggestion(mood: MoodType, userContext: UserProfile) async throws -> String
+protocol GeminiServiceProtocol: Sendable {
+    func generateResponse(
+        userMessage: String,
+        conversationHistory: [ChatMessage],
+        userProfile: UserProfile?,
+        checkInHistory: [Mood]
+    ) async throws -> String
     
-    /// Generate a personalized greeting
+    func analyzeEmotionalState(message: String) async throws -> EmotionalState
+    func generateWellnessSuggestion(emotionalState: EmotionalState) -> String
+    
+    func generateMirrorResume(
+        checkInHistory: [Mood],
+        userProfile: UserProfile?
+    ) async throws -> String
+    
+    func generateMirrorInsights(
+        checkInHistory: [Mood],
+        chatSessions: [ChatSession],
+        userProfile: UserProfile?
+    ) async throws -> (
+        weeklyTrend: WeeklyEmotionalTrend,
+        weeklyInsights: WeeklyStrategicInsights,
+        patternAlert: PatternAlert?
+    )
+    
+    func generateSuggestion(mood: MoodType, userContext: UserProfile) async throws -> String
     func generateGreeting(userName: String, mood: MoodType?) async throws -> String
 }
+
+typealias VenusAIServiceProtocol = GeminiServiceProtocol

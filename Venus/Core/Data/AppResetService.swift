@@ -10,7 +10,11 @@ import SwiftData
 struct AppResetService {
     private let context: ModelContext
 
-    init(modelContainer: ModelContainer = DependencyContainer.shared.modelContainer) {
+    init() {
+        self.context = DependencyContainer.shared.modelContainer.mainContext
+    }
+
+    init(modelContainer: ModelContainer) {
         self.context = modelContainer.mainContext
     }
 

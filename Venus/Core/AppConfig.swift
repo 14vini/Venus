@@ -10,8 +10,9 @@ import Foundation
 struct AppConfig {
     /// Google Gemini API Key
     /// NOTE: In production, move this to .xcconfig or environment variables
-    static let geminiAPIKey = "AIzaSyCy01fMKDBNrjo2HIZKrm2gvFGWg-vHT3Y"
+    static let geminiAPIKey = ""
+//    "AIzaSyBCADUucwcooQm2619s17bXtvwgT4WqYe4"
     
     /// Gemini Model to use
-    static let geminiModel = "gemini-pro"
+    static let geminiModel = "gemini-3.5-flash"
 }
