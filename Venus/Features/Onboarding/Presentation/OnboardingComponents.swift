@@ -18,16 +18,15 @@ struct OnboardingPill: View {
                 .font(.system(size: 12, weight: .bold))
 
             Text(title)
-                .font(.system(.caption, design: .rounded).weight(.bold))
+                .font(.system(.headline, design: .rounded).weight(.bold))
         }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 14)
+        .foregroundStyle(.primary)
         .padding(.vertical, 9)
-        .background(
-            Capsule(style: .continuous)
-                .fill(tint)
-        )
-        .shadow(color: tint.opacity(0.18), radius: 16, x: 0, y: 10)
+//        .background(
+//            Capsule(style: .continuous)
+//                .fill(tint)
+//        )
+//        .shadow(color: tint.opacity(0.18), radius: 16, x: 0, y: 10)
     }
 }
 

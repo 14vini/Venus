@@ -9,74 +9,74 @@ import SwiftUI
 import UIKit
 
 struct VenusTheme {
-    // MARK: - Palette (Warm, Bright, and Comfortable)
+    // MARK: - Palette (Peach, Terracotta & Warm Sunset)
     
     // Primary Brand Colors
-    static let primary = Color(dynamicProvider(light: "#56C271", dark: "#85EA92"))
-    static let primaryLight = Color(dynamicProvider(light: "#7FD38B", dark: "#A2F0AA"))
-    static let primaryDark = Color(dynamicProvider(light: "#3E9D50", dark: "#6BCB77"))
-    static let secondary = Color(dynamicProvider(light: "#7FD38B", dark: "#A2F0AA"))
-    static let tertiary = Color(dynamicProvider(light: "#A9E4AF", dark: "#BFF4C3"))
+    static let primary = Color(dynamicProvider(light: "#E05320", dark: "#FF733E"))
+    static let primaryLight = Color(dynamicProvider(light: "#F07B4D", dark: "#FF9A6E"))
+    static let primaryDark = Color(dynamicProvider(light: "#B83A0F", dark: "#E6501C"))
+    static let secondary = Color(dynamicProvider(light: "#F07B4D", dark: "#FFA076"))
+    static let tertiary = Color(dynamicProvider(light: "#F7A37C", dark: "#FFC2A3"))
     
     // Accents
-    static let accentOrange = Color(dynamicProvider(light: "#FF6424", dark: "#FFB36B"))
-    static let accentPink = Color(dynamicProvider(light: "#F58B74", dark: "#FFB3A0"))
-    static let accentBlue = Color(dynamicProvider(light: "#5C8DFF", dark: "#9BC0FF"))
-    static let accentGreen = Color(dynamicProvider(light: "#58B887", dark: "#7AD0A3"))
-    static let accentPurple = Color(dynamicProvider(light: "#8D5CFF", dark: "#C6A7FF"))
-    static let accentPurpleDeep = Color(dynamicProvider(light: "#6937D8", dark: "#9B72FF"))
-    static let moodMint = Color(dynamicProvider(light: "#9BF66F", dark: "#83E96E"))
-    static let moodMintStrong = Color(dynamicProvider(light: "#59D85A", dark: "#7EF07E"))
-    static let moodSage = Color(dynamicProvider(light: "#D2E0CC", dark: "#203124"))
-    static let moodMist = Color(dynamicProvider(light: "#EBF2E6", dark: "#121713"))
-    static let moodCream = Color(dynamicProvider(light: "#FFFDF7", dark: "#1B201A"))
+    static let accentOrange = Color(dynamicProvider(light: "#E05320", dark: "#FF7E4A"))
+    static let accentPink = Color(dynamicProvider(light: "#D84A6F", dark: "#FF759E"))
+    static let accentBlue = Color(dynamicProvider(light: "#3E74C4", dark: "#6EA0F5"))
+    static let accentGreen = Color(dynamicProvider(light: "#389462", dark: "#55CE90"))
+    static let accentPurple = Color(dynamicProvider(light: "#7B4BBF", dark: "#AD7AF7"))
+    static let accentPurpleDeep = Color(dynamicProvider(light: "#582C96", dark: "#8855D6"))
+    static let moodMint = Color(dynamicProvider(light: "#58B896", dark: "#50CFA4"))
+    static let moodMintStrong = Color(dynamicProvider(light: "#2B9471", dark: "#40BC90"))
+    static let moodSage = Color(dynamicProvider(light: "#EADFD5", dark: "#291E18"))
+    static let moodMist = Color(dynamicProvider(light: "#F9F3EC", dark: "#18110D"))
+    static let moodCream = Color(dynamicProvider(light: "#FDFBF7", dark: "#1C1410"))
     
     // Mood Colors
-    static let moodHappy = Color(dynamicProvider(light: "#FFD93D", dark: "#FFE066"))
-    static let moodCalm = Color(dynamicProvider(light: "#6BCB77", dark: "#85EA92"))
-    static let moodEnergetic = Color(dynamicProvider(light: "#FF6B6B", dark: "#FF8E8E"))
-    static let moodTired = Color(dynamicProvider(light: "#4D96FF", dark: "#70A9FF"))
-    static let moodStressed = Color(dynamicProvider(light: "#FF7B54", dark: "#FF9A7B"))
-    static let moodSad = Color(dynamicProvider(light: "#9D4EDD", dark: "#B57BEE"))
+    static let moodHappy = Color(dynamicProvider(light: "#E2981E", dark: "#FFB940"))
+    static let moodCalm = Color(dynamicProvider(light: "#389A6B", dark: "#56CD95"))
+    static let moodEnergetic = Color(dynamicProvider(light: "#E64438", dark: "#FF6A5E"))
+    static let moodTired = Color(dynamicProvider(light: "#4874BD", dark: "#7CA5EE"))
+    static let moodStressed = Color(dynamicProvider(light: "#D85324", dark: "#FF7847"))
+    static let moodSad = Color(dynamicProvider(light: "#8250BD", dark: "#B582F7"))
 
     // Backgrounds & Surfaces
-    static let background = Color(dynamicProvider(light: "#F6FBF5", dark: "#0D150F"))
-    static let backgroundWarm = Color(dynamicProvider(light: "#E7F4E4", dark: "#142116"))
-    static let backgroundBlush = Color(dynamicProvider(light: "#D5ECCC", dark: "#1C2C1F"))
-    static let backgroundCool = Color(dynamicProvider(light: "#EEF8EB", dark: "#16241A"))
-    static let backgroundSoft = Color(dynamicProvider(light: "#FCFEFB", dark: "#101813"))
-    static let ambientWarm = Color(dynamicProvider(light: "#8BD48B", dark: "#5DAF62"))
-    static let ambientCool = Color(dynamicProvider(light: "#C5E8BB", dark: "#7ACB7B"))
-    static let ambientRose = Color(dynamicProvider(light: "#B7DDB1", dark: "#6DAA73"))
+    static let background = Color(dynamicProvider(light: "#FDF8F4", dark: "#110B08"))
+    static let backgroundWarm = Color(dynamicProvider(light: "#F8ECE1", dark: "#1A100B"))
+    static let backgroundBlush = Color(dynamicProvider(light: "#F4DFCE", dark: "#26150E"))
+    static let backgroundCool = Color(dynamicProvider(light: "#FAF0E8", dark: "#150E0A"))
+    static let backgroundSoft = Color(dynamicProvider(light: "#FFFDFC", dark: "#0C0705"))
+    static let ambientWarm = Color(dynamicProvider(light: "#E57B4A", dark: "#943F1A"))
+    static let ambientCool = Color(dynamicProvider(light: "#F5AD83", dark: "#A6582E"))
+    static let ambientRose = Color(dynamicProvider(light: "#E58A78", dark: "#964536"))
     
     // Glassmorphic surfaces
     static let surface = Color(UIColor { traitCollection in
         return traitCollection.userInterfaceStyle == .dark ?
-            UIColor(hex: "18231A", alpha: 0.8) :
-            UIColor(hex: "FFFFFF", alpha: 0.84)
+            UIColor(hex: "1F130D", alpha: 0.86) :
+            UIColor(hex: "FFFFFF", alpha: 0.88)
     })
     
     // Solid card surfaces
     static let cardSurface = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark ? UIColor(hex: "182119") : UIColor(hex: "FFFFFF")
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "1C120C") : UIColor(hex: "FFFFFF")
     })
     
     static let cardSurfaceStrong = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark ? UIColor(hex: "121A14") : UIColor(hex: "F2F7EF")
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "150D08") : UIColor(hex: "F8EFE7")
     })
     
     static let cardBorder = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark ? UIColor(hex: "435544", alpha: 0.72) : UIColor(hex: "C7D8C2")
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "3D2418", alpha: 0.75) : UIColor(hex: "ECDACD")
     })
 
-    static let validationError = Color(dynamicProvider(light: "#D84F62", dark: "#FF94A0"))
-    static let validationErrorSoft = Color(dynamicProvider(light: "#FCECEF", dark: "#34181D"))
-    static let validationErrorBorder = Color(dynamicProvider(light: "#F2B8C0", dark: "#73313B"))
+    static let validationError = Color(dynamicProvider(light: "#D23448", dark: "#FF667B"))
+    static let validationErrorSoft = Color(dynamicProvider(light: "#FDF2F4", dark: "#2C1115"))
+    static let validationErrorBorder = Color(dynamicProvider(light: "#F6B4C0", dark: "#6E1F2A"))
     
     // Text
-    static let text = Color(dynamicProvider(light: "#183223", dark: "#F4FFF7"))
-    static let textSecondary = Color(dynamicProvider(light: "#4D6656", dark: "#C7DCCA"))
-    static let textTertiary = Color(dynamicProvider(light: "#7D9484", dark: "#8CA392"))
+    static let text = Color(dynamicProvider(light: "#24140D", dark: "#FFF5ED"))
+    static let textSecondary = Color(dynamicProvider(light: "#664E41", dark: "#D1B9AA"))
+    static let textTertiary = Color(dynamicProvider(light: "#947666", dark: "#8F7464"))
     static let textOnPrimary = Color.white
     
     // MARK: - Gradients
@@ -85,8 +85,8 @@ struct VenusTheme {
         LinearGradient(
             colors: [
                 backgroundSoft,
-                backgroundWarm.opacity(0.88),
-                backgroundBlush.opacity(0.52),
+                backgroundWarm.opacity(0.85),
+                backgroundBlush.opacity(0.45),
                 backgroundCool
             ],
             startPoint: .topLeading,
@@ -97,11 +97,9 @@ struct VenusTheme {
     static var readingBackgroundGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(hex: "F1FAED"),
-                Color(hex: "E8F6E2"),
-                backgroundWarm.opacity(0.98),
-                backgroundBlush.opacity(0.42),
-                Color(hex: "EDF8E8")
+                backgroundSoft,
+                backgroundWarm.opacity(0.85),
+                backgroundCool
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -111,9 +109,9 @@ struct VenusTheme {
     static var orangeTopGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(hex: "DDF5CF"),
-                Color(hex: "82D686"),
-                Color(hex: "4AA95C")
+                Color(dynamicProvider(light: "#FFA56E", dark: "#E67836")),
+                Color(dynamicProvider(light: "#EE6928", dark: "#CC5016")),
+                Color(dynamicProvider(light: "#CB4610", dark: "#A63207"))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -123,9 +121,9 @@ struct VenusTheme {
     static var salmonCreamGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(hex: "FAFEF8"),
-                Color(hex: "E5F4E0"),
-                Color(hex: "C6E7BE")
+                Color(dynamicProvider(light: "#FFF8F3", dark: "#231610")),
+                Color(dynamicProvider(light: "#FCE7DB", dark: "#352018")),
+                Color(dynamicProvider(light: "#F5CDBB", dark: "#46281E"))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -135,10 +133,10 @@ struct VenusTheme {
     static var homeMintGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color.white,
+                backgroundSoft,
                 moodMist,
-                moodSage.opacity(0.96),
-                Color(hex: "EEF5EA")
+                moodSage.opacity(0.6),
+                backgroundWarm
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -148,10 +146,9 @@ struct VenusTheme {
     static var moodOrbGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(hex: "D6FFB9"),
-                moodMint,
-                moodMintStrong,
-                Color(hex: "7DDC73")
+                Color(dynamicProvider(light: "#FFAE82", dark: "#FF8A54")),
+                Color(dynamicProvider(light: "#F26935", dark: "#E2531D")),
+                Color(dynamicProvider(light: "#C64112", dark: "#AE3108"))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -161,9 +158,9 @@ struct VenusTheme {
     static var homeWaveGradient: LinearGradient {
         LinearGradient(
             colors: [
-                moodMint.opacity(0.18),
-                moodMintStrong.opacity(0.78),
-                Color(hex: "86FF84")
+                accentOrange.opacity(0.12),
+                primary.opacity(0.48),
+                primaryDark.opacity(0.88)
             ],
             startPoint: .bottom,
             endPoint: .top
@@ -173,8 +170,8 @@ struct VenusTheme {
     static var auraGradient: RadialGradient {
         RadialGradient(
             colors: [
-                primary.opacity(0.28),
-                secondary.opacity(0.18),
+                primary.opacity(0.24),
+                secondary.opacity(0.14),
                 Color.clear
             ],
             center: .center,
@@ -183,12 +180,13 @@ struct VenusTheme {
         )
     }
     
+    // High-contrast, rich Sunset & Terracotta button gradient (ensures 100% legibility of white text)
     static var primaryGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(hex: "D8F6CF"),
-                primary,
-                Color(hex: "3E9D50")
+                Color(dynamicProvider(light: "#E65A26", dark: "#FF6C34")),
+                Color(dynamicProvider(light: "#D24514", dark: "#E24E19")),
+                Color(dynamicProvider(light: "#B23307", dark: "#BD390B"))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -198,9 +196,9 @@ struct VenusTheme {
     static var proGradient: LinearGradient {
         LinearGradient(
             colors: [
-                accentPurple,
-                accentPurpleDeep,
-                Color(dynamicProvider(light: "#B892FF", dark: "#D8C1FF"))
+                Color(dynamicProvider(light: "#8246DE", dark: "#7333D4")),
+                Color(dynamicProvider(light: "#6124B8", dark: "#5116A8")),
+                Color(dynamicProvider(light: "#45128F", dark: "#380A7A"))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -209,11 +207,11 @@ struct VenusTheme {
     
     // MARK: - Components
     static let chipBackground = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark ? UIColor(hex: "1E2E20", alpha: 0.9) : UIColor(hex: "F1F7EE", alpha: 0.96)
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "231610", alpha: 0.92) : UIColor(hex: "F9EFE6", alpha: 0.95)
     })
     
     static let chipBorder = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark ? UIColor(hex: "2E4A32", alpha: 0.72) : UIColor(hex: "C4D6BF")
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "40271B", alpha: 0.75) : UIColor(hex: "E6D2C3")
     })
     
     static let darkGreen = accentGreen

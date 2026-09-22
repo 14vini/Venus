@@ -97,7 +97,7 @@ struct OnboardingContainer: View {
     }
 
     private var presentationStepView: some View {
-        PresentationView(onNext: {
+        WelcomeView(onNext: {
             transitionDirection = 1
             withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
                 currentStep = 1
@@ -316,7 +316,7 @@ struct OnboardingContainer: View {
     private var currentStepView: some View {
         switch currentStep {
         case 0:
-            PresentationView(onNext: { withAnimation { currentStep = 1 } })
+            WelcomeView(onNext: { withAnimation { currentStep = 1 } })
         case 1:
             InitialMoodStep(userProfile: $userProfile)
         case 2:

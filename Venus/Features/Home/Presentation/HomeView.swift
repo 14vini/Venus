@@ -19,7 +19,23 @@ struct HomeView: View {
             VenusReadingBackground(dayMoment: viewModel.dayMoment, isAnimated: true)
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 32) {
+                VStack(alignment: .leading, spacing: 30) {
+                    // Hero Mascot Host
+                    HomeHeroMascotView(
+                        userName: userName,
+                        dayMoment: viewModel.dayMoment,
+                        streakDays: viewModel.checkInStreakDays,
+                        todayMood: viewModel.todayMoodType,
+                        hasCheckedInToday: viewModel.hasCheckedInToday,
+                        onCheckInTap: {
+                            viewModel.checkInButtonTapped()
+                        },
+                        onChatTap: {
+                            viewModel.showVenusChat = true
+                        }
+                    )
+                    .padding(.top, 4)
+
                     // "Sobre você:" (Trend summary)
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Sobre você:")
