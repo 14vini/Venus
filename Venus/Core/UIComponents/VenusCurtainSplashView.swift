@@ -26,7 +26,7 @@ struct VenusSplashView: View {
             VStack(spacing: 18) {
                 Spacer(minLength: 0)
 
-                VenusMoodOrb(mood: .happy, size: 140)
+                VenusMoodOrb(mood: .happy, size: 200)
                     .scaleEffect(isRevealing ? 1.06 : (breathe ? 1.02 : 0.98))
                     .opacity(isRevealing ? 0 : 1)
                     .animation(.spring(response: 0.6, dampingFraction: 0.78), value: breathe)
@@ -51,14 +51,9 @@ struct VenusSplashView: View {
 
                 VStack(spacing: 12) {
                     SplashLoadingBar(tint: VenusTheme.primary)
-
-                    Text("inicializando seu ritual...")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundColor(VenusTheme.textSecondary.opacity(colorScheme == .dark ? 0.72 : 0.62))
-                        .tracking(1)
                 }
-                .padding(.horizontal, 26)
-                .padding(.bottom, 34)
+                .padding(.horizontal)
+//                .padding(.bottom, 34)
                 .opacity(isRevealing ? 0 : 1)
             }
         }
@@ -151,4 +146,8 @@ private struct SplashLoadingBar: View {
         }
         .accessibilityLabel("Carregando")
     }
+}
+
+#Preview{
+    VenusSplashView(isReadyToReveal: false, onCompleted: {})
 }

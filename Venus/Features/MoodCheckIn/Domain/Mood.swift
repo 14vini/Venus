@@ -159,12 +159,12 @@ enum MoodType: String, CaseIterable, Codable, Sendable {
     
     var colorHex: String {
         switch self {
-        case .calm: return "#8FD8FF"
-        case .happy: return "#82DEC9"
-        case .energetic: return "#5DBBFF"
-        case .stressed: return "#69B8D8"
-        case .sad: return "#A7D4FF"
-        case .tired: return "#BBD4C8"
+        case .calm: return "#10B981"
+        case .happy: return "#F59E0B"
+        case .energetic: return "#EF4444"
+        case .stressed: return "#F97316"
+        case .sad: return "#8B5CF6"
+        case .tired: return "#6366F1"
         }
     }
 

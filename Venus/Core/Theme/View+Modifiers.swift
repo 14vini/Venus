@@ -52,7 +52,7 @@ struct SolidCardStyleModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(VenusTheme.cardBorder, lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 6)
+            .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 4)
     }
 }
 

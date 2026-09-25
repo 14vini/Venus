@@ -67,10 +67,11 @@ Venus can now discuss:
 4. **Continuous Support**: Venus remembers context across conversations
 
 ### For Developers
-1. **API Key**: Update `AppConfig.geminiAPIKey` with your Gemini API key
-2. **Customization**: Modify `VenusSystemPrompt.fullPrompt` to adjust personality
-3. **Activities**: Add new wellness activities in `WellnessActivityManager`
-4. **Emotions**: Extend `EmotionType` enum for additional emotional states
+1. **API Key**: Update `AppConfig.openRouterAPIKey` with your OpenRouter API key
+2. **Model**: Configure `AppConfig.openRouterModel` (default: `inclusionai/ling-3.0-flash-fin`)
+3. **Customization**: Modify `VenusSystemPrompt.fullPrompt` to adjust personality
+4. **Activities**: Add new wellness activities in `WellnessActivityManager`
+5. **Emotions**: Extend `EmotionType` enum for additional emotional states
 
 ## Technical Architecture
 

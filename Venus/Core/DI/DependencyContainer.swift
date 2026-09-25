@@ -59,12 +59,14 @@ class DependencyContainer {
     
     // MARK: - AI Service
     
-    func makeGeminiService() -> GeminiServiceProtocol {
-        return GeminiService()
-    }
-    
     func makeVenusAIService() -> VenusAIServiceProtocol {
-        return GeminiService()
+        return OpenRouterService()
+    }
+
+    // MARK: - Biometrics / HealthKit
+
+    func makeHealthKitService() -> HealthKitServiceProtocol {
+        return HealthKitService.shared
     }
     
     // MARK: - Speech & Notifications

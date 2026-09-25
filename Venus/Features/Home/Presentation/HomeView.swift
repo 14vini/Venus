@@ -19,7 +19,26 @@ struct HomeView: View {
             VenusReadingBackground(dayMoment: viewModel.dayMoment, isAnimated: true)
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 30) {
+                VStack(alignment: .leading, spacing: 26) {
+                    
+                    // Readiness & Energy Gauge (0-100)
+                    ReadinessEnergyGaugeView(assessment: viewModel.readinessAssessment)
+
+                    // Explicabilidade: por que estou assim?
+                    ReadinessBreakdownView(assessment: viewModel.readinessAssessment)
+
+                    // Tendência 7d
+                    ReadinessTrendCard(
+                        history: viewModel.readinessHistory,
+                        weeklyTrend: viewModel.weeklyTrend
+                    )
+
+                    // Próxima ação do motor comportamental
+                    NextBestActionCard(
+                        snapshot: viewModel.patternSnapshot,
+                        onOpenChat: { viewModel.showVenusChat = true }
+                    )
+                    
                     // Hero Mascot Host
                     HomeHeroMascotView(
                         userName: userName,
@@ -27,6 +46,7 @@ struct HomeView: View {
                         streakDays: viewModel.checkInStreakDays,
                         todayMood: viewModel.todayMoodType,
                         hasCheckedInToday: viewModel.hasCheckedInToday,
+                        customAIGreeting: viewModel.aiGreeting,
                         onCheckInTap: {
                             viewModel.checkInButtonTapped()
                         },
@@ -35,6 +55,17 @@ struct HomeView: View {
                         }
                     )
                     .padding(.top, 4)
+                    
+                    // Galaxy & Venus Wrap Banner Card
+                    HomeGalaxyBannerCard(
+                        checkInCount: viewModel.weekMoods.count,
+                        onOpenGalaxy: {
+                            viewModel.showEmotionalGalaxy = true
+                        },
+                        onOpenWrap: {
+                            viewModel.showVenusWrap = true
+                        }
+                    )
 
                     // "Sobre você:" (Trend summary)
                     VStack(alignment: .leading, spacing: 12) {
@@ -45,112 +76,45 @@ struct HomeView: View {
 
                         Text(viewModel.weeklyTrend?.summary ?? "Analisando seus dados iniciais para desenhar seu reflexo emocional. Continue registrando seus check-ins com Venus.")
                             .font(.system(.title3, design: .serif).weight(.medium))
-                            .foregroundColor(.white)
+                            .foregroundColor(colorScheme == .dark ? .white : VenusTheme.text)
                             .lineSpacing(6)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-
-                    // "Como você está agora:"
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Como você está agora:")
-                            .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                            .foregroundColor(VenusTheme.primary)
-                            .textCase(.uppercase)
-
-                        Text(viewModel.weeklyInsights?.dominantTrigger != nil ?
-                             "O fator '\(viewModel.weeklyInsights!.dominantTrigger!)' tem ecoado forte em sua mente recentemente." :
-                             "Observando seus hábitos iniciais para identificar gatilhos e janelas de estresse recorrentes.")
-                            .font(.system(.body, design: .serif))
-                            .foregroundColor(Color.white.opacity(0.8))
-                            .lineSpacing(6)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    
-                    // Weekly Mood Waveform
-                    WeeklyMoodWaveform(moods: viewModel.weekMoods)
-                        .padding(.top, 8)
-                    
-                    // Mapped Patterns Grid
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack(alignment: .bottom, spacing: 8) {
-                            Text("Padrões Mapeados")
-                                .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                                .foregroundColor(VenusTheme.primary)
-                                .textCase(.uppercase)
-                            
-                            if viewModel.weeklyInsights == nil {
-                                Text("(Estimativas)")
-                                    .font(.system(size: 11, weight: .regular, design: .rounded))
-                                    .foregroundColor(.white.opacity(0.4))
-                            }
-                        }
-                        
-                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)], spacing: 16) {
-                            let trigger = viewModel.weeklyInsights?.dominantTrigger ?? "Sua Rotina"
-                            let window = viewModel.weeklyInsights?.criticalWindow ?? "Tarde (14h - 16h)"
-                            let best = viewModel.weeklyInsights?.bestDay ?? "Quarta-feira"
-                            let focus = viewModel.weeklyInsights?.behavioralFocus ?? "Evitar telas à noite"
-                            
-                            HomeInsightCard(
-                                title: "Gatilho Dominante",
-                                icon: "bolt.fill",
-                                highlight: trigger,
-                                color: VenusTheme.accentOrange
-                            )
-                            HomeInsightCard(
-                                title: "Janela Crítica",
-                                icon: "clock.fill",
-                                highlight: window,
-                                color: VenusTheme.accentPurple
-                            )
-                            HomeInsightCard(
-                                title: "Melhor Dia",
-                                icon: "sun.max.fill",
-                                highlight: best,
-                                color: VenusTheme.accentGreen
-                            )
-                            HomeInsightCard(
-                                title: "Foco Comportamental",
-                                icon: "leaf.fill",
-                                highlight: focus,
-                                color: VenusTheme.accentPink
-                            )
-                        }
-                    }
-                    
-                    // Legal disclaimer footer
-                    Text("Aviso: As análises baseiam-se em registros parciais que podem estar incompletos. A inteligência artificial Venus pode cometer erros. Use estas informações apenas como reflexão pessoal.")
-                        .font(.system(size: 10, design: .rounded))
-                        .foregroundColor(.white.opacity(0.32))
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 24)
-                        .padding(.bottom, 160)
+                    .padding(.bottom, 120)
                 }
                 .padding(.horizontal, 20)
             }
         }
         .navigationTitle("Olá, \(userName)")
-        .navigationBarTitleDisplayMode(.automatic)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
                     viewModel.showChatHistory = true
                 } label: {
                     Image(systemName: "clock.arrow.circlepath")
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(VenusTheme.text)
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    viewModel.showEmotionalGalaxy = true
+                } label: {
+                    Image(systemName: "sparkles.rectangle.stack")
+                        .foregroundStyle(VenusTheme.primary)
+                }
+                
                 Button {
                     viewModel.showVenusChat = true
                 } label: {
                     Image(systemName: "sparkles")
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                        .foregroundStyle(VenusTheme.text)
                 }
             }
         }
         .fullScreenCover(isPresented: $viewModel.showMoodCheckIn, onDismiss: {
             inlineCheckInViewModel.startNewCheckIn()
+            viewModel.onMoodCheckInDismissed()
         }) {
             MoodCheckInView(
                 viewModel: inlineCheckInViewModel,
@@ -159,9 +123,26 @@ struct HomeView: View {
             )
         }
         .fullScreenCover(isPresented: $viewModel.showVenusChat, onDismiss: {
-            viewModel.selectedChatSession = nil
+            viewModel.onChatDismissed()
         }) {
             VenusChatView(session: viewModel.selectedChatSession)
+        }
+        .sheet(isPresented: $viewModel.showEmotionalGalaxy) {
+            EmotionalGalaxyView(
+                userName: userName,
+                weekMoods: viewModel.weekMoods,
+                weeklyTrend: viewModel.weeklyTrend,
+                readinessAssessment: viewModel.readinessAssessment
+            )
+        }
+        .fullScreenCover(isPresented: $viewModel.showVenusWrap) {
+            VenusWrapStoryView(
+                userName: userName,
+                weekMoods: viewModel.weekMoods,
+                weeklyTrend: viewModel.weeklyTrend,
+                readinessAssessment: viewModel.readinessAssessment,
+                onDismiss: { viewModel.showVenusWrap = false }
+            )
         }
         .sheet(isPresented: $viewModel.showChatHistory) {
             ChatHistoryView { session in
@@ -192,39 +173,10 @@ struct HomeView: View {
     }
 }
 
-struct HomeInsightCard: View {
-    let title: String
-    let icon: String
-    let highlight: String
-    let color: Color
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(color)
-                Spacer()
-            }
-            
-            Text(title)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundColor(.white.opacity(0.6))
-            
-            Text(highlight)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-                .lineLimit(2)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(VenusTheme.cardSurface.opacity(0.4))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
-        )
-    }
+#Preview {
+    HomeView(
+        userName: "kaua",
+        viewModel: HomeViewModel(),
+        inlineCheckInViewModel: DependencyContainer.shared.makeMoodCheckInViewModel()
+    )
 }

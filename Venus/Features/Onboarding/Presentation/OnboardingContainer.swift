@@ -11,7 +11,8 @@ struct OnboardingContainer: View {
     @State var userProfile: UserProfile
     @State private var currentStep: Int
     @State private var transitionDirection: Int = 1
-    private let questionnaireSteps = 4
+    @State private var aiProfileResult: AIOnboardingProfileResponse? = nil
+    private let questionnaireSteps = 5
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var bottomControlsHeight: CGFloat = 0
@@ -29,10 +30,11 @@ struct OnboardingContainer: View {
         case 2:
             return !userProfile.improvementAreas.isEmpty
         case 3:
-            return !userProfile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return true // Contexto de fala/texto é opcional
         case 4:
+            return !userProfile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case 5:
             return !userProfile.coachingTone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                && userProfile.dailyTimeBudgetMinutes > 0
         default:
             return true
         }
@@ -40,10 +42,10 @@ struct OnboardingContainer: View {
     
     private var validationMessage: String {
         switch currentStep {
-        case 1: return "Escolha como você está se sentindo para continuar"
-        case 2: return "Selecione pelo menos um desafio para continuar"
-        case 3: return "Digite seu nome para continuar"
-        case 4: return "Escolha seu tom de conversa para continuar"
+        case 1: return "Escolha seu nível de bateria para continuar"
+        case 2: return "Selecione pelo menos um dreno de energia para continuar"
+        case 4: return "Digite seu nome para continuar"
+        case 5: return "Escolha seu tom de conversa para continuar"
         default: return ""
         }
     }
@@ -51,6 +53,9 @@ struct OnboardingContainer: View {
     private var nextButtonTitle: String {
         if currentStep == questionnaireSteps {
             return "Calibrar Minha Venus"
+        }
+        if currentStep == 3 && userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "Pular"
         }
         return "Continuar"
     }
@@ -80,7 +85,7 @@ struct OnboardingContainer: View {
             OnboardingAnimatedBackground(palette: palette, isAnimated: true)
                 .animation(.easeInOut(duration: 0.7), value: currentStep)
 
-            if currentStep >= 1 && currentStep <= 4 {
+            if currentStep >= 1 && currentStep <= 5 {
                 OnboardingMascotBackdrop(palette: palette)
                     .opacity(colorScheme == .dark ? 0.95 : 0.88)
                     .animation(.easeInOut(duration: 0.6), value: currentStep)
@@ -88,7 +93,7 @@ struct OnboardingContainer: View {
             
             if currentStep == 0 {
                 presentationStepView
-            } else if currentStep >= 1 && currentStep <= 4 {
+            } else if currentStep >= 1 && currentStep <= 5 {
                 questionnaireFlowView
             } else {
                 experienceFlowView
@@ -97,7 +102,7 @@ struct OnboardingContainer: View {
     }
 
     private var presentationStepView: some View {
-        WelcomeView(onNext: {
+        PresentationView(onNext: {
             transitionDirection = 1
             withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
                 currentStep = 1
@@ -137,11 +142,11 @@ struct OnboardingContainer: View {
                     currentStepView
                         .id(currentStep)
                         .transition(stepTransition)
-                        .safeAreaPadding(.top, currentStep == 5 ? 20 : 60)
+                        .safeAreaPadding(.top, currentStep == 6 ? 20 : 60)
                         .safeAreaPadding(.bottom, 30)
                 }
 
-                if currentStep == 6 {
+                if currentStep == 7 {
                     HStack {
                         topBackButton
                         Spacer()
@@ -316,34 +321,26 @@ struct OnboardingContainer: View {
     private var currentStepView: some View {
         switch currentStep {
         case 0:
-            WelcomeView(onNext: { withAnimation { currentStep = 1 } })
+            PresentationView(onNext: { withAnimation { currentStep = 1 } })
         case 1:
             InitialMoodStep(userProfile: $userProfile)
         case 2:
             RootStruggleStep(userProfile: $userProfile)
         case 3:
+            VoiceAndTextInputStep(userProfile: $userProfile)
+        case 4:
             IdentityStep(userProfile: $userProfile, onSubmit: {
                 if canProceed {
                     goToNextStep()
                 }
             })
-        case 4:
-            ToneCalibrationStep(userProfile: $userProfile)
         case 5:
-            AICalibrationLoadingStep(
-                userName: userProfile.name,
-                tone: userProfile.coachingTone,
-                onComplete: {
-                    transitionDirection = 1
-                    withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
-                        currentStep = 6
-                    }
-                }
-            )
+            ToneCalibrationStep(userProfile: $userProfile)
         case 6:
-            EmotionalProfileRevealStep(
+            AICalibrationLoadingStep(
                 userProfile: userProfile,
-                onContinue: {
+                onComplete: { aiProfile in
+                    self.aiProfileResult = aiProfile
                     transitionDirection = 1
                     withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
                         currentStep = 7
@@ -351,8 +348,9 @@ struct OnboardingContainer: View {
                 }
             )
         case 7:
-            FirstAhaMomentStep(
+            EmotionalProfileRevealStep(
                 userProfile: userProfile,
+                aiProfile: aiProfileResult,
                 onFinish: {
                     finishOnboarding()
                 }
@@ -366,8 +364,8 @@ struct OnboardingContainer: View {
         guard currentStep > 0 else { return }
         transitionDirection = -1
         withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
-            if currentStep == 6 {
-                currentStep = 4 // skip backwards over loading step
+            if currentStep == 7 {
+                currentStep = 5 // skip backwards over loading step
             } else {
                 currentStep -= 1
             }
@@ -378,7 +376,7 @@ struct OnboardingContainer: View {
         guard canProceed else { return }
         transitionDirection = 1
         
-        if currentStep == 3 {
+        if currentStep == 4 {
             userProfile.name = userProfile.name.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         

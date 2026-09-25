@@ -26,3 +26,5 @@ fastlane/screenshots/
 .env
 .env.*
 
+Config.xcconfig
+*.xcconfig.local

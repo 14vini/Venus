@@ -20,45 +20,70 @@ struct EmotionalProfileResult {
 
 struct EmotionalProfileRevealStep: View {
     let userProfile: UserProfile
-    let onContinue: () -> Void
+    var aiProfile: AIOnboardingProfileResponse? = nil
+    let onFinish: () -> Void
     
     @State private var cardAppeared = false
     @State private var statAppeared = false
     
     private var result: EmotionalProfileResult {
-        let goal = userProfile.primaryGoal
         let name = userProfile.name.isEmpty ? "Você" : userProfile.name
         
-        if goal.contains("Ansiedade") || userProfile.improvementAreas.contains("Autocobrança excessiva") {
+        if let ai = aiProfile {
+            let color: Color
+            let goal = userProfile.primaryGoal
+            if goal.contains("Foco") || userProfile.improvementAreas.contains("Trabalho & Decisões pesadas") {
+                color = VenusTheme.accentBlue
+            } else if goal.contains("Sono") || userProfile.improvementAreas.contains("Sono & Descanso não restaurador") {
+                color = VenusTheme.accentPurple
+            } else {
+                color = VenusTheme.primary
+            }
+            
             return EmotionalProfileResult(
-                title: "A Mente Visionária & Acelerada",
-                badge: "PERFIL EMOCIONAL",
-                subtitle: "\(name), sua mente processa tudo com alta intensidade e você exige o máximo de si.",
-                strengths: "Criatividade, capacidade analítica e forte dedicação aos seus objetivos.",
-                growthArea: "Desacelerar o fluxo de pensamentos e silenciar a autocobrança para evitar o esgotamento.",
-                statText: "93% das mentes ativas sentem alívio da ansiedade já nos primeiros 3 dias com a Venus.",
+                title: ai.title,
+                badge: ai.badge,
+                subtitle: ai.subtitle,
+                strengths: ai.strengths,
+                growthArea: ai.growthArea,
+                statText: ai.statText,
                 icon: "sparkles",
+                color: color
+            )
+        }
+        
+        let goal = userProfile.primaryGoal
+        
+        if goal.contains("Foco") || userProfile.improvementAreas.contains("Trabalho & Decisões pesadas") {
+            return EmotionalProfileResult(
+                title: "O Estrategista de Alta Demanda",
+                badge: "PERFIL DE PRONTIDÃO",
+                subtitle: "\(name), sua mente opera em alta intensidade e busca máxima eficiência diária.",
+                strengths: "Capacidade analítica, rapidez de raciocínio e forte dedicação.",
+                growthArea: "Blindar sua energia contra decisões consecutivas para evitar quedas bruscas no fim do dia.",
+                statText: "93% dos usuários com esse perfil aumentam a consistência de foco logo na primeira semana.",
+                icon: "bolt.fill",
                 color: VenusTheme.accentBlue
             )
-        } else if goal.contains("Sono") || userProfile.improvementAreas.contains("Sobrecarga de rotina") {
+        } else if goal.contains("Sono") || userProfile.improvementAreas.contains("Sono & Descanso não restaurador") {
             return EmotionalProfileResult(
-                title: "O Buscador(a) de Serenidade",
-                badge: "PERFIL EMOCIONAL",
-                subtitle: "\(name), você tem carregado muitas responsabilidades e seu corpo pede uma pausa genuína.",
-                strengths: "Resiliência, profundidade reflexiva e capacidade de superação.",
-                growthArea: "Construir micro-pausas restauradoras sem culpa e recuperar sua vitalidade.",
+                title: "O Restaurador de Energia",
+                badge: "PERFIL DE PRONTIDÃO",
+                subtitle: "\(name), seu corpo tem acumulado carga e sua prioridade é restaurar sua vitalidade.",
+                strengths: "Resiliência, profundidade de reflexão e capacidade de recuperação.",
+                growthArea: "Proteger momentos de desaceleração sem culpa e otimizar a qualidade do seu descanso.",
                 statText: "96% das pessoas com esse padrão recuperam energia e noites de sono mais tranquilas.",
                 icon: "moon.stars.fill",
                 color: VenusTheme.accentPurple
             )
         } else {
             return EmotionalProfileResult(
-                title: "O Guardião(ã) Resiliente",
-                badge: "PERFIL EMOCIONAL",
-                subtitle: "\(name), você costuma acolher e cuidar de tudo ao seu redor, mas guarda suas próprias dores em silêncio.",
-                strengths: "Empatia profunda, lealdade e uma força silenciosa admirável.",
-                growthArea: "Ter um refúgio seguro onde você possa desabafar livremente sem medo de julgamentos.",
-                statText: "94% das pessoas com esse perfil relatam sensação de leveza já na primeira conversa.",
+                title: "O Guardião do Equilíbrio",
+                badge: "PERFIL DE PRONTIDÃO",
+                subtitle: "\(name), você mantém um ritmo constante, mas costuma absorver mais carga do que deveria.",
+                strengths: "Empatia, consistência e admirável equilíbrio sob pressão.",
+                growthArea: "Identificar quando desacelerar a tempo e preservar sua bateria para o que realmente importa.",
+                statText: "94% relatam sensação imediata de clareza e controle do seu ritmo com a Venus.",
                 icon: "shield.heart.fill",
                 color: VenusTheme.primary
             )
@@ -121,7 +146,7 @@ struct EmotionalProfileRevealStep: View {
                             Image(systemName: "leaf.fill")
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(result.color)
-                            Text("Foco de Acolhimento da Venus")
+                            Text("Foco de Calibração da Venus")
                                 .font(.system(.caption, design: .rounded).weight(.bold))
                                 .foregroundStyle(VenusTheme.textSecondary)
                         }
@@ -153,13 +178,13 @@ struct EmotionalProfileRevealStep: View {
             .scaleEffect(cardAppeared ? 1 : 0.94)
             .animation(.spring(response: 0.6, dampingFraction: 0.8), value: cardAppeared)
             
-            // Continue Button (in-step CTA)
+            // Single Final CTA - Enter App Directly
             Button {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                onContinue()
+                onFinish()
             } label: {
                 HStack(spacing: 10) {
-                    Text("Desbloquear Meu Espaço Seguro")
+                    Text("Entrar no Meu Espaço")
                         .font(.system(.headline, design: .rounded).weight(.black))
                     Image(systemName: "arrow.right.circle.fill")
                         .font(.system(size: 18, weight: .black))
@@ -194,6 +219,6 @@ struct EmotionalProfileRevealStep: View {
 }
 
 #Preview {
-    EmotionalProfileRevealStep(userProfile: UserProfile(), onContinue: {})
+    EmotionalProfileRevealStep(userProfile: UserProfile(), onFinish: {})
         .background(VenusTheme.backgroundGradient)
 }

@@ -66,9 +66,16 @@ final class MoodCheckInViewModel {
     let controlLevels = MoodControlLevel.allCases
     let sleepQualities = MoodSleepQuality.allCases
 
+    /// Save rápido (10s): só energia + humor. Fluxo completo continua opcional.
+    var isQuickSaveReady: Bool {
+        selectedEnergyLevel != nil && selectedMood != nil
+    }
+
     var isReadyToSave: Bool {
         missingRequiredFields.isEmpty
     }
+
+    var isReadyForFullSave: Bool { isReadyToSave }
 
     var missingRequiredFields: [MoodRequiredField] {
         var missing: [MoodRequiredField] = []
@@ -164,10 +171,9 @@ final class MoodCheckInViewModel {
     }
 
     func selectEnergyLevel(_ level: MoodEnergyLevel) {
+        // NÃO sobrescreve o humor escolhido pelo usuário (bug anterior: low -> tired).
+        // Energia e humor são independentes; o score combina os dois.
         selectedEnergyLevel = selectedEnergyLevel == level ? nil : level
-        if let selectedEnergyLevel {
-            selectedMood = mapMood(from: selectedEnergyLevel)
-        }
     }
 
     func selectAvailableTime(_ availableTime: MoodAvailableTime) {
@@ -195,7 +201,42 @@ final class MoodCheckInViewModel {
         }
     }
     
+    /// Check-in rápido de 10s: salva só humor + energia, resto nil.
+    func saveQuickCheckIn() {
+        guard let mood = selectedMood else { return }
+        savedSuccess = false
+        isSaving = true
+        let energy = selectedEnergyLevel
+        Task {
+            do {
+                _ = try await saveMoodUseCase.execute(
+                    type: mood,
+                    intensity: Int(selectedIntensity),
+                    triggers: [],
+                    affectedArea: nil,
+                    energyLevel: energy,
+                    availableTime: nil,
+                    controlLevel: nil,
+                    mentalClarity: Int(selectedMentalClarity),
+                    sleepQuality: nil,
+                    bodySignals: [],
+                    note: sanitizedNote()
+                )
+                self.isSaving = false
+                self.savedSuccess = true
+            } catch {
+                print("Error saving quick mood: \(error)")
+                self.isSaving = false
+            }
+        }
+    }
+
     func saveCheckIn() {
+        // Se só tem o essencial, faz quick save em vez de bloquear
+        if isQuickSaveReady && !isReadyToSave {
+            saveQuickCheckIn()
+            return
+        }
         guard let mood = selectedMood else { return }
 
         savedSuccess = false

@@ -26,9 +26,10 @@ class UserProfile: Sendable {
     var currentHobbies: [String] = []
     var desiredHobbies: [String] = []
     
-    // Bem-estar
+    // Bem-estar & Contexto Inicial
     var improvementAreas: [String] = []
     var emotionalAreas: [String] = []
+    var contextNote: String = ""
     
     // Validação
     var isOnboardingComplete: Bool = false
@@ -45,6 +46,7 @@ class UserProfile: Sendable {
         desiredHobbies = []
         improvementAreas = []
         emotionalAreas = []
+        contextNote = ""
         isOnboardingComplete = false
     }
 }

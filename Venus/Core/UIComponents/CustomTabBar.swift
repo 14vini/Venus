@@ -24,9 +24,15 @@ enum Tab: String, CaseIterable {
 struct CustomTabBar: View {
     @Binding var selectedTab: Tab
     @Namespace private var animation
+    @Environment(\.colorScheme) private var colorScheme
     
-    private let activeColor = Color.white
-    private let inactiveColor = Color.white.opacity(0.6)
+    private var activeColor: Color {
+        VenusTheme.primary
+    }
+    
+    private var inactiveColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.6) : VenusTheme.textSecondary.opacity(0.85)
+    }
     
     var body: some View {
         HStack(spacing: 0) {
@@ -53,7 +59,7 @@ struct CustomTabBar: View {
                                 Capsule()
                                     .fill(
                                         LinearGradient(
-                                            colors: [Color(hex: "FF5F15").opacity(0.3), Color(hex: "FF3D00").opacity(0.3)],
+                                            colors: [VenusTheme.primary.opacity(0.18), VenusTheme.primaryLight.opacity(0.12)],
                                             startPoint: .leading,
                                             endPoint: .trailing
                                         )

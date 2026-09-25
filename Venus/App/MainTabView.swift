@@ -39,6 +39,7 @@ struct MainTabView: View {
             }
             .tint(VenusTheme.primary)
             .preferredColorScheme(nil)
+            .tabBarMinimizeBehavior(.onScrollDown)
             
             // Floating Check-In Action Button
             Button {

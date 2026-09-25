@@ -9,20 +9,21 @@ import SwiftUI
 import UIKit
 
 struct AICalibrationLoadingStep: View {
-    let userName: String
-    let tone: String
-    let onComplete: () -> Void
+    let userProfile: UserProfile
+    let onComplete: (AIOnboardingProfileResponse?) -> Void
     
     @State private var progress: Double = 0.0
     @State private var currentPhaseIndex: Int = 0
     @State private var orbScale: CGFloat = 1.0
+    @State private var generatedAIProfile: AIOnboardingProfileResponse? = nil
     
     private let impactGenerator = UIImpactFeedbackGenerator(style: .soft)
     private let heavyImpactGenerator = UIImpactFeedbackGenerator(style: .medium)
+    private let venusAI: VenusAIServiceProtocol = DependencyContainer.shared.makeVenusAIService()
     
     private var phases: [String] {
-        let name = userName.isEmpty ? "você" : userName
-        let toneDesc = tone.isEmpty ? "acolhedor" : tone.lowercased()
+        let name = userProfile.name.isEmpty ? "você" : userProfile.name
+        let toneDesc = userProfile.coachingTone.isEmpty ? "acolhedor" : userProfile.coachingTone.lowercased()
         
         return [
             "Sintonizando seu padrão de energia...",
@@ -114,6 +115,20 @@ struct AICalibrationLoadingStep: View {
             impactGenerator.prepare()
             heavyImpactGenerator.prepare()
             startCalibrationSequence()
+            fetchAIProfile()
+        }
+    }
+    
+    private func fetchAIProfile() {
+        Task {
+            do {
+                let aiProfile = try await venusAI.generateOnboardingProfile(userProfile: userProfile)
+                await MainActor.run {
+                    self.generatedAIProfile = aiProfile
+                }
+            } catch {
+                print("Could not generate AI profile in calibration step: \(error)")
+            }
         }
     }
     
@@ -152,7 +167,7 @@ struct AICalibrationLoadingStep: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.8) {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             withAnimation(.spring(response: 0.55, dampingFraction: 0.85)) {
-                onComplete()
+                onComplete(generatedAIProfile)
             }
         }
     }
@@ -250,6 +265,6 @@ private struct EtherealAuroraWaves: View {
 }
 
 #Preview {
-    AICalibrationLoadingStep(userName: "Kaua", tone: "Gentil", onComplete: {})
+    AICalibrationLoadingStep(userProfile: UserProfile(), onComplete: { _ in })
         .background(VenusTheme.backgroundGradient)
 }

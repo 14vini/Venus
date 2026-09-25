@@ -13,6 +13,7 @@ struct HomeHeroMascotView: View {
     let streakDays: Int
     let todayMood: MoodType?
     let hasCheckedInToday: Bool
+    var customAIGreeting: String? = nil
     let onCheckInTap: () -> Void
     let onChatTap: () -> Void
     
@@ -35,6 +36,10 @@ struct HomeHeroMascotView: View {
     
     private var phrases: [String] {
         var list: [String] = []
+        
+        if let aiGreeting = customAIGreeting, !aiGreeting.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            list.append(aiGreeting)
+        }
         
         if !hasCheckedInToday {
             switch dayMoment {
@@ -88,7 +93,7 @@ struct HomeHeroMascotView: View {
             )
             .frame(width: 94, height: 94)
             
-            // Contextual Speech Bubble (Glassmorphism RPG style)
+            // Contextual Speech Bubble
             VStack(alignment: .leading, spacing: 8) {
                 Text(currentPhrase)
                     .font(.system(.subheadline, design: .rounded).weight(.medium))
@@ -109,18 +114,14 @@ struct HomeHeroMascotView: View {
                                 Text("Check-in de Hoje")
                                     .font(.system(size: 12, weight: .bold, design: .rounded))
                             }
-                            .foregroundColor(.black)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
                             .background(
-                                LinearGradient(
-                                    colors: [Color(hex: "FFE44A"), Color(hex: "9BF66F")],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                ),
+                                VenusTheme.primaryGradient,
                                 in: Capsule()
                             )
-                            .shadow(color: Color(hex: "9BF66F").opacity(0.3), radius: 4, x: 0, y: 2)
+                            .shadow(color: VenusTheme.primary.opacity(0.3), radius: 6, x: 0, y: 3)
                         }
                         .buttonStyle(.plain)
                     } else {
@@ -139,7 +140,7 @@ struct HomeHeroMascotView: View {
                             .padding(.vertical, 5)
                             .background(
                                 Capsule()
-                                    .fill(VenusTheme.primary.opacity(0.14))
+                                    .fill(VenusTheme.primary.opacity(0.12))
                             )
                         }
                         .buttonStyle(.plain)
@@ -150,8 +151,8 @@ struct HomeHeroMascotView: View {
                     // Tap to cycle hint
                     Button(action: cycleQuote) {
                         Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(VenusTheme.textSecondary.opacity(0.65))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(VenusTheme.textSecondary.opacity(0.75))
                             .padding(6)
                     }
                     .buttonStyle(.plain)
@@ -161,16 +162,15 @@ struct HomeHeroMascotView: View {
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .opacity(colorScheme == .dark ? 0.75 : 0.95)
+                    .fill(VenusTheme.surface)
                     .overlay(
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .stroke(
                                 LinearGradient(
                                     colors: [
-                                        Color.white.opacity(colorScheme == .dark ? 0.18 : 0.40),
-                                        Color.clear,
-                                        Color.white.opacity(colorScheme == .dark ? 0.06 : 0.15)
+                                        Color.white.opacity(colorScheme == .dark ? 0.18 : 0.60),
+                                        VenusTheme.cardBorder.opacity(colorScheme == .dark ? 0.0 : 0.6),
+                                        Color.white.opacity(colorScheme == .dark ? 0.06 : 0.30)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -179,7 +179,7 @@ struct HomeHeroMascotView: View {
                             )
                     )
             )
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.08), radius: 10, x: 0, y: 4)
+            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.05), radius: 10, x: 0, y: 4)
             .scaleEffect(isBouncingQuote ? 0.97 : 1.0)
             .onTapGesture {
                 cycleQuote()

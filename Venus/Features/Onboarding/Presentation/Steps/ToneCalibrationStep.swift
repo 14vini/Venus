@@ -25,7 +25,7 @@ struct ToneCalibrationStep: View {
         ToneCardItem(
             id: "gentle",
             title: "Acolhedora & Gentil",
-            badge: "EMPATIA MÁXIMA",
+            badge: "EMPATIA & SUPORTE",
             quote: "“Tudo bem não estar 100% hoje. Respira com calma, eu tô aqui com você.”",
             systemImage: "heart.bubble.fill",
             toneValue: "Gentil",
@@ -69,7 +69,7 @@ struct ToneCalibrationStep: View {
             OnboardingStepHeader(
                 eyebrow: "sintonia",
                 title: "Como a Venus deve conversar com você?",
-                subtitle: "Toque para ouvir a voz que mais te traz conforto ou clareza.",
+                subtitle: "Toque para escolher a voz que mais te traz clareza e ritmo.",
                 systemImage: "waveform.and.sparkles",
                 tint: VenusTheme.accentOrange,
                 accessory: userProfile.coachingTone.isEmpty ? nil : userProfile.coachingTone

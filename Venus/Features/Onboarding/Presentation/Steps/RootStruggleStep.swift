@@ -20,40 +20,34 @@ struct RootStruggleStep: View {
     
     private let struggles: [RootStruggleOption] = [
         RootStruggleOption(
-            id: "self_criticism",
-            title: "Autocobrança excessiva",
-            detail: "Sensação constante de que nunca é o suficiente ou medo de errar",
-            systemImage: "sparkle.magnifyingglass"
+            id: "mental_workload",
+            title: "Trabalho & Decisões pesadas",
+            detail: "Alta demanda cognitiva, reuniões e muitas decisões consecutivas",
+            systemImage: "brain.head.profile"
         ),
         RootStruggleOption(
-            id: "future_anxiety",
-            title: "Ansiedade com o futuro",
-            detail: "Preocupação com rumos da vida, decisões e incertezas",
-            systemImage: "chart.line.uptrend.xyaxis"
+            id: "poor_sleep",
+            title: "Sono & Descanso não restaurador",
+            detail: "Acordar cansado(a), sono leve ou dificuldade para desligar à noite",
+            systemImage: "moon.zzz.fill"
         ),
         RootStruggleOption(
-            id: "routine_overload",
-            title: "Sobrecarga de rotina",
-            detail: "Muitas demandas e pouquíssimo tempo para cuidar de si",
+            id: "self_pressure",
+            title: "Autocobrança & Ansiedade mental",
+            detail: "Sensação constante de urgência e pensamentos acelerados",
+            systemImage: "tornado"
+        ),
+        RootStruggleOption(
+            id: "busy_routine",
+            title: "Rotina corrida & Falta de tempo",
+            detail: "Muitas interrupções diárias e pouco espaço para respirar",
             systemImage: "clock.badge.exclamationmark"
         ),
         RootStruggleOption(
-            id: "relationships",
-            title: "Relações e limites",
-            detail: "Dificuldade em dizer não, absorver problemas alheios ou conflitos",
+            id: "emotional_drain",
+            title: "Relações & Desgaste emocional",
+            detail: "Absorver problemas alheios, conflitos ou dificuldade em colocar limites",
             systemImage: "person.2.fill"
-        ),
-        RootStruggleOption(
-            id: "isolation",
-            title: "Sensação de solidão",
-            detail: "Sentir que ninguém compreende de verdade o que você carrega",
-            systemImage: "person.crop.circle.badge.questionmark"
-        ),
-        RootStruggleOption(
-            id: "mood_swings",
-            title: "Instabilidade de energia",
-            detail: "Picos de motivação seguidos de quedas bruscas de ânimo",
-            systemImage: "waveform.path.ecg"
         )
     ]
     
@@ -66,10 +60,10 @@ struct RootStruggleStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             OnboardingStepHeader(
-                eyebrow: "investigação",
-                title: "O que tem mais pesado no seu peito?",
-                subtitle: "Identificar a raiz do cansaço é o primeiro passo para o alívio.",
-                systemImage: "heart.text.square.fill",
+                eyebrow: "drenos de carga",
+                title: "O que mais drena sua energia ultimamente?",
+                subtitle: "Identificar seu maior dreno nos ajuda a blindar o seu ritmo.",
+                systemImage: "flame.fill",
                 tint: VenusTheme.accentPurple,
                 accessory: selectedAccessory
             )

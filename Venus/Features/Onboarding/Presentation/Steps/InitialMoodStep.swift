@@ -22,49 +22,40 @@ struct InitialMoodStep: View {
     
     private let options: [InitialMoodOption] = [
         InitialMoodOption(
-            id: "anxious",
-            title: "Mente acelerada",
-            detail: "Pensamentos sem parar e dificuldade para desacelerar",
-            systemImage: "wind",
+            id: "full_energy",
+            title: "100% · Bateria Alta",
+            detail: "Pronto para foco profundo, alta demanda e execução",
+            systemImage: "bolt.fill",
+            primaryGoal: "Foco e produtividade",
+            primaryEmotion: "Energia",
+            moodType: .energetic
+        ),
+        InitialMoodOption(
+            id: "stable_energy",
+            title: "75% · Estável & Funcional",
+            detail: "Bom ritmo mental, buscando manter a constância e equilíbrio",
+            systemImage: "battery.75percent",
+            primaryGoal: "Equilíbrio de vida",
+            primaryEmotion: "Equilíbrio",
+            moodType: .calm
+        ),
+        InitialMoodOption(
+            id: "low_energy",
+            title: "40% · Bateria Baixa",
+            detail: "Cansaço acumulado e mente acelerada, precisando de suporte",
+            systemImage: "battery.25percent",
             primaryGoal: "Ansiedade e calma",
             primaryEmotion: "Estresse",
             moodType: .stressed
         ),
         InitialMoodOption(
-            id: "exhausted",
-            title: "Esgotamento & cansaço",
-            detail: "Sensação de sobrecarga e bateria emocional baixa",
-            systemImage: "battery.25",
+            id: "exhausted_energy",
+            title: "15% · Esgotamento Total",
+            detail: "Sensação de overload, bateria no limite e precisando recarregar",
+            systemImage: "battery.0percent",
             primaryGoal: "Sono e energia",
             primaryEmotion: "Overwhelm",
             moodType: .tired
-        ),
-        InitialMoodOption(
-            id: "vent",
-            title: "Precisando desabafar",
-            detail: "Sentimentos guardados que preciso colocar pra fora sem julgamentos",
-            systemImage: "bubble.left.and.bubble.right.fill",
-            primaryGoal: "Equilíbrio de vida",
-            primaryEmotion: "Solidão",
-            moodType: .sad
-        ),
-        InitialMoodOption(
-            id: "focus",
-            title: "Buscando foco & clareza",
-            detail: "Quero organizar a mente, ter direção e manter a constância",
-            systemImage: "target",
-            primaryGoal: "Foco e produtividade",
-            primaryEmotion: "Falta de Propósito",
-            moodType: .energetic
-        ),
-        InitialMoodOption(
-            id: "sensitive",
-            title: "Sensível ou pra baixo",
-            detail: "Um momento mais delicado, precisando de conforto e apoio",
-            systemImage: "heart.fill",
-            primaryGoal: "Autoconfiança",
-            primaryEmotion: "Tristeza",
-            moodType: .calm
         )
     ]
     
@@ -78,10 +69,10 @@ struct InitialMoodStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             OnboardingStepHeader(
-                eyebrow: "ponto de partida",
-                title: "Como você realmente está hoje?",
-                subtitle: "Sem filtros. Este é o seu espaço seguro e 100% confidencial.",
-                systemImage: "sparkles",
+                eyebrow: "bateria inicial",
+                title: "Como está seu nível de energia hoje?",
+                subtitle: "Seu ponto de partida para a Venus calibrar sua prontidão.",
+                systemImage: "bolt.batteryblock.fill",
                 tint: VenusTheme.accentBlue,
                 accessory: selectedAccessory
             )
@@ -96,9 +87,7 @@ struct InitialMoodStep: View {
                         tint: VenusTheme.accentBlue
                     ) {
                         userProfile.primaryGoal = option.primaryGoal
-                        if !userProfile.emotionalAreas.contains(option.primaryEmotion) {
-                            userProfile.emotionalAreas = [option.primaryEmotion]
-                        }
+                        userProfile.emotionalAreas = [option.primaryEmotion]
                     }
                 }
             }

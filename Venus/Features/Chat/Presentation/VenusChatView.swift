@@ -8,117 +8,41 @@
 import SwiftUI
 
 struct VenusChatView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: VenusChatViewModel
-    @State private var messageText = ""
-    @State private var showHistory = false
+    @State private var inputText: String = ""
     @FocusState private var isTextFieldFocused: Bool
+    @Environment(\.dismiss) private var dismiss
     
     init(openedFromMirror: Bool = false, session: ChatSession? = nil) {
         _viewModel = State(initialValue: VenusChatViewModel(openedFromMirror: openedFromMirror, session: session))
     }
     
     var body: some View {
-        ZStack {
-            VenusTheme.backgroundGradient
-                .ignoresSafeArea()
-            
-            ForEach(0..<12, id: \.self) { index in
-                Circle()
-                    .fill(VenusTheme.primary.opacity(0.1))
-                    .frame(width: CGFloat.random(in: 4...12))
-                    .position(
-                        x: CGFloat.random(in: 0...400),
-                        y: CGFloat.random(in: 0...800)
-                    )
-                    .scaleEffect(viewModel.particleAnimation ? 1.5 : 0.5)
-                    .animation(
-                        .easeInOut(duration: Double.random(in: 3...6))
-                        .repeatForever(autoreverses: true)
-                        .delay(Double(index) * 0.2),
-                        value: viewModel.particleAnimation
-                    )
-            }
-            
-            VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Button(action: { dismiss() }) {
-                        Circle()
-                            .fill(VenusTheme.surface)
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(VenusTheme.text)
-                            )
-                    }
-                    
-                    Spacer()
-                    
-                    HStack(spacing: 12) {
-                        VenusMoodOrb(
-                            mood: headerMascotMood,
-                            state: headerMascotState,
-                            size: 40,
-                            showFace: true,
-                            isInteractive: true
-                        )
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Venus")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(VenusTheme.text)
-                            
-                            Text(viewModel.isVenusThinking ? "Pensando..." : "Online")
-                                .font(.caption)
-                                .foregroundColor(viewModel.isVenusThinking ? VenusTheme.primary : .green)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    Button(action: { showHistory = true }) {
-                        Circle()
-                            .fill(VenusTheme.surface)
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Image(systemName: "clock")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(VenusTheme.text)
-                            )
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-                .padding(.bottom, 16)
+        NavigationStack {
+            ZStack {
+                // Background
+                VenusReadingBackground(dayMoment: .current, isAnimated: true)
                 
-                // Messages & Input container
                 ZStack(alignment: .bottom) {
                     ScrollViewReader { proxy in
                         ScrollView(.vertical, showsIndicators: false) {
                             LazyVStack(spacing: 0) {
-                                if viewModel.messages.isEmpty {
-                                    VenusWelcomeMessage()
-                                        .padding(.top, 40)
-                                        .padding(.bottom, 16)
-                                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                                }
-                                
                                 ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
                                     let isPrevSame = index > 0 && viewModel.messages[index - 1].isFromUser == message.isFromUser
                                     let isNextSame = index < viewModel.messages.count - 1 && viewModel.messages[index + 1].isFromUser == message.isFromUser
+                                    let isStreamingThis = viewModel.currentlyStreamingMessageId == message.id
                                     
                                     ChatMessageView(
                                         message: message,
                                         isPrevSame: isPrevSame,
                                         isNextSame: isNextSame,
+                                        isStreaming: isStreamingThis,
                                         onReact: {
                                             viewModel.toggleReaction(for: message.id)
                                         },
                                         onReply: {
                                             viewModel.replyingToMessage = message
+                                            isTextFieldFocused = true
                                             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                         },
                                         onScheduleReminder: { reminder in
@@ -128,52 +52,50 @@ struct VenusChatView: View {
                                     .id(message.id)
                                 }
                                 
-                                if let emotionalState = viewModel.currentEmotionalState {
-                                    EmotionalInsightsView(
-                                        emotionalState: emotionalState
-                                    ) { suggestion in
-                                        messageText = suggestion
-                                        sendMessage()
-                                    }
-                                    .padding(.horizontal, 24)
-                                    .padding(.vertical, 12)
-                                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                                }
-                                
                                 if viewModel.isVenusThinking {
                                     VenusThinkingView()
                                         .id("thinking")
-                                        .padding(.horizontal, 24)
-                                        .padding(.vertical, 8)
-                                        .transition(.asymmetric(
-                                            insertion: .move(edge: .leading)
-                                                .combined(with: .scale(scale: 0.4, anchor: .topLeading))
-                                                .combined(with: .opacity),
-                                            removal: .opacity
-                                        ))
+                                        .padding(.vertical, 6)
+                                        .transition(
+                                            .asymmetric(
+                                                insertion: .opacity.combined(with: .offset(y: 6)),
+                                                removal: .opacity
+                                            )
+                                        )
                                 }
                             }
-                            .padding(.top, 8)
+                            .padding(.top, 4)
                             .padding(.bottom, 140)
                         }
+                        .scrollDismissesKeyboard(.interactively)
+                        .onTapGesture {
+                            if isTextFieldFocused {
+                                isTextFieldFocused = false
+                            }
+                        }
                         .onChange(of: viewModel.messages.count) { _, _ in
-                            withAnimation(.spring(response: 0.45, dampingFraction: 0.78)) {
+                            withAnimation(.easeOut(duration: 0.3)) {
                                 if let lastMessage = viewModel.messages.last {
                                     proxy.scrollTo(lastMessage.id, anchor: .bottom)
                                 }
                             }
                         }
+                        .onChange(of: viewModel.messages.last?.content) { _, _ in
+                            if let last = viewModel.messages.last, !last.isFromUser {
+                                proxy.scrollTo(last.id, anchor: .bottom)
+                            }
+                        }
                         .onChange(of: viewModel.isVenusThinking) { _, isThinking in
                             if isThinking {
-                                withAnimation(.spring(response: 0.45, dampingFraction: 0.78)) {
+                                withAnimation(.easeOut(duration: 0.3)) {
                                     proxy.scrollTo("thinking", anchor: .bottom)
                                 }
                             }
                         }
                     }
                     
-                    // Floating Input Bar Overlay
-                    VStack(spacing: 12) {
+                    // Floating Input Bar
+                    VStack(spacing: 10) {
                         if viewModel.isRecording {
                             HStack(spacing: 8) {
                                 Image(systemName: "waveform")
@@ -181,7 +103,7 @@ struct VenusChatView: View {
                                     .scaleEffect(viewModel.waveAnimation ? 1.2 : 0.8)
                                     .animation(.easeInOut(duration: 0.3).repeatForever(autoreverses: true), value: viewModel.waveAnimation)
                                 
-                                Text("Gravando... Toque para parar")
+                                Text("Gravando... Toque no microfone para parar")
                                     .font(.subheadline)
                                     .foregroundColor(.red)
                             }
@@ -191,15 +113,20 @@ struct VenusChatView: View {
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
                         
-                        if let replyMsg = viewModel.replyingToMessage {
-                            HStack {
+                        // Reply Bar Preview
+                        if let replyingTo = viewModel.replyingToMessage {
+                            HStack(spacing: 8) {
+                                Rectangle()
+                                    .fill(VenusTheme.primary)
+                                    .frame(width: 3)
+                                
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Respondendo a \(replyMsg.isFromUser ? "Você" : "Venus")")
+                                    Text(replyingTo.isFromUser ? "Respondendo a você" : "Respondendo à Venus")
                                         .font(.caption2)
-                                        .fontWeight(.semibold)
+                                        .bold()
                                         .foregroundColor(VenusTheme.primary)
                                     
-                                    Text(replyMsg.content)
+                                    Text(replyingTo.content)
                                         .font(.caption)
                                         .foregroundColor(VenusTheme.textSecondary)
                                         .lineLimit(1)
@@ -207,144 +134,122 @@ struct VenusChatView: View {
                                 
                                 Spacer()
                                 
-                                Button(action: {
-                                    withAnimation(.spring()) {
-                                        viewModel.replyingToMessage = nil
-                                    }
-                                }) {
+                                Button {
+                                    viewModel.replyingToMessage = nil
+                                } label: {
                                     Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 16))
                                         .foregroundColor(VenusTheme.textSecondary)
+                                        .font(.system(size: 16))
                                 }
                             }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(VenusTheme.surface.opacity(0.8))
+                            .cornerRadius(8)
                             .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
                         
+                        // Input Field Card
                         HStack(spacing: 8) {
-                            if messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                HStack(spacing: 12) {
-                                    Button(action: {
-                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    }) {
-                                        Image(systemName: "camera.fill")
-                                            .font(.system(size: 18))
-                                            .foregroundColor(VenusTheme.textSecondary)
+                            TextField("Como posso te apoiar hoje?", text: $inputText, axis: .vertical)
+                                .lineLimit(1...4)
+                                .focused($isTextFieldFocused)
+                                .font(.body)
+                            
+                            // Clear text button (inside TextField)
+                            if !inputText.isEmpty {
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        inputText = ""
                                     }
-                                    
-                                    Button(action: {
-                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    }) {
-                                        Image(systemName: "photo")
-                                            .font(.system(size: 18))
-                                            .foregroundColor(VenusTheme.textSecondary)
-                                    }
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 17))
+                                        .foregroundColor(VenusTheme.textSecondary)
+                                }
+                                .transition(.scale.combined(with: .opacity))
+                            }
+                            
+                            // Dismiss keyboard button (right next to textfield when keyboard is active)
+                            if isTextFieldFocused {
+                                Button {
+                                    isTextFieldFocused = false
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                } label: {
+                                    Image(systemName: "keyboard.chevron.compact.down")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(VenusTheme.textSecondary)
                                 }
                                 .transition(.scale.combined(with: .opacity))
                             }
                             
                             HStack(spacing: 8) {
-                                TextField("Fale com Venus...", text: $messageText, axis: .vertical)
-                                    .font(.body)
-                                    .foregroundColor(VenusTheme.text)
-                                    .lineLimit(1...5)
-                                    .focused($isTextFieldFocused)
-                                    .onSubmit {
-                                        sendMessage()
-                                    }
-                                
-                                if messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                    Button(action: {
-                                        viewModel.toggleVoiceRecording()
-                                    }) {
+                                if inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    Button {
+                                        viewModel.toggleRecording()
+                                    } label: {
                                         Image(systemName: viewModel.isRecording ? "stop.circle.fill" : "mic.fill")
-                                            .font(.system(size: 18))
+                                            .font(.system(size: 20))
                                             .foregroundColor(viewModel.isRecording ? .red : VenusTheme.textSecondary)
                                     }
-                                    .transition(.scale.combined(with: .opacity))
                                 }
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-                            .scaleEffect(isTextFieldFocused ? 1.015 : 1.0)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isTextFieldFocused)
-                            
-                            if !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                Button(action: sendMessage) {
-                                    Text("Enviar")
-                                        .font(.body)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(VenusTheme.primary)
-                                        .padding(.horizontal, 8)
+                                
+                                Button {
+                                    guard !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                                    let text = inputText
+                                    inputText = ""
+                                    viewModel.sendMessage(text: text)
+                                } label: {
+                                    ZStack {
+                                        Circle()
+                                            .fill(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? VenusTheme.primary.opacity(0.4) : VenusTheme.primary)
+                                            .frame(width: 34, height: 34)
+                                        
+                                        Image(systemName: "arrow.up")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(.white)
+                                    }
                                 }
-                                .transition(.scale.combined(with: .opacity))
+                                .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             }
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        .padding(.horizontal, 16)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [
-                                Color.clear,
-                                VenusTheme.background.opacity(0.15),
-                                VenusTheme.background.opacity(0.6)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .ignoresSafeArea()
-                    )
-                    .allowsHitTesting(true)
+                    .padding(.bottom, 12)
                 }
             }
-        }
-        .onAppear {
-            viewModel.startAnimations()
-            viewModel.requestPermissions()
-            viewModel.loadInitialData()
-        }
-        .sheet(isPresented: $showHistory) {
-            ChatHistoryView { session in
-                viewModel.loadSession(session)
-                showHistory = false
+            .navigationTitle("Venus")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(VenusTheme.text)
+                    }
+                }
+            }
+            .onAppear {
+                viewModel.startAnimations()
+                viewModel.requestPermissions()
+                viewModel.loadInitialData()
+            }
+            .alert("Aviso", isPresented: $viewModel.showError) {
+                Button("OK") {}
+            } message: {
+                Text(viewModel.errorMessage)
             }
         }
-        .alert("Erro", isPresented: $viewModel.showError) {
-            Button("OK") { }
-        } message: {
-            Text(viewModel.errorMessage)
-        }
     }
-    
-    private func sendMessage() {
-        guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        
-        viewModel.sendMessage(messageText)
-        messageText = ""
-        isTextFieldFocused = false
-    }
-    
-    private var headerMascotMood: MoodType {
-        guard let state = viewModel.currentEmotionalState else { return .calm }
-        switch state.primaryEmotion {
-        case .happy, .excited, .grateful: return .happy
-        case .sad, .lonely: return .sad
-        case .anxious, .stressed, .angry, .frustrated: return .stressed
-        case .neutral: return .calm
-        }
-    }
-    
-    private var headerMascotState: VenusMascotState {
-        if viewModel.isVenusThinking { return .thinking }
-        guard let state = viewModel.currentEmotionalState else { return .idle }
-        switch state.primaryEmotion {
-        case .happy, .excited, .grateful: return .celebrating
-        case .sad, .lonely, .anxious, .stressed, .angry, .frustrated: return .empathetic
-        case .neutral: return .idle
-        }
-    }
+}
+
+#Preview {
+    VenusChatView()
 }

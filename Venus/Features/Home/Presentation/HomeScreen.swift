@@ -10,6 +10,7 @@ import SwiftUI
 struct HomeScreen: View {
     let userName: String
     @Environment(UserProfile.self) private var userProfile
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var viewModel = HomeViewModel(
         patternEngineUseCase: DependencyContainer.shared.makePatternEngineUseCase(),
@@ -27,6 +28,11 @@ struct HomeScreen: View {
         .onAppear {
             viewModel.configure(userProfile: userProfile)
             viewModel.onAppear()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                viewModel.onAppear()
+            }
         }
         .onChange(of: viewModel.showMoodCheckIn) { _, isPresented in
             guard isPresented else { return }

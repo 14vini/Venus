@@ -11,166 +11,148 @@ struct ChatMessageView: View {
     let message: ChatMessage
     let isPrevSame: Bool
     let isNextSame: Bool
+    var isStreaming: Bool = false
     let onReact: () -> Void
     let onReply: () -> Void
     var onScheduleReminder: ((String) -> Void)? = nil
     
     @State private var dragOffset: CGFloat = 0
-    @State private var hasTriggeredReply = false
     @State private var isHeartPopping = false
+    @State private var cursorBlink = true
     
     var body: some View {
         HStack(spacing: 0) {
+            // Reply indicator appearing on right swipe
             if dragOffset > 0 {
                 Image(systemName: "arrowshape.turn.up.left.fill")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(VenusTheme.textSecondary)
-                    .frame(width: 30)
-                    .opacity(Double(min(1.0, dragOffset / 50.0)))
-                    .scaleEffect(min(1.1, dragOffset / 50.0))
-                    .padding(.trailing, 8)
+                    .foregroundColor(VenusTheme.primary)
+                    .frame(width: 32)
+                    .opacity(Double(min(1.0, dragOffset / 40.0)))
+                    .scaleEffect(min(1.15, dragOffset / 40.0))
+                    .padding(.trailing, 6)
             }
             
-            HStack(spacing: 8) {
-                if !message.isFromUser {
-                    if !isNextSame {
-                        VenusMoodOrb(
-                            mood: .calm,
-                            state: .idle,
-                            size: 28,
-                            showFace: true,
-                            isInteractive: false
-                        )
-                    } else {
-                        Spacer()
-                            .frame(width: 28)
-                    }
+            // Layout alignment: user messages on the right, Venus messages on the left
+            HStack(alignment: .bottom, spacing: 0) {
+                if message.isFromUser {
+                    Spacer(minLength: 40)
                 }
                 
-                VStack(alignment: message.isFromUser ? .trailing : .leading, spacing: 3) {
+                VStack(alignment: message.isFromUser ? .trailing : .leading, spacing: 4) {
+                    // Reply citation banner if message is replying to another
                     if let replyContent = message.replyToContent {
                         HStack(spacing: 6) {
                             Rectangle()
                                 .fill(message.isFromUser ? Color.white.opacity(0.6) : VenusTheme.primary)
-                                .frame(width: 2)
+                                .frame(width: 2.5)
                             
                             Text(replyContent)
                                 .font(.caption2)
                                 .italic()
-                                .foregroundColor(message.isFromUser ? Color.white.opacity(0.8) : VenusTheme.textSecondary)
+                                .foregroundColor(message.isFromUser ? Color.white.opacity(0.85) : VenusTheme.textSecondary)
                                 .lineLimit(1)
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .background(message.isFromUser ? Color.white.opacity(0.12) : VenusTheme.surface.opacity(0.5))
+                        .background(message.isFromUser ? Color.white.opacity(0.12) : VenusTheme.surface.opacity(0.6))
                         .cornerRadius(6)
-                        .padding(.top, 4)
+                        .padding(.top, 2)
                     }
                     
-                    Text(message.content)
-                        .font(.body)
-                        .foregroundColor(message.isFromUser ? .white : VenusTheme.text)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(
-                            Group {
-                                if message.isFromUser {
-                                    LinearGradient(
-                                        colors: [
-                                            Color(hex: "8A2387"),
-                                            Color(hex: "E94057"),
-                                            Color(hex: "F27121")
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                } else {
-                                    VenusTheme.surface
-                                }
+                    // Main Message Text Bubble
+                    HStack(alignment: .bottom, spacing: 3) {
+                        if message.content.isEmpty && !message.isFromUser && isStreaming {
+                            HStack(spacing: 4) {
+                                Circle().fill(VenusTheme.primary).frame(width: 5, height: 5)
+                                Circle().fill(VenusTheme.primary.opacity(0.6)).frame(width: 5, height: 5)
+                                Circle().fill(VenusTheme.primary.opacity(0.3)).frame(width: 5, height: 5)
                             }
-                        )
-                        .clipShape(ChatBubbleCornerShape(
-                            isFromUser: message.isFromUser,
-                            isPrevSame: isPrevSame,
-                            isNextSame: isNextSame
-                        ))
-                    
-                    if !message.isFromUser {
-                        if let tags = message.tags, !tags.isEmpty {
-                            HStack(spacing: 6) {
-                                ForEach(tags, id: \.self) { tag in
-                                    Text("#\(tag)")
-                                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                                        .foregroundColor(VenusTheme.primary.opacity(0.85))
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Capsule().fill(VenusTheme.primary.opacity(0.12)))
-                                }
-                            }
-                            .padding(.top, 4)
-                            .padding(.horizontal, 4)
+                            .padding(.vertical, 6)
+                        } else {
+                            Text(message.content)
+                                .font(message.isFromUser ? .system(size: 15, weight: .regular, design: .rounded) : .system(size: 16, weight: .regular, design: .serif))
+                                .lineSpacing(message.isFromUser ? 3 : 5)
+                                .foregroundColor(message.isFromUser ? .white : VenusTheme.text)
                         }
                         
-                        if let summary = message.summary, !summary.isEmpty {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack(spacing: 5) {
-                                    Image(systemName: "note.text")
-                                        .font(.system(size: 11, weight: .bold))
-                                    Text("Nota Mental")
-                                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                                }
-                                .foregroundColor(VenusTheme.accentPink)
-                                
-                                Text(summary)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(VenusTheme.textSecondary)
-                                    .lineLimit(nil)
-                                    .fixedSize(horizontal: false, vertical: true)
+                        if !message.isFromUser && isStreaming && !message.content.isEmpty {
+                            Rectangle()
+                                .fill(VenusTheme.primary)
+                                .frame(width: 2.2, height: 18)
+                                .offset(y: -2)
+                                .opacity(cursorBlink ? 0.95 : 0.15)
+                                .shadow(color: VenusTheme.primary.opacity(0.5), radius: 3)
+                                .animation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true), value: cursorBlink)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
+                        Group {
+                            if message.isFromUser {
+                                LinearGradient(
+                                    colors: [
+                                        VenusTheme.primary,
+                                        VenusTheme.accentPurple
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            } else {
+                                VenusTheme.surface
                             }
-                            .padding(10)
+                        }
+                    )
+                    .clipShape(ChatBubbleCornerShape(
+                        isFromUser: message.isFromUser,
+                        isPrevSame: isPrevSame,
+                        isNextSame: isNextSame
+                    ))
+                    .overlay(
+                        Group {
+                            if !message.isFromUser {
+                                ChatBubbleCornerShape(
+                                    isFromUser: false,
+                                    isPrevSame: isPrevSame,
+                                    isNextSame: isNextSame
+                                )
+                                .stroke(VenusTheme.primary.opacity(isStreaming ? 0.35 : 0.12), lineWidth: 1)
+                            }
+                        }
+                    )
+                    .shadow(color: isStreaming && !message.isFromUser ? VenusTheme.primary.opacity(0.18) : Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+                    .frame(maxWidth: UIScreen.main.bounds.width * 0.82, alignment: message.isFromUser ? .trailing : .leading)
+                    
+                    // Optional Reminder Button (if present)
+                    if let reminder = message.reminder, !reminder.isEmpty, !message.isFromUser {
+                        Button {
+                            onScheduleReminder?(reminder)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "bell.badge.fill")
+                                    .font(.system(size: 10))
+                                Text("Lembrete: \(reminder)")
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .lineLimit(1)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
                             .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(VenusTheme.cardSurface)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(VenusTheme.accentPink.opacity(0.2), lineWidth: 1)
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [VenusTheme.accentPurple, VenusTheme.primary],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
                                     )
                             )
-                            .frame(maxWidth: 260, alignment: .leading)
-                            .padding(.top, 4)
-                            .padding(.horizontal, 4)
                         }
-                        
-                        if let reminder = message.reminder, !reminder.isEmpty {
-                            Button {
-                                onScheduleReminder?(reminder)
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "bell.badge.fill")
-                                        .font(.system(size: 10))
-                                    Text("Ativar Lembrete: \(reminder)")
-                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                        .lineLimit(1)
-                                }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 7)
-                                .background(
-                                    Capsule()
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [VenusTheme.accentPurple, VenusTheme.primary],
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            )
-                                        )
-                                )
-                                .shadow(color: VenusTheme.accentPurple.opacity(0.2), radius: 3, x: 0, y: 2)
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.top, 4)
-                            .padding(.horizontal, 4)
-                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 2)
+                        .padding(.horizontal, 4)
                     }
                 }
                 .overlay(
@@ -183,7 +165,7 @@ struct ChatMessageView: View {
                                 .clipShape(Circle())
                                 .shadow(color: Color.black.opacity(0.12), radius: 2, x: 0, y: 1)
                                 .scaleEffect(isHeartPopping ? 1.3 : 1.0)
-                                .offset(x: message.isFromUser ? -10 : 10, y: 15)
+                                .offset(x: message.isFromUser ? -8 : 8, y: 14)
                                 .onTapGesture {
                                     onReact()
                                 }
@@ -191,28 +173,27 @@ struct ChatMessageView: View {
                     },
                     alignment: message.isFromUser ? .bottomLeading : .bottomTrailing
                 )
+                
+                if !message.isFromUser {
+                    Spacer(minLength: 40)
+                }
             }
             .offset(x: dragOffset)
-            .gesture(
-                DragGesture(minimumDistance: 10, coordinateSpace: .local)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 20, coordinateSpace: .local)
                     .onChanged { value in
-                        let translation = value.translation.width
-                        if translation > 0 {
-                            withAnimation(.interactiveSpring()) {
-                                dragOffset = min(translation, 80)
-                            }
-                            
-                            if dragOffset >= 50 && !hasTriggeredReply {
-                                hasTriggeredReply = true
-                                onReply()
-                            }
+                        if value.translation.width > 0 && abs(value.translation.width) > abs(value.translation.height) * 1.3 {
+                            dragOffset = min(value.translation.width, 60)
                         }
                     }
-                    .onEnded { _ in
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.65)) {
+                    .onEnded { value in
+                        if dragOffset >= 40 {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            onReply()
+                        }
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                             dragOffset = 0
                         }
-                        hasTriggeredReply = false
                     }
             )
             .onTapGesture(count: 2) {
@@ -222,28 +203,40 @@ struct ChatMessageView: View {
                     isHeartPopping = false
                 }
             }
-            
-            if message.isFromUser {
-                Spacer(minLength: 0)
+            .contextMenu {
+                Button {
+                    onReply()
+                } label: {
+                    Label("Responder", systemImage: "arrowshape.turn.up.left")
+                }
+                
+                Button {
+                    UIPasteboard.general.string = message.content
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    Label("Copiar Texto", systemImage: "doc.on.doc")
+                }
+                
+                Button {
+                    onReact()
+                } label: {
+                    Label(message.reaction != nil ? "Remover Reação" : "Reagir com ❤️", systemImage: "heart.fill")
+                }
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, isPrevSame ? 3 : 12)
+        .padding(.top, isPrevSame ? 2 : 10)
         .transition(
-            message.isFromUser ?
-                .asymmetric(
-                    insertion: .move(edge: .bottom)
-                        .combined(with: .scale(scale: 0.1, anchor: .bottomTrailing))
-                        .combined(with: .opacity),
-                    removal: .opacity
-                ) :
-                .asymmetric(
-                    insertion: .move(edge: .leading)
-                        .combined(with: .scale(scale: 0.4, anchor: .topLeading))
-                        .combined(with: .opacity),
-                    removal: .opacity
-                )
+            .asymmetric(
+                insertion: .opacity.combined(with: .offset(y: 8)),
+                removal: .opacity
+            )
         )
+        .onAppear {
+            if isStreaming {
+                cursorBlink.toggle()
+            }
+        }
     }
 }
 
@@ -256,7 +249,7 @@ struct ChatBubbleCornerShape: Shape {
         let path = UIBezierPath()
         
         let minCorner: CGFloat = 4
-        let maxCorner: CGFloat = 20
+        let maxCorner: CGFloat = 18
         
         var topLeft: CGFloat = maxCorner
         var topRight: CGFloat = maxCorner

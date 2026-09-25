@@ -20,6 +20,7 @@ class UserProfileModel {
     var desiredHobbies: [String]
     var improvementAreas: [String]
     var emotionalAreas: [String]
+    var contextNote: String = ""
     var isOnboardingComplete: Bool
     
     // Work Schedule (optional)
@@ -43,6 +44,7 @@ class UserProfileModel {
         self.desiredHobbies = profile.desiredHobbies
         self.improvementAreas = profile.improvementAreas
         self.emotionalAreas = profile.emotionalAreas
+        self.contextNote = profile.contextNote
         self.isOnboardingComplete = profile.isOnboardingComplete
         
         self.hasWork = profile.workSchedule?.hasWork ?? false
@@ -65,6 +67,7 @@ class UserProfileModel {
         profile.desiredHobbies = desiredHobbies
         profile.improvementAreas = improvementAreas
         profile.emotionalAreas = emotionalAreas
+        profile.contextNote = contextNote
         profile.isOnboardingComplete = isOnboardingComplete
         
         if hasWork, let start = workStartTime, let end = workEndTime {

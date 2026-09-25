@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct WelcomeView: View {
+struct PresentationView: View {
     var onNext: () -> Void
 
     @State private var appear = false
@@ -15,7 +15,7 @@ struct WelcomeView: View {
 
     var body: some View {
         ZStack {
-            // Ambient blobs
+            // Ambient glowing blobs
             ZStack {
                 Circle()
                     .fill(VenusTheme.primary.opacity(0.18))
@@ -24,19 +24,19 @@ struct WelcomeView: View {
                     .offset(x: -80, y: -220)
 
                 Circle()
-                    .fill(VenusTheme.accentBlue.opacity(0.10))
+                    .fill(VenusTheme.accentBlue.opacity(0.12))
                     .frame(width: 260, height: 260)
                     .blur(radius: 60)
                     .offset(x: 130, y: 180)
             }
 
             GeometryReader { geometry in
-                VStack{
+                ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
                         Spacer()
 
                         // Orb
-                        VenusMoodOrb(mood: .stressed, size: 300)
+                        VenusMoodOrb(mood: .happy, size: 140)
                             .opacity(orbAppear ? 1 : 0)
                             .scaleEffect(orbAppear ? 1 : 0.78)
                             .animation(.spring(response: 0.7, dampingFraction: 0.68), value: orbAppear)
@@ -47,7 +47,7 @@ struct WelcomeView: View {
                                 .font(.system(size: 42, weight: .black, design: .rounded))
                                 .foregroundColor(VenusTheme.text)
 
-                            Text("Não é terapia, mas é terapêutico.")
+                            Text("Inteligência pessoal de prontidão e energia.")
                                 .font(.system(.subheadline, design: .rounded).weight(.medium))
                                 .foregroundColor(VenusTheme.textSecondary)
                                 .multilineTextAlignment(.center)
@@ -60,8 +60,12 @@ struct WelcomeView: View {
                         Spacer()
 
                         // CTA card
-//                        VenusCard(cornerRadius: 32, padding: 22) {
+                        VenusCard(cornerRadius: 32, padding: 22) {
                             VStack(spacing: 16) {
+                                Text("Vamos calibrar o seu ritmo e foco diário?")
+                                    .font(.system(.callout, design: .rounded).weight(.medium))
+                                    .foregroundColor(VenusTheme.textSecondary)
+                                    .multilineTextAlignment(.center)
 
                                 Button {
                                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -76,12 +80,12 @@ struct WelcomeView: View {
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 16)
-                                    .background(VenusTheme.primaryGradient, in: Capsule(style: .continuous))
-                                    .shadow(color: VenusTheme.primary.opacity(0.1), radius: 4, x: 0, y: 50)
+                                    .background(VenusTheme.primaryGradient, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                                    .shadow(color: VenusTheme.primary.opacity(0.30), radius: 18, x: 0, y: 12)
                                 }
                                 .buttonStyle(.plain)
                             }
-//                        }
+                        }
                         .padding(.horizontal, 24)
                         .padding(.bottom, 32)
                         .opacity(appear ? 1 : 0)
@@ -100,5 +104,5 @@ struct WelcomeView: View {
 }
 
 #Preview {
-    WelcomeView(onNext: {})
+    PresentationView(onNext: {})
 }

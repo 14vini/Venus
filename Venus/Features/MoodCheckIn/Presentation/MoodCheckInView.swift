@@ -583,6 +583,27 @@ struct MoodCheckInView: View {
                         )
                     }
                 }
+
+                // Check-in rápido de 10s: só energia + humor
+                if viewModel.isQuickSaveReady {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        viewModel.saveQuickCheckIn()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 12, weight: .bold))
+                            Text(viewModel.isSaving ? "Salvando…" : "Salvar rápido (10s)")
+                                .font(.system(.subheadline, design: .rounded).weight(.bold))
+                        }
+                        .foregroundColor(palette.accent)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Capsule().fill(palette.accent.opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.isSaving)
+                }
             }
         }
         .padding(.horizontal, 24)
