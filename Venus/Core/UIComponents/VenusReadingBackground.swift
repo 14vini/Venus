@@ -115,7 +115,7 @@ struct VenusReadingBackground: View {
                 ZStack {
                     LinearGradient(
                         colors: [
-                            accent.opacity(colorScheme == .dark ? 0.12 : 0.14),
+                            accent.opacity(colorScheme == .dark ? 0.12 : 0.5),
                             secondaryAccent.opacity(colorScheme == .dark ? 0.08 : 0.10),
                             Color.clear,
                             Color.clear

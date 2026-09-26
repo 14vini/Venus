@@ -23,21 +23,6 @@ struct HomeView: View {
                     
                     // Readiness & Energy Gauge (0-100)
                     ReadinessEnergyGaugeView(assessment: viewModel.readinessAssessment)
-
-                    // Explicabilidade: por que estou assim?
-                    ReadinessBreakdownView(assessment: viewModel.readinessAssessment)
-
-                    // Tendência 7d
-                    ReadinessTrendCard(
-                        history: viewModel.readinessHistory,
-                        weeklyTrend: viewModel.weeklyTrend
-                    )
-
-                    // Próxima ação do motor comportamental
-                    NextBestActionCard(
-                        snapshot: viewModel.patternSnapshot,
-                        onOpenChat: { viewModel.showVenusChat = true }
-                    )
                     
                     // Hero Mascot Host
                     HomeHeroMascotView(
