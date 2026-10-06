@@ -11,14 +11,21 @@ struct OnboardingContainer: View {
     @State var userProfile: UserProfile
     @State private var currentStep: Int
     @State private var transitionDirection: Int = 1
+    
+    // AI Dynamic Data
+    @State private var aiQuestionResult: AIOnboardingQuestionResponse? = nil
+    @State private var isLoadingAIQuestion: Bool = false
     @State private var aiProfileResult: AIOnboardingProfileResponse? = nil
-    private let questionnaireSteps = 5
-
+    @State private var isLoadingAIProfile: Bool = false
+    
+    private let totalQuestionSteps = 3 // Steps 1, 2, 3
+    private let venusAI: VenusAIServiceProtocol = DependencyContainer.shared.makeVenusAIService()
+    
     @Environment(\.colorScheme) private var colorScheme
     @State private var bottomControlsHeight: CGFloat = 0
     
     init(userProfile: UserProfile, initialStep: Int = 0) {
-        let safeInitialStep = min(max(initialStep, 0), 7)
+        let safeInitialStep = min(max(initialStep, 0), 4)
         _userProfile = State(initialValue: userProfile)
         _currentStep = State(initialValue: safeInitialStep)
     }
@@ -26,42 +33,43 @@ struct OnboardingContainer: View {
     private var canProceed: Bool {
         switch currentStep {
         case 1:
-            return !userProfile.primaryGoal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case 2:
-            return !userProfile.improvementAreas.isEmpty
-        case 3:
-            return true // Contexto de fala/texto é opcional
-        case 4:
             return !userProfile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case 5:
-            return !userProfile.coachingTone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case 2:
+            return !userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case 3:
+            return true // Opcional ou preenchido
         default:
             return true
         }
     }
     
-    private var validationMessage: String {
-        switch currentStep {
-        case 1: return "Escolha seu nível de bateria para continuar"
-        case 2: return "Selecione pelo menos um dreno de energia para continuar"
-        case 4: return "Digite seu nome para continuar"
-        case 5: return "Escolha seu tom de conversa para continuar"
-        default: return ""
-        }
-    }
-    
     private var nextButtonTitle: String {
-        if currentStep == questionnaireSteps {
-            return "Calibrar Minha Venus"
+        switch currentStep {
+        case 0:
+            return "Começar"
+        case 1:
+            return "Continuar"
+        case 2:
+            return "Avançar"
+        case 3:
+            if userProfile.improvementAreas.isEmpty {
+                return "Pular"
+            }
+            return "Continuar"
+        case 4:
+            return "Entrar no Meu Espaço"
+        default:
+            return "Continuar"
         }
-        if currentStep == 3 && userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return "Pular"
-        }
-        return "Continuar"
     }
     
     private var nextButtonIcon: String {
-        currentStep == questionnaireSteps ? "wand.and.stars" : "chevron.right"
+        switch currentStep {
+        case 4:
+            return "arrow.right.circle.fill"
+        default:
+            return "chevron.right"
+        }
     }
 
     private var palette: OnboardingVisualPalette {
@@ -85,22 +93,18 @@ struct OnboardingContainer: View {
             OnboardingAnimatedBackground(palette: palette, isAnimated: true)
                 .animation(.easeInOut(duration: 0.7), value: currentStep)
 
-            if currentStep >= 1 && currentStep <= 5 {
-                OnboardingMascotBackdrop(palette: palette)
-                    .opacity(colorScheme == .dark ? 0.95 : 0.88)
-                    .animation(.easeInOut(duration: 0.6), value: currentStep)
-            }
-            
             if currentStep == 0 {
                 presentationStepView
-            } else if currentStep >= 1 && currentStep <= 5 {
-                questionnaireFlowView
+            } else if currentStep >= 1 && currentStep <= 3 {
+                conversationalFlowView
             } else {
-                experienceFlowView
+                revealStepView
             }
         }
     }
 
+    // MARK: - Views
+    
     private var presentationStepView: some View {
         PresentationView(onNext: {
             transitionDirection = 1
@@ -112,13 +116,13 @@ struct OnboardingContainer: View {
         .zIndex(1)
     }
 
-    private var questionnaireFlowView: some View {
+    private var conversationalFlowView: some View {
         HStack {
             Spacer(minLength: 0)
             ZStack(alignment: .top) {
                 contentView
-                    .safeAreaPadding(.top, 86)
-                    .safeAreaPadding(.bottom, max(132, bottomControlsHeight + 24))
+                    .safeAreaPadding(.top, 74)
+                    .safeAreaPadding(.bottom, max(110, bottomControlsHeight + 16))
 
                 topHUDView
                     .safeAreaPadding(.top, 10)
@@ -134,26 +138,21 @@ struct OnboardingContainer: View {
         }
     }
 
-    private var experienceFlowView: some View {
+    private var revealStepView: some View {
         HStack {
             Spacer(minLength: 0)
-            ZStack(alignment: .top) {
+            ZStack(alignment: .bottom) {
                 ScrollView(showsIndicators: false) {
                     currentStepView
                         .id(currentStep)
                         .transition(stepTransition)
-                        .safeAreaPadding(.top, currentStep == 6 ? 20 : 60)
-                        .safeAreaPadding(.bottom, 30)
+                        .safeAreaPadding(.top, 40)
+                        .safeAreaPadding(.bottom, max(120, bottomControlsHeight + 20))
                 }
-
-                if currentStep == 7 {
-                    HStack {
-                        topBackButton
-                        Spacer()
-                    }
-                    .padding(.horizontal, 24)
-                    .safeAreaPadding(.top, 10)
-                }
+                
+                bottomControlsView
+                    .safeAreaPadding(.bottom, 12)
+                    .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .frame(maxWidth: 500)
@@ -164,8 +163,13 @@ struct OnboardingContainer: View {
     private var topHUDView: some View {
         HStack(spacing: 12) {
             topBackButton
-            progressBarView
-                .allowsHitTesting(false)
+            
+            VenusProgressBar(
+                currentStep: currentStep,
+                totalSteps: totalQuestionSteps,
+                tint: palette.accent
+            )
+            .allowsHitTesting(false)
         }
         .padding(.horizontal, 24)
     }
@@ -178,7 +182,7 @@ struct OnboardingContainer: View {
             Image(systemName: "chevron.left")
                 .font(.system(size: 14, weight: .black))
                 .foregroundStyle(palette.accent)
-                .frame(width: 40, height: 40)
+                .frame(width: 38, height: 38)
                 .contentShape(Circle())
                 .glassEffect(.clear, in: Circle())
         }
@@ -187,18 +191,22 @@ struct OnboardingContainer: View {
         .accessibilityLabel("Voltar")
     }
 
-    private var progressBarView: some View {
-        VenusProgressBar(currentStep: currentStep, totalSteps: questionnaireSteps, tint: palette.accent)
-    }
-
     private var contentView: some View {
         GeometryReader { geometry in
             ScrollViewReader { scrollProxy in
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
+                    VStack(spacing: 6) {
                         Color.clear
                             .frame(height: 1)
                             .id("top")
+
+                        if currentStep >= 1 && currentStep <= 3 {
+                            OnboardingMascotCompanionView(
+                                currentStep: currentStep,
+                                userProfile: $userProfile
+                            )
+                            .padding(.top, 4)
+                        }
 
                         currentStepView
                             .id(currentStep)
@@ -218,57 +226,14 @@ struct OnboardingContainer: View {
 
     private var bottomControlsView: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 12) {
-                bottomMessageView
-                navigationButtonsView
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 10)
-            .padding(.bottom, 14)
+            nextButton
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
         }
-        .background(bottomControlsBackground)
         .readHeight { height in
             bottomControlsHeight = height
         }
-    }
-
-    private var bottomControlsBackground: some View {
-        RoundedRectangle(cornerRadius: 28, style: .continuous)
-            .fill(.ultraThinMaterial)
-            .opacity(colorScheme == .dark ? 0.78 : 0.92)
-            .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(colorScheme == .dark ? 0.16 : 0.24),
-                                Color.clear,
-                                Color.white.opacity(colorScheme == .dark ? 0.06 : 0.12)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-                    .blendMode(.overlay)
-            )
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.34 : 0.10), radius: 22, x: 0, y: 10)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 6)
-    }
-
-    @ViewBuilder
-    private var bottomMessageView: some View {
-        if !canProceed {
-            Text(validationMessage)
-                .font(.system(.caption, design: .rounded).weight(.medium))
-                .foregroundColor(VenusTheme.textSecondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var navigationButtonsView: some View {
-        nextButton
     }
 
     private var nextButton: some View {
@@ -277,14 +242,21 @@ struct OnboardingContainer: View {
             goToNextStep()
         } label: {
             HStack(spacing: 8) {
-                Text(nextButtonTitle)
-                    .font(.system(.headline, design: .rounded).weight(.black))
-                Image(systemName: nextButtonIcon)
-                    .font(.system(size: 14, weight: .black))
+                if isLoadingAIProfile {
+                    ProgressView()
+                        .tint(.white)
+                    Text("Preparando seu espaço...")
+                        .font(.system(.headline, design: .rounded).weight(.bold))
+                } else {
+                    Text(nextButtonTitle)
+                        .font(.system(.headline, design: .rounded).weight(.black))
+                    Image(systemName: nextButtonIcon)
+                        .font(.system(size: 14, weight: .black))
+                }
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .frame(height: 48)
+            .frame(height: 52)
             .background(
                 (canProceed ? palette.buttonGradient : palette.disabledGradient),
                 in: Capsule(style: .continuous)
@@ -303,18 +275,17 @@ struct OnboardingContainer: View {
                     .blendMode(.overlay)
             )
             .shadow(
-                color: canProceed ? palette.accent.opacity(colorScheme == .dark ? 0.22 : 0.26) : .clear,
-                radius: 18,
+                color: canProceed ? palette.accent.opacity(colorScheme == .dark ? 0.24 : 0.28) : .clear,
+                radius: 16,
                 x: 0,
-                y: 12
+                y: 10
             )
         }
         .buttonStyle(.plain)
         .buttonStyle(OnboardingPressableButtonStyle())
-        .disabled(!canProceed)
-        .opacity(canProceed ? 1 : 0.72)
+        .disabled(!canProceed || isLoadingAIProfile)
+        .opacity(canProceed ? 1 : 0.70)
         .accessibilityLabel(nextButtonTitle)
-        .accessibilityHint(currentStep == questionnaireSteps ? "Inicia a calibração" : "Avança para a próxima etapa")
     }
     
     @ViewBuilder
@@ -323,31 +294,24 @@ struct OnboardingContainer: View {
         case 0:
             PresentationView(onNext: { withAnimation { currentStep = 1 } })
         case 1:
-            InitialMoodStep(userProfile: $userProfile)
-        case 2:
-            RootStruggleStep(userProfile: $userProfile)
-        case 3:
-            VoiceAndTextInputStep(userProfile: $userProfile)
-        case 4:
             IdentityStep(userProfile: $userProfile, onSubmit: {
                 if canProceed {
                     goToNextStep()
                 }
             })
-        case 5:
-            ToneCalibrationStep(userProfile: $userProfile)
-        case 6:
-            AICalibrationLoadingStep(
-                userProfile: userProfile,
-                onComplete: { aiProfile in
-                    self.aiProfileResult = aiProfile
-                    transitionDirection = 1
-                    withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
-                        currentStep = 7
-                    }
+        case 2:
+            InitialFeelingsStep(userProfile: $userProfile, onContinue: {
+                if canProceed {
+                    goToNextStep()
                 }
+            })
+        case 3:
+            AIDeepeningStep(
+                userProfile: $userProfile,
+                aiQuestion: aiQuestionResult,
+                isLoadingAI: isLoadingAIQuestion
             )
-        case 7:
+        case 4:
             EmotionalProfileRevealStep(
                 userProfile: userProfile,
                 aiProfile: aiProfileResult,
@@ -356,19 +320,17 @@ struct OnboardingContainer: View {
                 }
             )
         default:
-            InitialMoodStep(userProfile: $userProfile)
+            IdentityStep(userProfile: $userProfile)
         }
     }
+    
+    // MARK: - Navigation Logic
     
     private func goToPreviousStep() {
         guard currentStep > 0 else { return }
         transitionDirection = -1
         withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
-            if currentStep == 7 {
-                currentStep = 5 // skip backwards over loading step
-            } else {
-                currentStep -= 1
-            }
+            currentStep -= 1
         }
     }
     
@@ -376,18 +338,72 @@ struct OnboardingContainer: View {
         guard canProceed else { return }
         transitionDirection = 1
         
-        if currentStep == 4 {
+        if currentStep == 1 {
             userProfile.name = userProfile.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        
-        if currentStep < 7 {
             withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
-                currentStep += 1
+                currentStep = 2
             }
             return
         }
         
-        finishOnboarding()
+        if currentStep == 2 {
+            // Trigger AI question generation for Step 3
+            isLoadingAIQuestion = true
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                currentStep = 3
+            }
+            
+            Task {
+                do {
+                    let aiResponse = try await venusAI.generateNextOnboardingQuestion(
+                        userName: userProfile.name,
+                        userResponse: userProfile.contextNote
+                    )
+                    await MainActor.run {
+                        self.aiQuestionResult = aiResponse
+                        if let tone = aiResponse.suggestedTone {
+                            self.userProfile.coachingTone = tone
+                        }
+                        self.isLoadingAIQuestion = false
+                    }
+                } catch {
+                    await MainActor.run {
+                        self.isLoadingAIQuestion = false
+                    }
+                }
+            }
+            return
+        }
+        
+        if currentStep == 3 {
+            // Prepare final profile for Step 4
+            isLoadingAIProfile = true
+            
+            Task {
+                do {
+                    let profileResp = try await venusAI.generateOnboardingProfile(userProfile: userProfile)
+                    await MainActor.run {
+                        self.aiProfileResult = profileResp
+                        self.isLoadingAIProfile = false
+                        withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                            self.currentStep = 4
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        self.isLoadingAIProfile = false
+                        withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                            self.currentStep = 4
+                        }
+                    }
+                }
+            }
+            return
+        }
+        
+        if currentStep == 4 {
+            finishOnboarding()
+        }
     }
     
     private func finishOnboarding() {

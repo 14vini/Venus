@@ -12,6 +12,7 @@ import UIKit
 
 public struct ReadinessEnergyGaugeView: View {
     let assessment: ReadinessEnergyAssessment
+    var onDetailTap: (() -> Void)? = nil
 
     @State private var animatedProgress: Double = 0.0
     @State private var animatedScore: Double = 0.0
@@ -29,14 +30,23 @@ public struct ReadinessEnergyGaugeView: View {
     private let arcSweepAngle: Double = 220.0
     private let strokeWidth: CGFloat = 26.0
 
-    public init(assessment: ReadinessEnergyAssessment = .sampleDefault) {
+    public init(
+        assessment: ReadinessEnergyAssessment = .sampleDefault,
+        onDetailTap: (() -> Void)? = nil
+    ) {
         self.assessment = assessment
+        self.onDetailTap = onDetailTap
     }
 
     public var body: some View {
-        VStack(spacing: 18) {
-            gaugeCardSurface
+        Button {
+            onDetailTap?()
+        } label: {
+            VStack(spacing: 18) {
+                gaugeCardSurface
+            }
         }
+        .buttonStyle(.plain)
         .onAppear(perform: handleOnAppear)
         .onChange(of: assessment.id) { _, _ in triggerFillAnimation() }
         .onChange(of: assessment.score) { _, _ in triggerFillAnimation() }
@@ -60,17 +70,27 @@ private extension ReadinessEnergyGaugeView {
             }
 
             Spacer()
+
+            if onDetailTap != nil {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(VenusTheme.textTertiary)
+            }
         }
         .padding(.horizontal, 4)
     }
 
     var gaugeCardSurface: some View {
         VStack(spacing: 12) {
+            headerSection
+                .padding(.horizontal, 8)
+                .padding(.vertical)
+
             archGaugeView
-                .padding(.top)
+                .padding(.top, -6)
 
             dividerLine
-                .padding(.vertical)
+                .padding(.vertical, 4)
 
             pillarsSection
                 .padding(.horizontal, 10)
@@ -279,7 +299,6 @@ private extension ReadinessEnergyGaugeView {
     }
 
     func triggerFillAnimation() {
-        // Debounce + animação incremental: se delta < 0.3, só interpola sem reset total
         pendingWork?.cancel()
         let targetProgress = normalizedScore
         let targetScore = assessment.score
@@ -294,27 +313,22 @@ private extension ReadinessEnergyGaugeView {
             return
         }
 
-        // Reset states (só para mudanças relevantes)
         animatedProgress = isFirst ? 0.0 : animatedProgress
         if isFirst { animatedScore = 0.0 }
         detailsOpacity = detailsOpacity == 0 ? 0.0 : 1.0
         ringScale = 1.0
         ringOpacity = 0.0
 
-        // Slight initial pause to let view layout settle before fluid fill
         let work = DispatchWorkItem {
-            // Fluid progressive fill animation
             withAnimation(.spring(response: 1.25, dampingFraction: 0.82, blendDuration: 0.08)) {
                 animatedProgress = targetProgress
                 animatedScore = targetScore
             }
 
-            // Staggered reveal for labels and pillar details
             withAnimation(.easeOut(duration: 0.45).delay(0.6)) {
                 detailsOpacity = 1.0
             }
 
-            // Arrival haptic SÓ em mudança de faixa (evita vibração a cada tick biométrico)
             let levelKey = assessment.level.rawValue
             let shouldHaptic = levelKey != lastLevelKey
             lastLevelKey = levelKey

@@ -142,13 +142,26 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                     let (asyncBytes, response) = try await self.session.bytes(for: request)
                     
                     guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                        let fallback = self.generateFallbackResponse(userMessage: userMessage, history: conversationHistory)
-                        continuation.yield(fallback)
-                        continuation.finish()
+                        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 500
+                        var errorBody = ""
+                        for try await line in asyncBytes.lines {
+                            errorBody += line
+                        }
+                        print("❌ OpenRouter HTTP Error (\(statusCode)): \(errorBody)")
+                        let detailMessage: String
+                        if let data = errorBody.data(using: .utf8),
+                           let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                           let errorObj = errorJson["error"] as? [String: Any],
+                           let message = errorObj["message"] as? String {
+                            detailMessage = message
+                        } else {
+                            detailMessage = errorBody.isEmpty ? "HTTP \(statusCode)" : errorBody
+                        }
+                        continuation.finish(throwing: VenusAIError.apiError(statusCode: statusCode, message: detailMessage))
                         return
                     }
                     
-                    var streamFilter = ThinkingStreamFilter()
+                    let streamFilter = ThinkingStreamFilter()
                     
                     for try await line in asyncBytes.lines {
                         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -181,9 +194,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                     
                     continuation.finish()
                 } catch {
-                    let fallback = self.generateFallbackResponse(userMessage: userMessage, history: conversationHistory)
-                    continuation.yield(fallback)
-                    continuation.finish()
+                    continuation.finish(throwing: error)
                 }
             }
         }
@@ -210,12 +221,8 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         
         messages.append(OpenRouterMessage(role: "user", content: userMessage))
         
-        do {
-            let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 800)
-            return cleanResponseText(response)
-        } catch {
-            return generateFallbackResponse(userMessage: userMessage, history: conversationHistory)
-        }
+        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 800)
+        return cleanResponseText(response)
     }
     
     // MARK: - Prompt Building
@@ -477,17 +484,75 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
-        do {
-            let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 200)
-            return cleanResponse(response)
-        } catch {
-            let timeGreeting = "Olá, \(name)!"
-            if let mood = mood {
-                return "\(timeGreeting) Vi que você está se sentindo \(mood.rawValue). Estou aqui ao seu lado para trazer leveza ao seu dia. ✨"
-            } else {
-                return "\(timeGreeting) Que bom ter você aqui. Como está sua energia para o dia de hoje? 🌸"
-            }
+        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 200)
+        return cleanResponse(response)
+    }
+    
+    // MARK: - Dynamic Interactive Onboarding Question Generation
+    
+    func generateNextOnboardingQuestion(userName: String, userResponse: String) async throws -> AIOnboardingQuestionResponse {
+        let name = userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "amigo(a)" : userName
+        
+        let prompt = """
+        Você é a Venus, uma inteligência de acolhimento e escuta emocional empática.
+        O usuário se chama \(name) e acabou de responder como está se sentindo ou desabafar:
+        "\(userResponse)"
+        
+        Sua missão:
+        1. "empathyReaction": Reagir em 1 frase curta (máximo 15 palavras) com profunda empatia, afeto e acolhimento humano genuíno ao que ele falou.
+        2. "nextQuestion": Fazer 1 pergunta aberta, carinhosa e direta para entender melhor onde ele mais precisa de apoio, o que mais tem pesado no dia a dia dele ou como podemos aliviar isso juntos.
+        3. "suggestedTone": Sugerir um tom de conversa ("Gentil", "Direto", "Prático" ou "Motivacional").
+        
+        Responda APENAS em JSON válido:
+        {
+            "empathyReaction": "Frase curta de acolhimento e validação empática",
+            "nextQuestion": "Pergunta aberta, acolhedora e investigativa para aprofundar",
+            "suggestedTone": "Gentil"
         }
+        """
+        
+        let messages = [
+            OpenRouterMessage(role: "system", content: "Responda apenas com JSON válido em português."),
+            OpenRouterMessage(role: "user", content: prompt)
+        ]
+        
+        do {
+            let response = try await sendChatCompletion(messages: messages, temperature: 0.5, maxTokens: 400)
+            let cleanJson = cleanJsonText(response)
+            if let data = cleanJson.data(using: .utf8) {
+                return try JSONDecoder().decode(AIOnboardingQuestionResponse.self, from: data)
+            }
+        } catch {
+            print("⚠️ Falha ao gerar pergunta dinâmica de onboarding via IA: \(error)")
+        }
+        
+        // Intelligent Fallbacks based on keywords
+        let lower = userResponse.lowercased()
+        if lower.contains("cansad") || lower.contains("sono") || lower.contains("dorm") || lower.contains("exaust") {
+            return AIOnboardingQuestionResponse(
+                empathyReaction: "Entendo perfeitamente... noites difíceis e mente cheia pesam muito no corpo 💙",
+                nextQuestion: "O que você sente que mais tem te impedido de desligar e descansar com calma?",
+                suggestedTone: "Gentil"
+            )
+        } else if lower.contains("trabalh") || lower.contains("press") || lower.contains("demand") || lower.contains("praz") {
+            return AIOnboardingQuestionResponse(
+                empathyReaction: "Faz todo sentido você se sentir assim com tantas responsabilidades acumuladas 🌿",
+                nextQuestion: "Qual é a principal coisa que, se ficasse mais leve hoje, te traria mais alívio?",
+                suggestedTone: "Direto"
+            )
+        } else if lower.contains("ansio") || lower.contains("medo") || lower.contains("cobran") || lower.contains("angust") {
+            return AIOnboardingQuestionResponse(
+                empathyReaction: "Eu te ouço com todo carinho. Respira fundo, você não está sozinho(a) 🤍",
+                nextQuestion: "O que tem gerado essa sensação de urgência ou cobrança dentro de você ultimamente?",
+                suggestedTone: "Gentil"
+            )
+        }
+        
+        return AIOnboardingQuestionResponse(
+            empathyReaction: "Obrigada por se abrir comigo, \(name). É muito bom poder te ouvir 🤍",
+            nextQuestion: "O que você mais gostaria que a gente trabalhasse juntos para trazer mais leveza ao seu dia?",
+            suggestedTone: "Gentil"
+        )
     }
     
     // MARK: - Onboarding Profile Generation
@@ -496,20 +561,20 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         let profileContext = buildProfileContext(profile: userProfile)
         
         let prompt = """
-        Você é a Venus, a inteligência emocional do app Venus.
-        O usuário acabou de completar o onboarding de calibração inicial.
+        Você é a Venus, a companheira de acolhimento e inteligência emocional do app Venus.
+        O usuário acabou de completar a apresentação inicial dele.
         
         Dados do usuário:
         \(profileContext)
         
-        Gere um diagnóstico de perfil de prontidão inicial exclusivo, empático e profundo em formato JSON:
+        Gere uma mensagem de boas-vindas calorosa, empática e acolhedora em formato JSON:
         {
-            "title": "Título marcante do arquétipo emocional",
-            "badge": "PERFIL DE PRONTIDÃO",
-            "subtitle": "Frase personalizada de 1 a 2 linhas conectando o nome do usuário com a busca dele",
-            "strengths": "3 principais pontos fortes emocionais/comportamentais identificados (separados por vírgula)",
-            "growthArea": "Foco prático de alívio e calibração da Venus para os próximos dias",
-            "statText": "Estatística motivacional de validação social"
+            "title": "Frase carinhosa de boas-vindas com o nome do usuário",
+            "badge": "SEU ESPAÇO ESTÁ PRONTO",
+            "subtitle": "Frase personalizada de 1 a 2 linhas conectando o momento atual do usuário com o apoio que você vai oferecer",
+            "strengths": "2 a 3 pontos fortes e qualidades que você percebeu nele (separados por vírgula)",
+            "growthArea": "Como a Venus vai apoiar o bem-estar e o ritmo dele nos próximos dias",
+            "statText": "Uma frase curta, confortante e acolhedora lembrando que ele não precisa dar conta de tudo sozinho"
         }
         
         Responda APENAS com o JSON válido, sem tags de raciocínio.
@@ -532,12 +597,12 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         
         let name = userProfile.name.isEmpty ? "Você" : userProfile.name
         return AIOnboardingProfileResponse(
-            title: "O Guardião do Equilíbrio",
-            badge: "PERFIL DE PRONTIDÃO",
-            subtitle: "\(name), você mantém um ritmo constante e busca clareza diária.",
-            strengths: "Empatia, consistência e admirável equilíbrio sob pressão.",
-            growthArea: "Identificar quando desacelerar a tempo e preservar sua bateria.",
-            statText: "94% relatam sensação imediata de clareza e controle do seu ritmo com a Venus."
+            title: "Seja bem-vindo(a), \(name) 🤍",
+            badge: "SEU ESPAÇO ESTÁ PRONTO",
+            subtitle: "\(name), estou muito feliz em ter você aqui. Este é seu espaço seguro para respirar e encontrar leveza.",
+            strengths: "Sensibilidade, dedicação e busca sincera por equilíbrio.",
+            growthArea: "Te ajudar a desacelerar no fim do dia e lembrar você de não se cobrar tanto.",
+            statText: "Você não precisa dar conta de tudo sozinho(a). Vamos cuidar de um dia de cada vez."
         )
     }
 
@@ -618,27 +683,6 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                 timestamp: Date()
             )
         } catch {
-            let fullText = userMessages.map { $0.content.lowercased() }.joined(separator: " ")
-            if fullText.contains("pânico") || fullText.contains("crise") || fullText.contains("ansiedade muito forte") {
-                return ChatReadinessImpact(
-                    scoreDelta: -1.5,
-                    isFocusImpacted: true,
-                    isBodyImpacted: true,
-                    customStateTitle: "Modo Respiro",
-                    customStateSubtitle: "Acolha seu corpo e faça uma pausa.",
-                    detectedInsight: "Tensão aguda relatada",
-                    timestamp: Date()
-                )
-            } else if fullText.contains("muito melhor") || fullText.contains("aliviado") || fullText.contains("clareou") {
-                return ChatReadinessImpact(
-                    scoreDelta: +0.8,
-                    isFocusImpacted: false,
-                    customStateTitle: "Mente Serena",
-                    customStateSubtitle: "Clareza conquistada após reflexão.",
-                    detectedInsight: "Alívio e clareza",
-                    timestamp: Date()
-                )
-            }
             return nil
         }
     }
@@ -801,7 +845,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
     
     private func cleanJsonText(_ text: String) -> String {
         let withoutThinking = ThinkingStreamFilter.clean(text)
-        var clean = withoutThinking.trimmingCharacters(in: .whitespacesAndNewlines)
+        let clean = withoutThinking.trimmingCharacters(in: .whitespacesAndNewlines)
         
         if let jsonBlockStart = clean.range(of: "```json") {
             let afterStart = clean[jsonBlockStart.upperBound...]
@@ -876,29 +920,6 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         }
         
         return clean.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-    
-    private func generateFallbackResponse(userMessage: String, history: [ChatMessage]) -> String {
-        let lowercased = userMessage.lowercased()
-        
-        if lowercased.contains("ansiedade") || lowercased.contains("ansioso") || lowercased.contains("nervoso") {
-            return "Entendo perfeitamente o quanto a ansiedade pode pesar. Respire fundo e não se cobre por se sentir assim. Que tal fazermos uma pausa de um minuto para você soltar os ombros e respirar com calma? Estou aqui com você. 🌸"
-        } else if lowercased.contains("triste") || lowercased.contains("tristeza") || lowercased.contains("chateado") {
-            return "Sinto muito que você esteja passando por isso. O que você está sentindo é totalmente válido e você não precisa carregar tudo sozinho. Se quiser colocar em palavras o que está no seu peito, estou te ouvindo. 💙"
-        } else if lowercased.contains("estresse") || lowercased.contains("estressado") || lowercased.contains("sobrecarregado") || lowercased.contains("pressão") {
-            return "A sobrecarga nos dá a sensação de que precisamos dar conta de tudo ao mesmo tempo. Que tal escolher apenas uma coisa importante para hoje e deixar o resto para depois sem culpa? Uma pausa agora vai te ajudar a respirar. ✨"
-        } else if lowercased.contains("obrigado") || lowercased.contains("obrigada") || lowercased.contains("valeu") {
-            return "Fico muito feliz em estar aqui ao seu lado! Lembre-se de ser gentil consigo mesmo ao longo do dia. 💜"
-        } else if lowercased.contains("oi") || lowercased.contains("olá") || lowercased.contains("bom dia") || lowercased.contains("boa tarde") || lowercased.contains("boa noite") {
-            return "Olá! Que bom que você veio conversar. Como está a sua mente e a sua energia hoje? 💫"
-        } else {
-            let responses = [
-                "Obrigada por compartilhar isso comigo. Às vezes, colocar para fora o que estamos sentindo é o primeiro passo para a mente clarear. Como posso te apoiar melhor agora? 🌱",
-                "Estou te ouvindo com carinho. É totalmente compreensível você se sentir assim. Quer aprofundar no que mais está pesando no seu dia? 💙",
-                "Entendo. Lembre-se que você não precisa resolver todos os nós de uma vez. Qual seria um micro-passo leve para agora? ✨"
-            ]
-            return responses.randomElement() ?? "Estou aqui para te ouvir. Como posso te ajudar a trazer mais leveza para o seu momento? 💜"
-        }
     }
 }
 

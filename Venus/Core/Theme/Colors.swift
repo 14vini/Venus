@@ -9,7 +9,7 @@ import SwiftUI
 import UIKit
 
 struct VenusTheme {
-    // MARK: - Palette (Modern Sunset Coral & Crisp Porcelain)
+    // MARK: - Palette (Pure Monochrome Neumorphism & Clean Grayscale)
     
     // Primary Brand Colors
     static let primary = Color(dynamicProvider(light: "#FF5C38", dark: "#FF733E"))
@@ -39,55 +39,77 @@ struct VenusTheme {
     static let moodStressed = Color(dynamicProvider(light: "#F97316", dark: "#FF7847"))
     static let moodSad = Color(dynamicProvider(light: "#8B5CF6", dark: "#B582F7"))
 
-    // Backgrounds & Surfaces (Clean, luminous, porcelain with subtle warm glow)
-    static let background = Color(dynamicProvider(light: "#F9F9FB", dark: "#110B08"))
-    static let backgroundWarm = Color(dynamicProvider(light: "#F4F5F8", dark: "#1A100B"))
-    static let backgroundBlush = Color(dynamicProvider(light: "#FDF2EE", dark: "#26150E"))
-    static let backgroundCool = Color(dynamicProvider(light: "#F0F3F8", dark: "#150E0A"))
-    static let backgroundSoft = Color(dynamicProvider(light: "#FFFFFF", dark: "#0C0705"))
-    static let ambientWarm = Color(dynamicProvider(light: "#FF8C5A", dark: "#943F1A"))
-    static let ambientCool = Color(dynamicProvider(light: "#60A5FA", dark: "#A6582E"))
-    static let ambientRose = Color(dynamicProvider(light: "#FB7185", dark: "#964536"))
+    // MARK: - Pure Monochrome Neumorphic Backgrounds & Surfaces (Black & White Only)
+    static let background = Color(dynamicProvider(light: "#E3E3E3", dark: "#141414"))
+    static let backgroundWarm = Color(dynamicProvider(light: "#DFDFDF", dark: "#181818"))
+    static let backgroundBlush = Color(dynamicProvider(light: "#E1E1E1", dark: "#161616"))
+    static let backgroundCool = Color(dynamicProvider(light: "#DDDDDD", dark: "#1A1A1A"))
+    static let backgroundSoft = Color(dynamicProvider(light: "#E3E3E3", dark: "#121212"))
+    static let ambientWarm = Color(dynamicProvider(light: "#888888", dark: "#333333"))
+    static let ambientCool = Color(dynamicProvider(light: "#888888", dark: "#333333"))
+    static let ambientRose = Color(dynamicProvider(light: "#888888", dark: "#333333"))
     
-    // Glassmorphic surfaces
+    // Glassmorphic surfaces (Monochrome)
     static let surface = Color(UIColor { traitCollection in
         return traitCollection.userInterfaceStyle == .dark ?
-            UIColor(hex: "1F130D", alpha: 0.86) :
-            UIColor(hex: "FFFFFF", alpha: 0.94)
+            UIColor(hex: "202020", alpha: 0.90) :
+            UIColor(hex: "E3E3E3", alpha: 0.95)
     })
     
-    // Solid card surfaces
+    // Solid card surfaces (Monochrome matching canvas for tactile 3D relief)
     static let cardSurface = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark ? UIColor(hex: "1C120C") : UIColor(hex: "FFFFFF")
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "202020") : UIColor(hex: "E3E3E3")
     })
     
     static let cardSurfaceStrong = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark ? UIColor(hex: "150D08") : UIColor(hex: "F4F4F7")
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "1A1A1A") : UIColor(hex: "D8D8D8")
     })
     
     static let cardBorder = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark ? UIColor(hex: "3D2418", alpha: 0.75) : UIColor(hex: "E5E7EB", alpha: 0.85)
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "333333", alpha: 0.7) : UIColor(hex: "FFFFFF", alpha: 0.7)
+    })
+
+    // MARK: - Pure Monochrome Neumorphic Tokens (Softened White Highlight & Deep Black Shadow)
+    static let neumorphicBase = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "141414") : UIColor(hex: "E3E3E3")
+    })
+
+    static let neumorphicShadowDark = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark ?
+            UIColor.black.withAlphaComponent(0.98) :
+            UIColor(hex: "9E9E9E").withAlphaComponent(0.85)
+    })
+
+    static let neumorphicShadowLight = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark ?
+            UIColor.white.withAlphaComponent(0.09) :
+            UIColor.white.withAlphaComponent(0.80)
+    })
+
+    static let neumorphicBorder = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark ?
+            UIColor.white.withAlphaComponent(0.14) :
+            UIColor.white.withAlphaComponent(0.60)
     })
 
     static let validationError = Color(dynamicProvider(light: "#EF4444", dark: "#FF667B"))
     static let validationErrorSoft = Color(dynamicProvider(light: "#FEF2F2", dark: "#2C1115"))
     static let validationErrorBorder = Color(dynamicProvider(light: "#FECACA", dark: "#6E1F2A"))
     
-    // Text (Deep warm onyx / charcoal in light mode, high legibility)
-    static let text = Color(dynamicProvider(light: "#18181B", dark: "#FFF5ED"))
-    static let textSecondary = Color(dynamicProvider(light: "#64748B", dark: "#D1B9AA"))
-    static let textTertiary = Color(dynamicProvider(light: "#94A3B8", dark: "#8F7464"))
+    // Text (Monochrome high-contrast)
+    static let text = Color(dynamicProvider(light: "#171717", dark: "#F5F5F5"))
+    static let textSecondary = Color(dynamicProvider(light: "#5A5A5A", dark: "#A8A8A8"))
+    static let textTertiary = Color(dynamicProvider(light: "#8E8E8E", dark: "#707070"))
     static let textOnPrimary = Color.white
     
-    // MARK: - Gradients
+    // MARK: - Gradients (Monochrome Black & White)
     
     static var backgroundGradient: LinearGradient {
         LinearGradient(
             colors: [
                 backgroundSoft,
-                backgroundWarm.opacity(0.85),
-                backgroundBlush.opacity(0.45),
-                backgroundCool
+                backgroundWarm,
+                backgroundSoft
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -98,8 +120,8 @@ struct VenusTheme {
         LinearGradient(
             colors: [
                 backgroundSoft,
-                backgroundWarm.opacity(0.7),
-                backgroundCool.opacity(0.5)
+                backgroundWarm,
+                backgroundCool
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -134,9 +156,8 @@ struct VenusTheme {
         LinearGradient(
             colors: [
                 backgroundSoft,
-                Color(dynamicProvider(light: "#F0FDF4", dark: "#18110D")),
-                Color(dynamicProvider(light: "#DCFCE7", dark: "#291E18")).opacity(0.5),
-                backgroundWarm
+                backgroundWarm,
+                backgroundSoft
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -180,13 +201,12 @@ struct VenusTheme {
         )
     }
     
-    // High-contrast, rich Sunset & Coral button gradient
+    // High-contrast primary button gradient
     static var primaryGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(dynamicProvider(light: "#FF6E40", dark: "#FF6C34")),
-                Color(dynamicProvider(light: "#FF542E", dark: "#E24E19")),
-                Color(dynamicProvider(light: "#E63E14", dark: "#BD390B"))
+                Color(dynamicProvider(light: "#262626", dark: "#EDEDED")),
+                Color(dynamicProvider(light: "#121212", dark: "#D4D4D4"))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -196,22 +216,55 @@ struct VenusTheme {
     static var proGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(dynamicProvider(light: "#8B5CF6", dark: "#7333D4")),
-                Color(dynamicProvider(light: "#6D28D9", dark: "#5116A8")),
-                Color(dynamicProvider(light: "#4C1D95", dark: "#380A7A"))
+                Color(dynamicProvider(light: "#333333", dark: "#CCCCCC")),
+                Color(dynamicProvider(light: "#1A1A1A", dark: "#AAAAAA"))
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    // MARK: - Pure Monochrome Neumorphic Card Gradients (Black & White Only)
+    static var neumorphicRaisedGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(dynamicProvider(light: "#ECECEC", dark: "#272727")),
+                Color(dynamicProvider(light: "#DBDBDB", dark: "#1A1A1A"))
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    static var neumorphicSunkenGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(dynamicProvider(light: "#D4D4D4", dark: "#121212")),
+                Color(dynamicProvider(light: "#EBEBEB", dark: "#222222"))
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    static var neumorphicFlatGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(dynamicProvider(light: "#E3E3E3", dark: "#202020")),
+                Color(dynamicProvider(light: "#DFDFDF", dark: "#1C1C1C"))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
     }
     
-    // MARK: - Components
+    // MARK: - Components (Monochrome)
     static let chipBackground = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark ? UIColor(hex: "231610", alpha: 0.92) : UIColor(hex: "F1F5F9", alpha: 0.95)
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "222222", alpha: 0.95) : UIColor(hex: "D8D8D8", alpha: 0.95)
     })
     
     static let chipBorder = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark ? UIColor(hex: "40271B", alpha: 0.75) : UIColor(hex: "E2E8F0", alpha: 0.9)
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "3A3A3A", alpha: 0.8) : UIColor(hex: "FFFFFF", alpha: 0.8)
     })
     
     static let darkGreen = accentGreen

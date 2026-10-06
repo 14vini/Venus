@@ -32,7 +32,7 @@ public struct ReadinessPillarMetric: Identifiable, Equatable, Sendable {
     }
 }
 
-// MARK: - Chat Readiness Impact
+// MARK: - Chat Readiness Impact with Exponential Half-Life Decay
 
 public struct ChatReadinessImpact: Sendable, Equatable, Codable {
     public let scoreDelta: Double // e.g. -1.5 for heavy anxiety/burnout, +1.0 for clarity/relief
@@ -64,14 +64,26 @@ public struct ChatReadinessImpact: Sendable, Equatable, Codable {
         self.timestamp = timestamp
     }
 
-    /// Impacto expira em 24h — evita score stale quando a conversa esfria.
+    /// Fator de decaimento suave com meia-vida de 6 horas
+    public var decayFactor: Double {
+        let ageHours = Date().timeIntervalSince(timestamp) / 3600.0
+        guard ageHours < 24.0 else { return 0.0 }
+        return pow(2.0, -ageHours / 6.0)
+    }
+
+    /// Delta ponderado pelo tempo decorrido
+    public var currentDelta: Double {
+        scoreDelta * decayFactor
+    }
+
+    /// Impacto expira em 24h ou quando o efeito atenuado cai abaixo do limiar de ruído
     public var isExpired: Bool {
-        Date().timeIntervalSince(timestamp) > 24 * 3600
+        Date().timeIntervalSince(timestamp) > 24 * 3600 || abs(currentDelta) < 0.2
     }
     public var isValid: Bool { !isExpired }
 }
 
-// MARK: - Readiness Level (0-100 alinhado ao README)
+// MARK: - Readiness Level (0-100)
 
 public enum ReadinessLevel: String, Equatable, Sendable {
     case peak        // 85-100
@@ -91,15 +103,222 @@ public enum ReadinessLevel: String, Equatable, Sendable {
 
     public var emoji: String {
         switch self {
-        case .peak: return "\u{1F680}"
-        case .sustainable: return "\u{2696}\u{FE0F}"
-        case .maintenance: return "\u{1F6E1}\u{FE0F}"
-        case .recovery: return "\u{1FAAB}"
+        case .peak: return "🚀"
+        case .sustainable: return "⚖️"
+        case .maintenance: return "🛡️"
+        case .recovery: return "🪫"
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .peak: return "Pico de Energia"
+        case .sustainable: return "Ritmo Sustentável"
+        case .maintenance: return "Manutenção"
+        case .recovery: return "Modo Recuperação"
         }
     }
 }
 
-// MARK: - Breakdown (explicabilidade)
+// MARK: - Intraday Circadian Energy Curve
+
+public struct IntradayEnergyPoint: Identifiable, Equatable, Sendable {
+    public let id: String
+    public let hour: Int
+    public let timeLabel: String
+    public let phaseName: String
+    public let energyMultiplier: Double // 0.65 to 1.15 relative to base readiness
+    public let estimatedScore: Double // 0 to 10
+    public let isPastOrCurrent: Bool
+
+    public init(
+        id: String = UUID().uuidString,
+        hour: Int,
+        timeLabel: String,
+        phaseName: String,
+        energyMultiplier: Double,
+        estimatedScore: Double,
+        isPastOrCurrent: Bool
+    ) {
+        self.id = id
+        self.hour = hour
+        self.timeLabel = timeLabel
+        self.phaseName = phaseName
+        self.energyMultiplier = energyMultiplier
+        self.estimatedScore = estimatedScore
+        self.isPastOrCurrent = isPastOrCurrent
+    }
+}
+
+public struct IntradayEnergyCurve: Equatable, Sendable {
+    public let points: [IntradayEnergyPoint]
+    public let currentPhaseName: String
+    public let currentPhaseSuggestion: String
+    public let currentEnergyScore: Double
+
+    public static func generate(baseScore: Double, date: Date = Date()) -> IntradayEnergyCurve {
+        let calendar = Calendar.current
+        let currentHour = calendar.component(.hour, from: date)
+
+        // Circadian milestones
+        let milestones: [(hour: Int, label: String, phase: String, mult: Double)] = [
+            (8, "08h", "Despertar", 0.90),
+            (11, "11h", "Pico Matinal", 1.10),
+            (14, "14h", "Vale Pós-Almoço", 0.78),
+            (17, "17h", "Segundo Fôlego", 0.95),
+            (21, "21h", "Desaceleração", 0.65)
+        ]
+
+        var generatedPoints: [IntradayEnergyPoint] = []
+        for m in milestones {
+            let estimated = max(1.0, min(10.0, baseScore * m.mult))
+            let isPast = currentHour >= m.hour
+            generatedPoints.append(
+                IntradayEnergyPoint(
+                    hour: m.hour,
+                    timeLabel: m.label,
+                    phaseName: m.phase,
+                    energyMultiplier: m.mult,
+                    estimatedScore: estimated,
+                    isPastOrCurrent: isPast
+                )
+            )
+        }
+
+        // Determine current circadian phase & suggestion
+        let phase: String
+        let suggestion: String
+        let currentMultiplier: Double
+
+        switch currentHour {
+        case 5..<10:
+            phase = "Ativação Matinal"
+            suggestion = "Beba água, faça luz solar direta nos olhos e defina suas 3 prioridades do dia."
+            currentMultiplier = 0.90
+        case 10..<13:
+            phase = "Pico de Foco Cognitivo"
+            suggestion = "Melhor momento do dia para tarefas complexas, tomadas de decisão e raciocínio profundo."
+            currentMultiplier = 1.10
+        case 13..<16:
+            phase = "Vale Digestivo & Transição"
+            suggestion = "Queda natural do ritmo biológico. Faça uma pausa breve, caminhe e evite decisões pesadas."
+            currentMultiplier = 0.78
+        case 16..<20:
+            phase = "Segundo Fôlego & Execução"
+            suggestion = "Retomada da energia. Ótimo para fechar tarefas pendentes, treinos ou organização do dia seguinte."
+            currentMultiplier = 0.95
+        default:
+            phase = "Desaceleração Noturna"
+            suggestion = "Reduza a intensidade das luzes e telas. Prepare corpo e mente para o descanso."
+            currentMultiplier = 0.65
+        }
+
+        let currentEnergy = max(1.0, min(10.0, baseScore * currentMultiplier))
+
+        return IntradayEnergyCurve(
+            points: generatedPoints,
+            currentPhaseName: phase,
+            currentPhaseSuggestion: suggestion,
+            currentEnergyScore: currentEnergy
+        )
+    }
+
+    public static let sampleDefault = generate(baseScore: 8.0)
+}
+
+// MARK: - Action Recommendation
+
+public struct ReadinessActionRecommendation: Equatable, Sendable {
+    public enum ActionCategory: String, Sendable, Equatable {
+        case focus
+        case breath
+        case movement
+        case rest
+        case talkToVenus
+    }
+
+    public let title: String
+    public let subtitle: String
+    public let iconName: String
+    public let category: ActionCategory
+    public let actionButtonTitle: String
+
+    public static func generate(
+        score: Double,
+        isFocusOk: Bool,
+        isBodyOk: Bool,
+        isSleepOk: Bool,
+        ecgCapped: Bool
+    ) -> ReadinessActionRecommendation {
+        if ecgCapped {
+            return ReadinessActionRecommendation(
+                title: "Modo Proteção Cardíaca",
+                subtitle: "Ritmo cardíaco atípico detectado. Priorize repouso e evite treinos pesados hoje.",
+                iconName: "heart.text.square.fill",
+                category: .rest,
+                actionButtonTitle: "Desacelerar"
+            )
+        }
+
+        if !isSleepOk {
+            return ReadinessActionRecommendation(
+                title: "Ritual Noturno Antecipado",
+                subtitle: "Sono reparador abaixo da média. Evite cafeína à tarde e programe 20 min sem telas antes de deitar.",
+                iconName: "bed.double.fill",
+                category: .rest,
+                actionButtonTitle: "Proteger Sono"
+            )
+        }
+
+        if !isFocusOk {
+            return ReadinessActionRecommendation(
+                title: "Descarregar Pensamentos",
+                subtitle: "Sua mente está com sobrecarga mental. Faça um rápido brain-dump com Venus.",
+                iconName: "sparkles",
+                category: .talkToVenus,
+                actionButtonTitle: "Desabafar com Venus"
+            )
+        }
+
+        if !isBodyOk {
+            return ReadinessActionRecommendation(
+                title: "Recuperação & Pausa Ativa",
+                subtitle: "Sinais de fadiga física ou alta carga muscular. Faça alongamento leve e hidrate-se.",
+                iconName: "figure.walk",
+                category: .movement,
+                actionButtonTitle: "Pausa Ativa"
+            )
+        }
+
+        if score >= 8.5 {
+            return ReadinessActionRecommendation(
+                title: "Janela de Alta Performance",
+                subtitle: "Sua bateria e sistema nervoso estão no topo. Aproveite para criar e resolver o mais difícil.",
+                iconName: "flame.fill",
+                category: .focus,
+                actionButtonTitle: "Foco Total"
+            )
+        }
+
+        return ReadinessActionRecommendation(
+            title: "Ritmo Fluido Sustentável",
+            subtitle: "Equilíbrio estável. Trabalhe em blocos de foco e respeite suas pausas naturais.",
+            iconName: "leaf.fill",
+            category: .breath,
+            actionButtonTitle: "Manter Ritmo"
+        )
+    }
+
+    public static let sampleDefault = generate(
+        score: 8.0,
+        isFocusOk: true,
+        isBodyOk: true,
+        isSleepOk: true,
+        ecgCapped: false
+    )
+}
+
+// MARK: - Breakdown (Explicabilidade Completa)
 
 public struct ReadinessBreakdown: Equatable, Sendable {
     public let subjectiveScore: Double
@@ -110,6 +329,21 @@ public struct ReadinessBreakdown: Equatable, Sendable {
     public let ecgCapped: Bool
     public let baselineDays: Int
 
+    // Métricas detalhadas
+    public let hrvBaselineAverage: Double?
+    public let hrvCurrent: Double?
+    public let hrvRatio: Double?
+    public let sleepDurationHours: Double?
+    public let restorativeSleepHours: Double?
+    public let restingHR: Double?
+    public let sleepingHR: Double?
+    public let hrDipPercentage: Double?
+    public let sleepRespiratoryRate: Double?
+    public let yesterdayActiveEnergy: Double?
+    public let yesterdayWorkoutDurationMinutes: Double?
+    public let recommendation: ReadinessActionRecommendation
+    public let intradayCurve: IntradayEnergyCurve
+
     public init(
         subjectiveScore: Double,
         biometricScore: Double? = nil,
@@ -117,7 +351,20 @@ public struct ReadinessBreakdown: Equatable, Sendable {
         weeklyAdjustment: Double = 0,
         chatDelta: Double = 0,
         ecgCapped: Bool = false,
-        baselineDays: Int = 0
+        baselineDays: Int = 0,
+        hrvBaselineAverage: Double? = nil,
+        hrvCurrent: Double? = nil,
+        hrvRatio: Double? = nil,
+        sleepDurationHours: Double? = nil,
+        restorativeSleepHours: Double? = nil,
+        restingHR: Double? = nil,
+        sleepingHR: Double? = nil,
+        hrDipPercentage: Double? = nil,
+        sleepRespiratoryRate: Double? = nil,
+        yesterdayActiveEnergy: Double? = nil,
+        yesterdayWorkoutDurationMinutes: Double? = nil,
+        recommendation: ReadinessActionRecommendation = .sampleDefault,
+        intradayCurve: IntradayEnergyCurve = .sampleDefault
     ) {
         self.subjectiveScore = subjectiveScore
         self.biometricScore = biometricScore
@@ -126,6 +373,19 @@ public struct ReadinessBreakdown: Equatable, Sendable {
         self.chatDelta = chatDelta
         self.ecgCapped = ecgCapped
         self.baselineDays = baselineDays
+        self.hrvBaselineAverage = hrvBaselineAverage
+        self.hrvCurrent = hrvCurrent
+        self.hrvRatio = hrvRatio
+        self.sleepDurationHours = sleepDurationHours
+        self.restorativeSleepHours = restorativeSleepHours
+        self.restingHR = restingHR
+        self.sleepingHR = sleepingHR
+        self.hrDipPercentage = hrDipPercentage
+        self.sleepRespiratoryRate = sleepRespiratoryRate
+        self.yesterdayActiveEnergy = yesterdayActiveEnergy
+        self.yesterdayWorkoutDurationMinutes = yesterdayWorkoutDurationMinutes
+        self.recommendation = recommendation
+        self.intradayCurve = intradayCurve
     }
 
     public var hasReliableBiometrics: Bool {
@@ -133,11 +393,11 @@ public struct ReadinessBreakdown: Equatable, Sendable {
     }
 }
 
-// MARK: - Readiness Assessment
+// MARK: - Readiness Energy Assessment
 
 public struct ReadinessEnergyAssessment: Identifiable, Equatable, Sendable {
     public let id: UUID
-    public let score: Double // 0-10 (UI pode exibir percentage100)
+    public let score: Double // 0-10
     public let stateTitle: String
     public let stateSubtitle: String
     public let focusMetric: ReadinessPillarMetric
@@ -182,7 +442,7 @@ public struct ReadinessEnergyAssessment: Identifiable, Equatable, Sendable {
         return clamped / 10.0
     }
 
-    /// 0-100 alinhado ao README (85-100 peak, etc.)
+    /// 0-100
     public var percentage100: Int {
         Int((percentage * 100).rounded())
     }
@@ -221,6 +481,23 @@ public struct ReadinessEnergyAssessment: Identifiable, Equatable, Sendable {
             iconName: "bed.double.fill",
             isCompleted: true,
             detail: "Descanso restaurador"
+        ),
+        breakdown: ReadinessBreakdown(
+            subjectiveScore: 8.0,
+            biometricScore: 8.2,
+            biometricWeight: 0.58,
+            baselineDays: 7,
+            hrvBaselineAverage: 55.0,
+            hrvCurrent: 58.0,
+            hrvRatio: 1.05,
+            sleepDurationHours: 7.8,
+            restorativeSleepHours: 2.2,
+            restingHR: 62.0,
+            sleepingHR: 54.0,
+            hrDipPercentage: 12.9,
+            sleepRespiratoryRate: 14.5,
+            yesterdayActiveEnergy: 450.0,
+            yesterdayWorkoutDurationMinutes: 40.0
         )
     )
 
@@ -234,230 +511,15 @@ public struct ReadinessEnergyAssessment: Identifiable, Equatable, Sendable {
         aiStateTitle: String? = nil,
         aiStateSubtitle: String? = nil
     ) -> ReadinessEnergyAssessment {
-        // 1. Subjetivo unificado: BehaviorMoodScorer quando há check-in completo,
-        //    senão mapa fixo por MoodType. Normaliza -1.8..1.4 -> 0..10.
-        var subjectiveScore: Double = 7.5
-        if let item = todayMoodItem {
-            let raw = BehaviorMoodScorer.score(for: item) // -1.8..1.4
-            // Mapeamento linear: -1.8 -> 1.5, 0 -> 6.2, 1.4 -> 9.6
-            subjectiveScore = max(1.0, min(10.0, 6.2 + raw * 2.4))
-        } else if let mood = todayMood {
-            switch mood {
-            case .energetic: subjectiveScore = 9.2
-            case .happy: subjectiveScore = 8.2
-            case .calm: subjectiveScore = 7.4
-            case .tired: subjectiveScore = 4.2
-            case .stressed: subjectiveScore = 3.2
-            case .sad: subjectiveScore = 3.0
-            }
-        }
-
-        // 1b. Ajuste semanal: usa weekMoods (antes ignorado).
-        // Se a média dos últimos 7 dias está bem abaixo/acima de hoje, puxa 5% para a tendência.
-        var weeklyAdjustment: Double = 0
-        if weekMoods.count >= 3 {
-            let recent = weekMoods.suffix(14)
-            let scores = recent.map { BehaviorMoodScorer.score(for: $0) }
-            let avg = scores.reduce(0, +) / Double(max(1, scores.count))
-            let weekly10 = max(1.0, min(10.0, 6.2 + avg * 2.4))
-            weeklyAdjustment = (weekly10 - subjectiveScore) * 0.12
-            weeklyAdjustment = max(-0.8, min(0.8, weeklyAdjustment))
-        }
-        subjectiveScore = max(1.0, min(10.0, subjectiveScore + weeklyAdjustment))
-
-        // 2. Biométrico com curvas suaves (sem cliffs) + baseline confiável
-        var biometricScore: Double? = nil
-        var biometricWeight: Double = 0.0
-        var ecgCapped = false
-
-        if let bio = biometrics, bio.hasBiometricData {
-            var bioPillarScores: [Double] = []
-            var weights: [Double] = []
-
-            // A. HRV Recovery — interpolação suave em vez de degraus
-            if let ratio = bio.recoveryRatio, bio.hasReliableBaseline {
-                // ratio 0.75 -> ~3.5, 0.95 -> ~7.5, 1.05 -> ~8.8, 1.15 -> ~9.6
-                let hrvScore = max(1.0, min(10.0, 7.5 + (ratio - 0.95) * 14.0))
-                bioPillarScores.append(hrvScore)
-                weights.append(2.0)
-            } else if let rawHRV = bio.currentHRV {
-                // Fallback só quando sem baseline: curva log-like, sem número mágico 60ms
-                // 30ms -> ~4.5, 50ms -> ~7.0, 80ms -> ~8.8
-                let rawScore = max(3.0, min(9.0, 2.0 + 10.0 * (1 - exp(-rawHRV / 45.0))))
-                bioPillarScores.append(rawScore)
-                weights.append(1.0)
-            }
-
-            // B. Sleep
-            if let sleep = bio.sleepScore {
-                bioPillarScores.append(sleep)
-                weights.append(1.5)
-            }
-
-            // C. RHR — curva suave (sem degraus 58/68/78)
-            if let rhr = bio.restingHeartRate {
-                // 55 -> 9.3, 65 -> 8.0, 75 -> 6.4, 85 -> 4.2
-                let rhrScore = max(1.0, min(10.0, 13.5 - Double(rhr) * 0.105))
-                bioPillarScores.append(rhrScore)
-                weights.append(1.0)
-            }
-
-            // D. ECG — NÃO entra na média; capa o score final e sinaliza
-            if let sinus = bio.ecgSinusRhythm, !sinus {
-                ecgCapped = true
-            }
-
-            if !bioPillarScores.isEmpty {
-                let totalW = weights.reduce(0, +)
-                let weighted = zip(bioPillarScores, weights).map(*).reduce(0, +) / max(0.001, totalW)
-                biometricScore = weighted
-                // Peso proporcional à completude: HRV+sono = 0.55, parcial = 0.30-0.45
-                let hasHRV = bio.recoveryRatio != nil && bio.hasReliableBaseline
-                let hasSleep = bio.sleepScore != nil
-                if hasHRV && hasSleep { biometricWeight = 0.55 }
-                else if hasHRV || hasSleep { biometricWeight = 0.40 }
-                else { biometricWeight = 0.30 }
-            }
-        }
-
-        // 3. Blend
-        var finalScore: Double
-        if let bioScore = biometricScore {
-            finalScore = (bioScore * biometricWeight) + (subjectiveScore * (1.0 - biometricWeight))
-        } else {
-            finalScore = subjectiveScore
-        }
-
-        // ECG cap: ritmo não-sinusal limita a 4.5 e força Modo Respiro (não é diagnóstico)
-        if ecgCapped {
-            finalScore = min(finalScore, 4.5)
-        }
-
-        // 4. Chat — só se válido (<24h), sem boost grátis por só abrir o chat
-        var chatApplied = false
-        var chatDelta: Double = 0
-        if let chat = chatImpact, chat.isValid {
-            let clampedDelta = max(-2.5, min(1.8, chat.scoreDelta))
-            // Delta pequeno (<0.4) é ruído — ignora
-            if abs(clampedDelta) >= 0.4 {
-                finalScore += clampedDelta
-                chatDelta = clampedDelta
-                chatApplied = true
-            }
-        }
-        // REMOVIDO: +0.4 grátis por hasRecentChat (inflava score sem sinal emocional)
-
-        finalScore = max(1.0, min(10.0, finalScore))
-
-        // 5. Pilares
-        let isSleepOk: Bool = {
-            if let bioSleep = biometrics?.sleepScore {
-                return bioSleep >= 6.5
-            }
-            if let sleepQuality = todayMoodItem?.sleepQuality {
-                return sleepQuality == .good || sleepQuality == .excellent
-            }
-            if let chatSleep = chatImpact?.isSleepImpacted, chatApplied {
-                return !chatSleep
-            }
-            return finalScore >= 5.5
-        }()
-
-        let isBodyOk: Bool = {
-            if ecgCapped { return false }
-            if let rhr = biometrics?.restingHeartRate, rhr > 85 {
-                return false
-            }
-            if let bodySignals = todayMoodItem?.bodySignals {
-                return !bodySignals.contains("Tensão muscular") && !bodySignals.contains("Cansaço físico")
-            }
-            if let chatBody = chatImpact?.isBodyImpacted, chatApplied {
-                return !chatBody
-            }
-            return finalScore >= 5.0
-        }()
-
-        let isFocusOk: Bool = {
-            if let ratio = biometrics?.recoveryRatio, ratio < 0.75 {
-                return false
-            }
-            if let clarity = todayMoodItem?.mentalClarity {
-                return clarity >= 4
-            }
-            if let chatFocus = chatImpact?.isFocusImpacted, chatApplied {
-                return !chatFocus
-            }
-            return finalScore >= 5.0
-        }()
-
-        // 6. Micro-copy (default alinhado a 0-100)
-        let resolvedTitle: String
-        let resolvedSubtitle: String
-
-        if let customTitle = chatImpact?.customStateTitle, !customTitle.isEmpty,
-           let customSub = chatImpact?.customStateSubtitle, !customSub.isEmpty, chatApplied {
-            resolvedTitle = customTitle
-            resolvedSubtitle = customSub
-        } else if let aiTitle = aiStateTitle, !aiTitle.isEmpty,
-                  let aiSub = aiStateSubtitle, !aiSub.isEmpty {
-            resolvedTitle = aiTitle
-            resolvedSubtitle = aiSub
-        } else {
-            if finalScore >= 8.5 {
-                resolvedTitle = "Go For It"
-                resolvedSubtitle = "Bateria alta para focar e criar."
-            } else if finalScore >= 6.5 {
-                resolvedTitle = "Ritmo Fluido"
-                resolvedSubtitle = "Mente serena e clareza para o dia."
-            } else if finalScore >= 4.0 {
-                resolvedTitle = "Ritmo Leve"
-                resolvedSubtitle = "Equilibre tarefas e faça pausas."
-            } else {
-                resolvedTitle = ecgCapped ? "Modo Respiro" : "Poupe Bateria"
-                resolvedSubtitle = ecgCapped
-                    ? "Desacelere hoje e observe seu corpo."
-                    : "Desacelere e priorize o essencial."
-            }
-        }
-
-        let breakdown = ReadinessBreakdown(
-            subjectiveScore: subjectiveScore,
-            biometricScore: biometricScore,
-            biometricWeight: biometricWeight,
-            weeklyAdjustment: weeklyAdjustment,
-            chatDelta: chatDelta,
-            ecgCapped: ecgCapped,
-            baselineDays: biometrics?.hrvBaselineDays ?? 0
-        )
-
-        return ReadinessEnergyAssessment(
-            id: UUID(),
-            score: finalScore,
-            stateTitle: resolvedTitle,
-            stateSubtitle: resolvedSubtitle,
-            focusMetric: ReadinessPillarMetric(
-                title: "Foco",
-                iconName: "scope",
-                isCompleted: isFocusOk,
-                detail: isFocusOk ? "Clareza mental ativa" : "Atenção dividida"
-            ),
-            bodyMetric: ReadinessPillarMetric(
-                title: "Corpo",
-                iconName: "atom",
-                isCompleted: isBodyOk,
-                detail: ecgCapped ? "Observe seu ritmo — priorize descanso" : (isBodyOk ? "Recuperação física estável" : "Sinais de fadiga física")
-            ),
-            sleepMetric: ReadinessPillarMetric(
-                title: "Sono",
-                iconName: "bed.double.fill",
-                isCompleted: isSleepOk,
-                detail: isSleepOk ? "Descanso restaurador" : "Sono irregular"
-            ),
-            biometricsUsed: biometrics?.hasBiometricData ?? false,
-            chatContextUsed: chatApplied,
-            timestamp: Date(),
-            breakdown: breakdown,
-            dataStale: biometrics?.isStale ?? false
+        ReadinessEngine.shared.evaluate(
+            todayMood: todayMood,
+            todayMoodItem: todayMoodItem,
+            weekMoods: weekMoods,
+            hasRecentChat: hasRecentChat,
+            biometrics: biometrics,
+            chatImpact: chatImpact,
+            aiStateTitle: aiStateTitle,
+            aiStateSubtitle: aiStateSubtitle
         )
     }
 }

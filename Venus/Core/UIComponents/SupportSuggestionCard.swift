@@ -46,10 +46,7 @@ struct SupportSuggestionCard: View {
             }
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(VenusTheme.primary.opacity(0.05))
-        )
+        .neumorphicCard(cornerRadius: 14, style: .flat, depth: 3)
     }
     
     private var suggestionIcon: String {

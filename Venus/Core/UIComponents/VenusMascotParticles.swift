@@ -14,6 +14,10 @@ enum MascotParticleType: Equatable {
     case star
     case stardustPuff
     case zzz
+    case musicNote
+    case soundWave
+    case confetti
+    case sparkle
     
     var systemIcon: String {
         switch self {
@@ -21,6 +25,10 @@ enum MascotParticleType: Equatable {
         case .star: return "sparkle"
         case .stardustPuff: return "circle.fill"
         case .zzz: return "z.circle"
+        case .musicNote: return "music.note"
+        case .soundWave: return "waveform"
+        case .confetti: return "star.fill"
+        case .sparkle: return "sparkles"
         }
     }
 }
@@ -93,10 +101,10 @@ private struct SingleParticleView: View {
 // MARK: - Particle Factory Generator
 
 enum MascotParticleFactory {
-    static func makePettingHearts(count: Int = 4, origin: CGSize = .zero) -> [MascotParticleItem] {
+    static func makePettingHearts(count: Int = 5, origin: CGSize = .zero) -> [MascotParticleItem] {
         (0..<count).map { _ in
-            let angle = Double.random(in: (-110.0)...(-70.0)) * .pi / 180.0
-            let dist = CGFloat.random(in: 40...85)
+            let angle = Double.random(in: (-120.0)...(-60.0)) * .pi / 180.0
+            let dist = CGFloat.random(in: 40...95)
             let colorList: [Color] = [
                 Color(hex: "FF6B8B"), Color(hex: "FF8E53"), Color(hex: "FFA8E8"), Color(hex: "FF477E")
             ]
@@ -111,10 +119,10 @@ enum MascotParticleFactory {
                     width: origin.width + cos(angle) * dist + CGFloat.random(in: -20...20),
                     height: origin.height + sin(angle) * dist
                 ),
-                scale: CGFloat.random(in: 0.8...1.4),
-                opacity: Double.random(in: 0.8...1.0),
+                scale: CGFloat.random(in: 0.85...1.45),
+                opacity: Double.random(in: 0.85...1.0),
                 rotation: Double.random(in: -25...25),
-                duration: Double.random(in: 0.75...1.1)
+                duration: Double.random(in: 0.75...1.15)
             )
         }
     }
@@ -123,7 +131,7 @@ enum MascotParticleFactory {
         (0..<count).map { i in
             let isLeft = i % 2 == 0
             let spread = CGFloat.random(in: 28...65) * (isLeft ? -1 : 1)
-            let colors: [Color] = [Color.white.opacity(0.8), Color(hex: "D6FFB9").opacity(0.7), Color(hex: "FFE44A").opacity(0.8)]
+            let colors: [Color] = [Color.white.opacity(0.85), Color(hex: "D6FFB9").opacity(0.75), Color(hex: "FFE44A").opacity(0.85)]
             return MascotParticleItem(
                 type: .star,
                 color: colors.randomElement() ?? .white,
@@ -137,12 +145,16 @@ enum MascotParticleFactory {
         }
     }
     
-    static func makeSparkleBurst(count: Int = 8) -> [MascotParticleItem] {
+    static func makeSparkleBurst(count: Int = 8, tint: Color? = nil) -> [MascotParticleItem] {
         (0..<count).map { i in
             let angle = Double(i) * (360.0 / Double(count)) * .pi / 180.0
-            let dist = CGFloat.random(in: 45...80)
+            let dist = CGFloat.random(in: 45...85)
             let colors: [Color] = [
-                Color(hex: "FFE44A"), Color(hex: "FFFAB9"), Color(hex: "9BF66F"), Color(hex: "B9EEFF"), Color(hex: "FF8E53")
+                tint ?? Color(hex: "FFE44A"),
+                Color(hex: "FFFAB9"),
+                tint ?? Color(hex: "9BF66F"),
+                Color(hex: "B9EEFF"),
+                Color(hex: "FF8E53")
             ]
             return MascotParticleItem(
                 type: .star,
@@ -153,6 +165,44 @@ enum MascotParticleFactory {
                 opacity: 1.0,
                 rotation: Double.random(in: 0...180),
                 duration: Double.random(in: 0.55...0.85)
+            )
+        }
+    }
+    
+    static func makeVoiceListeningWaves(count: Int = 4, tint: Color = Color(hex: "9BF66F")) -> [MascotParticleItem] {
+        (0..<count).map { i in
+            let angle = (Double(i) * 90.0 + Double.random(in: -15...15)) * .pi / 180.0
+            let dist = CGFloat.random(in: 35...65)
+            return MascotParticleItem(
+                type: .sparkle,
+                color: tint.opacity(0.85),
+                startOffset: .zero,
+                endOffset: CGSize(width: cos(angle) * dist, height: sin(angle) * dist),
+                scale: CGFloat.random(in: 0.7...1.2),
+                opacity: 0.95,
+                rotation: Double.random(in: -20...20),
+                duration: Double.random(in: 0.6...0.9)
+            )
+        }
+    }
+    
+    static func makeCheeringConfetti(count: Int = 12) -> [MascotParticleItem] {
+        (0..<count).map { i in
+            let angle = Double.random(in: (-160.0)...(-20.0)) * .pi / 180.0
+            let dist = CGFloat.random(in: 55...110)
+            let colors: [Color] = [
+                Color(hex: "FFE44A"), Color(hex: "FF6B8B"), Color(hex: "59D85A"),
+                Color(hex: "64D2FF"), Color(hex: "BF5AF2"), Color(hex: "FF9F0A")
+            ]
+            return MascotParticleItem(
+                type: .confetti,
+                color: colors[i % colors.count],
+                startOffset: CGSize(width: CGFloat.random(in: -15...15), height: 10),
+                endOffset: CGSize(width: cos(angle) * dist, height: sin(angle) * dist),
+                scale: CGFloat.random(in: 0.8...1.5),
+                opacity: 1.0,
+                rotation: Double.random(in: 0...360),
+                duration: Double.random(in: 0.8...1.3)
             )
         }
     }

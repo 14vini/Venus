@@ -13,9 +13,9 @@ struct EmotionalProfileResult {
     let subtitle: String
     let strengths: String
     let growthArea: String
-    let statText: String
-    let icon: String
+    let reassuranceText: String
     let color: Color
+    let mascotMood: MoodType
 }
 
 struct EmotionalProfileRevealStep: View {
@@ -24,7 +24,6 @@ struct EmotionalProfileRevealStep: View {
     let onFinish: () -> Void
     
     @State private var cardAppeared = false
-    @State private var statAppeared = false
     
     private var result: EmotionalProfileResult {
         let name = userProfile.name.isEmpty ? "Você" : userProfile.name
@@ -32,23 +31,27 @@ struct EmotionalProfileRevealStep: View {
         if let ai = aiProfile {
             let color: Color
             let goal = userProfile.primaryGoal
+            let mood: MoodType
             if goal.contains("Foco") || userProfile.improvementAreas.contains("Trabalho & Decisões pesadas") {
                 color = VenusTheme.accentBlue
-            } else if goal.contains("Sono") || userProfile.improvementAreas.contains("Sono & Descanso não restaurador") {
+                mood = .energetic
+            } else if goal.contains("Sono") || userProfile.improvementAreas.contains("Sono & Descanso insuficiente") {
                 color = VenusTheme.accentPurple
+                mood = .calm
             } else {
                 color = VenusTheme.primary
+                mood = .happy
             }
             
             return EmotionalProfileResult(
-                title: ai.title,
-                badge: ai.badge,
+                title: ai.title.isEmpty ? "Seja bem-vindo(a), \(name) 🤍" : ai.title,
+                badge: "SEU ESPAÇO ESTÁ PRONTO",
                 subtitle: ai.subtitle,
                 strengths: ai.strengths,
                 growthArea: ai.growthArea,
-                statText: ai.statText,
-                icon: "sparkles",
-                color: color
+                reassuranceText: ai.statText.isEmpty ? "Você não precisa carregar tudo sozinho(a). Vamos cuidar de um dia de cada vez." : ai.statText,
+                color: color,
+                mascotMood: mood
             )
         }
         
@@ -56,66 +59,78 @@ struct EmotionalProfileRevealStep: View {
         
         if goal.contains("Foco") || userProfile.improvementAreas.contains("Trabalho & Decisões pesadas") {
             return EmotionalProfileResult(
-                title: "O Estrategista de Alta Demanda",
-                badge: "PERFIL DE PRONTIDÃO",
-                subtitle: "\(name), sua mente opera em alta intensidade e busca máxima eficiência diária.",
-                strengths: "Capacidade analítica, rapidez de raciocínio e forte dedicação.",
-                growthArea: "Blindar sua energia contra decisões consecutivas para evitar quedas bruscas no fim do dia.",
-                statText: "93% dos usuários com esse perfil aumentam a consistência de foco logo na primeira semana.",
-                icon: "bolt.fill",
-                color: VenusTheme.accentBlue
+                title: "Seja bem-vindo(a), \(name) 🤍",
+                badge: "SEU ESPAÇO ESTÁ PRONTO",
+                subtitle: "\(name), sua mente tem muita força e vontade de realizar, mas também precisa de pausas.",
+                strengths: "Foco, dedicação aos seus objetivos e mente ativa.",
+                growthArea: "Proteger seus momentos de descanso e evitar o acúmulo de cobranças ao longo do dia.",
+                reassuranceText: "Você não precisa carregar o mundo nas costas. Vamos dar um passo de cada vez.",
+                color: VenusTheme.accentBlue,
+                mascotMood: .energetic
             )
-        } else if goal.contains("Sono") || userProfile.improvementAreas.contains("Sono & Descanso não restaurador") {
+        } else if goal.contains("Sono") || userProfile.improvementAreas.contains("Sono & Descanso insuficiente") {
             return EmotionalProfileResult(
-                title: "O Restaurador de Energia",
-                badge: "PERFIL DE PRONTIDÃO",
-                subtitle: "\(name), seu corpo tem acumulado carga e sua prioridade é restaurar sua vitalidade.",
-                strengths: "Resiliência, profundidade de reflexão e capacidade de recuperação.",
-                growthArea: "Proteger momentos de desaceleração sem culpa e otimizar a qualidade do seu descanso.",
-                statText: "96% das pessoas com esse padrão recuperam energia e noites de sono mais tranquilas.",
-                icon: "moon.stars.fill",
-                color: VenusTheme.accentPurple
+                title: "Seja bem-vindo(a), \(name) 🤍",
+                badge: "SEU ESPAÇO ESTÁ PRONTO",
+                subtitle: "\(name), seu corpo tem pedido descanso e sua prioridade agora é recuperar sua vitalidade.",
+                strengths: "Sensibilidade, resiliência e busca sincera por equilíbrio.",
+                growthArea: "Desacelerar os pensamentos sem culpa e criar uma rotina noturna mais tranquila.",
+                reassuranceText: "Aqui você não precisa ter pressa. Este é seu espaço seguro para respirar e descansar.",
+                color: VenusTheme.accentPurple,
+                mascotMood: .calm
             )
         } else {
             return EmotionalProfileResult(
-                title: "O Guardião do Equilíbrio",
-                badge: "PERFIL DE PRONTIDÃO",
-                subtitle: "\(name), você mantém um ritmo constante, mas costuma absorver mais carga do que deveria.",
-                strengths: "Empatia, consistência e admirável equilíbrio sob pressão.",
-                growthArea: "Identificar quando desacelerar a tempo e preservar sua bateria para o que realmente importa.",
-                statText: "94% relatam sensação imediata de clareza e controle do seu ritmo com a Venus.",
-                icon: "shield.heart.fill",
-                color: VenusTheme.primary
+                title: "Seja bem-vindo(a), \(name) 🤍",
+                badge: "SEU ESPAÇO ESTÁ PRONTO",
+                subtitle: "\(name), você busca viver com mais leveza e clareza nos seus dias.",
+                strengths: "Empatia, constância e vontade de cuidar de quem você é.",
+                growthArea: "Perceber seus sentimentos a tempo e ter mais autocompaixão nos dias difíceis.",
+                reassuranceText: "Lembre-se: você não precisa dar conta de tudo sozinho(a). Estou aqui com você.",
+                color: VenusTheme.primary,
+                mascotMood: .happy
             )
         }
     }
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Header
+        VStack(spacing: 16) {
+            // Friendly Welcoming Mascot Header
             VStack(spacing: 8) {
+                VenusMoodOrb(
+                    mood: result.mascotMood,
+                    state: .celebrating,
+                    cosmetic: .starHalo,
+                    size: 110,
+                    showFace: true,
+                    showHands: true,
+                    showShadow: true,
+                    isInteractive: true
+                )
+                .frame(width: 110, height: 110)
+                
                 HStack(spacing: 6) {
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 14, weight: .bold))
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 12, weight: .bold))
                     Text(result.badge)
                         .font(.system(.caption, design: .rounded).weight(.black))
                 }
                 .foregroundStyle(result.color)
                 .padding(.horizontal, 14)
-                .padding(.vertical, 7)
+                .padding(.vertical, 6)
                 .glassEffect(.regular, in: Capsule())
                 
                 Text(result.title)
-                    .font(.system(size: 28, weight: .black, design: .rounded))
+                    .font(.system(size: 24, weight: .black, design: .rounded))
                     .foregroundStyle(VenusTheme.text)
                     .multilineTextAlignment(.center)
             }
-            .padding(.top, 12)
+            .padding(.top, 8)
             
-            // Diagnosis Card
-            VenusCard(cornerRadius: 28, padding: 22) {
-                VStack(alignment: .leading, spacing: 18) {
-                    // Subtitle / Diagnosis
+            // Warm Diagnosis Card
+            VenusCard(cornerRadius: 28, padding: 20) {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Subtitle
                     Text(result.subtitle)
                         .font(.system(.subheadline, design: .rounded).weight(.medium))
                         .foregroundStyle(VenusTheme.text)
@@ -138,15 +153,16 @@ struct EmotionalProfileRevealStep: View {
                         Text(result.strengths)
                             .font(.system(.footnote, design: .rounded).weight(.medium))
                             .foregroundStyle(VenusTheme.text)
+                            .lineSpacing(2)
                     }
                     
-                    // Growth / Relief Focus
+                    // Growth / Support Focus
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 8) {
-                            Image(systemName: "leaf.fill")
+                            Image(systemName: "heart.fill")
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(result.color)
-                            Text("Foco de Calibração da Venus")
+                            Text("Como a Venus vai te apoiar")
                                 .font(.system(.caption, design: .rounded).weight(.bold))
                                 .foregroundStyle(VenusTheme.textSecondary)
                         }
@@ -154,28 +170,30 @@ struct EmotionalProfileRevealStep: View {
                         Text(result.growthArea)
                             .font(.system(.footnote, design: .rounded).weight(.medium))
                             .foregroundStyle(VenusTheme.text)
+                            .lineSpacing(2)
                     }
                     
-                    // Social Proof / Validation Stat Box
+                    // Reassurance Message Box
                     HStack(spacing: 12) {
-                        Image(systemName: "chart.line.uptrend.xyaxis.circle.fill")
-                            .font(.system(size: 26))
+                        Image(systemName: "hand.raised.heart.fill")
+                            .font(.system(size: 22))
                             .foregroundColor(result.color)
                         
-                        Text(result.statText)
-                            .font(.system(.caption2, design: .rounded).weight(.semibold))
+                        Text(result.reassuranceText)
+                            .font(.system(.caption, design: .rounded).weight(.medium))
                             .foregroundStyle(VenusTheme.text)
                             .fixedSize(horizontal: false, vertical: true)
+                            .lineSpacing(2)
                     }
                     .padding(12)
                     .background(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(result.color.opacity(0.12))
+                            .fill(result.color.opacity(0.10))
                     )
                 }
             }
             .opacity(cardAppeared ? 1 : 0)
-            .scaleEffect(cardAppeared ? 1 : 0.94)
+            .scaleEffect(cardAppeared ? 1 : 0.96)
             .animation(.spring(response: 0.6, dampingFraction: 0.8), value: cardAppeared)
             
             // Single Final CTA - Enter App Directly
@@ -191,7 +209,7 @@ struct EmotionalProfileRevealStep: View {
                 }
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 54)
+                .frame(height: 52)
                 .background(
                     LinearGradient(
                         colors: [result.color, result.color.opacity(0.8)],
@@ -203,16 +221,13 @@ struct EmotionalProfileRevealStep: View {
                 .shadow(color: result.color.opacity(0.35), radius: 16, x: 0, y: 8)
             }
             .buttonStyle(.plain)
-            .padding(.top, 6)
+            .padding(.top, 4)
             .padding(.bottom, 12)
         }
         .padding(.horizontal, 24)
         .onAppear {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                 cardAppeared = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                statAppeared = true
             }
         }
     }

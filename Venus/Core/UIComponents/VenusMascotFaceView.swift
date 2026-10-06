@@ -11,6 +11,7 @@ import SwiftUI
 
 enum VenusMascotState: String, CaseIterable, Sendable {
     case idle
+    case welcoming
     case thinking
     case listening
     case speaking
@@ -19,6 +20,8 @@ enum VenusMascotState: String, CaseIterable, Sendable {
     case empathetic
     case petting
     case yawning
+    case curious
+    case excited
 }
 
 enum VenusMascotExpression: String, CaseIterable, Sendable {
@@ -33,6 +36,10 @@ enum VenusMascotExpression: String, CaseIterable, Sendable {
     case listening
     case petting
     case yawning
+    case curious
+    case welcoming
+    case empathetic
+    case excited
     
     init(from mood: MoodType?) {
         guard let mood else {
@@ -58,13 +65,16 @@ struct VenusMascotFaceView: View {
     var faceColor: Color = Color(hex: "27603F")
     var size: CGFloat = 100
     var isThinking: Bool = false
+    var gazeOffset: CGSize = .zero
     
     @State private var isBlinking = false
+    @State private var blinkScaleY: CGFloat = 1.0
     @State private var blinkTask: Task<Void, Never>? = nil
     @State private var saccadeOffset: CGSize = .zero
     @State private var saccadeTask: Task<Void, Never>? = nil
     @State private var floatingZzz = false
     @State private var mouthPulse = false
+    @State private var curiousTilt: Double = 0
     
     // Scale proportions relative to 100pt base
     private var scale: CGFloat { size / 100.0 }
@@ -72,16 +82,23 @@ struct VenusMascotFaceView: View {
     private var activeExpression: VenusMascotExpression {
         if state == .petting { return .petting }
         if state == .yawning { return .yawning }
+        if state == .welcoming { return .welcoming }
+        if state == .curious { return .curious }
+        if state == .excited { return .excited }
         if state == .thinking || isThinking { return .thinking }
         if state == .celebrating { return .celebrating }
         if state == .sleeping { return .tired }
         if state == .listening { return .listening }
-        if state == .empathetic { return .calm }
+        if state == .empathetic { return .empathetic }
         return expression
     }
 
     var body: some View {
         ZStack {
+            // Eyebrows / Expressive micro-accents
+            eyebrowsView
+                .offset(y: eyeVerticalOffset - 8 * scale)
+            
             // Cheeks (Soft Airbrushed Blush with Starlight Glints)
             if shouldShowBlush {
                 HStack(spacing: 36 * scale) {
@@ -91,17 +108,24 @@ struct VenusMascotFaceView: View {
                 .offset(y: 8.5 * scale)
             }
             
-            // Eyes
+            // Eyes with dynamic gaze tracking & saccades
             HStack(spacing: 24 * scale) {
                 leftEye
                 rightEye
             }
-            .offset(x: saccadeOffset.width, y: eyeVerticalOffset + saccadeOffset.height)
+            .offset(
+                x: saccadeOffset.width + gazeOffset.width * 0.15,
+                y: eyeVerticalOffset + saccadeOffset.height + gazeOffset.height * 0.15
+            )
             .animation(.spring(response: 0.28, dampingFraction: 0.65), value: saccadeOffset)
+            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: gazeOffset)
             
             // Mouth
             mouthView
-                .offset(y: mouthVerticalOffset)
+                .offset(
+                    x: gazeOffset.width * 0.06,
+                    y: mouthVerticalOffset + gazeOffset.height * 0.06
+                )
             
             // Sleep Zzz Micro-particles
             if state == .sleeping || activeExpression == .tired {
@@ -135,31 +159,101 @@ struct VenusMascotFaceView: View {
         }
     }
     
+    // MARK: - Eyebrows View
+    
+    @ViewBuilder
+    private var eyebrowsView: some View {
+        switch activeExpression {
+        case .curious:
+            HStack(spacing: 26 * scale) {
+                // Left eyebrow raised, right neutral
+                Capsule()
+                    .fill(faceColor.opacity(0.75))
+                    .frame(width: 8 * scale, height: 1.8 * scale)
+                    .rotationEffect(.degrees(-15))
+                    .offset(y: -2 * scale)
+                
+                Capsule()
+                    .fill(faceColor.opacity(0.75))
+                    .frame(width: 8 * scale, height: 1.8 * scale)
+                    .rotationEffect(.degrees(5))
+            }
+            
+        case .empathetic:
+            HStack(spacing: 26 * scale) {
+                // Caring gentle slanted brows
+                Capsule()
+                    .fill(faceColor.opacity(0.70))
+                    .frame(width: 7.5 * scale, height: 1.8 * scale)
+                    .rotationEffect(.degrees(12))
+                
+                Capsule()
+                    .fill(faceColor.opacity(0.70))
+                    .frame(width: 7.5 * scale, height: 1.8 * scale)
+                    .rotationEffect(.degrees(-12))
+            }
+            
+        case .excited, .celebrating:
+            HStack(spacing: 28 * scale) {
+                Capsule()
+                    .fill(faceColor.opacity(0.85))
+                    .frame(width: 8 * scale, height: 2.0 * scale)
+                    .rotationEffect(.degrees(-8))
+                    .offset(y: -1.5 * scale)
+                
+                Capsule()
+                    .fill(faceColor.opacity(0.85))
+                    .frame(width: 8 * scale, height: 2.0 * scale)
+                    .rotationEffect(.degrees(8))
+                    .offset(y: -1.5 * scale)
+            }
+            
+        case .thinking:
+            HStack(spacing: 26 * scale) {
+                Capsule()
+                    .fill(faceColor.opacity(0.75))
+                    .frame(width: 7.5 * scale, height: 1.8 * scale)
+                    .rotationEffect(.degrees(-10))
+                
+                Capsule()
+                    .fill(faceColor.opacity(0.75))
+                    .frame(width: 7.5 * scale, height: 1.8 * scale)
+                    .rotationEffect(.degrees(-18))
+                    .offset(y: -2 * scale)
+            }
+            
+        default:
+            EmptyView()
+        }
+    }
+    
     // MARK: - Blush View
     
     private func blushCheekView(isRight: Bool) -> some View {
-        ZStack {
+        let isIntense = activeExpression == .petting || activeExpression == .welcoming || activeExpression == .excited
+        
+        return ZStack {
             // Soft atmospheric airbrush glow
             Circle()
                 .fill(
                     RadialGradient(
                         colors: [
-                            (activeExpression == .petting ? Color(hex: "FF477E") : Color(hex: "FF6B8B")).opacity(activeExpression == .petting ? 0.65 : 0.40),
-                            (activeExpression == .petting ? Color(hex: "FF8E53") : Color(hex: "FFA8E8")).opacity(0.18),
+                            (isIntense ? Color(hex: "FF477E") : Color(hex: "FF6B8B")).opacity(isIntense ? 0.68 : 0.42),
+                            (isIntense ? Color(hex: "FF8E53") : Color(hex: "FFA8E8")).opacity(0.20),
                             Color.clear
                         ],
                         center: .center,
                         startRadius: 0,
-                        endRadius: (activeExpression == .petting ? 12 : 9) * scale
+                        endRadius: (isIntense ? 13 : 9.5) * scale
                     )
                 )
-                .frame(width: (activeExpression == .petting ? 22 : 17) * scale, height: (activeExpression == .petting ? 16 : 12) * scale)
+                .frame(width: (isIntense ? 23 : 18) * scale, height: (isIntense ? 17 : 13) * scale)
             
-            // Micro sparkle in cheek when happy
-            if activeExpression == .happy || activeExpression == .petting || activeExpression == .celebrating {
+            // Micro sparkle in cheek when happy / celebrating / welcoming
+            if activeExpression == .happy || activeExpression == .petting || activeExpression == .celebrating || activeExpression == .welcoming || activeExpression == .excited {
                 Image(systemName: "sparkle")
-                    .font(.system(size: (activeExpression == .petting ? 5.5 : 4.0) * scale, weight: .bold))
-                    .foregroundColor(Color.white.opacity(0.85))
+                    .font(.system(size: (isIntense ? 5.5 : 4.0) * scale, weight: .bold))
+                    .foregroundColor(Color.white.opacity(0.90))
                     .offset(x: isRight ? 1.5 * scale : -1.5 * scale, y: -1 * scale)
             }
         }
@@ -170,11 +264,13 @@ struct VenusMascotFaceView: View {
     @ViewBuilder
     private var leftEye: some View {
         eyeShape(isRight: false)
+            .scaleEffect(y: isBlinking ? 0.1 : 1.0)
     }
     
     @ViewBuilder
     private var rightEye: some View {
         eyeShape(isRight: true)
+            .scaleEffect(y: isBlinking ? 0.1 : 1.0)
     }
     
     @ViewBuilder
@@ -186,7 +282,7 @@ struct VenusMascotFaceView: View {
                 .frame(width: 13 * scale, height: 3.0 * scale)
         } else {
             switch activeExpression {
-            case .happy, .celebrating, .petting:
+            case .happy, .celebrating, .petting, .welcoming:
                 // Joyful anime curved crescent eyes (^ ^)
                 HappyEyeShape()
                     .stroke(
@@ -229,24 +325,69 @@ struct VenusMascotFaceView: View {
                         .offset(x: 2.2 * scale, y: 2.2 * scale)
                 }
                 
-            case .energetic:
+            case .energetic, .excited:
                 // Sparkling Star Eyes
                 ZStack {
                     Circle()
                         .fill(faceColor)
-                        .frame(width: 12.5 * scale, height: 12.5 * scale)
+                        .frame(width: 13.0 * scale, height: 13.0 * scale)
                     
                     // Primary large star shine
                     Circle()
                         .fill(Color.white)
-                        .frame(width: 5.0 * scale, height: 5.0 * scale)
+                        .frame(width: 5.4 * scale, height: 5.4 * scale)
                         .offset(x: isRight ? -2.2 * scale : 2.0 * scale, y: -2.4 * scale)
                     
                     // Secondary star glint
                     Circle()
-                        .fill(Color.white.opacity(0.9))
-                        .frame(width: 2.6 * scale, height: 2.6 * scale)
-                        .offset(x: isRight ? 2.4 * scale : -2.4 * scale, y: 2.4 * scale)
+                        .fill(Color.white.opacity(0.95))
+                        .frame(width: 2.8 * scale, height: 2.8 * scale)
+                        .offset(x: isRight ? 2.6 * scale : -2.6 * scale, y: 2.6 * scale)
+                }
+                
+            case .curious:
+                // Big curious eyes looking with interest
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [faceColor, faceColor.opacity(0.9)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(width: 12.0 * scale, height: 12.0 * scale)
+                    
+                    // Main curiosity gleam
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 5.0 * scale, height: 5.0 * scale)
+                        .offset(x: -1.0 * scale, y: -2.4 * scale)
+                    
+                    // Sub-gleam
+                    Circle()
+                        .fill(Color.white.opacity(0.85))
+                        .frame(width: 2.2 * scale, height: 2.2 * scale)
+                        .offset(x: 2.2 * scale, y: 1.8 * scale)
+                }
+                .offset(y: 1.0 * scale)
+                
+            case .empathetic:
+                // Empathetic gentle shining eyes
+                ZStack {
+                    Circle()
+                        .fill(faceColor)
+                        .frame(width: 10.5 * scale, height: 10.5 * scale)
+                    
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 4.4 * scale, height: 4.4 * scale)
+                        .offset(x: -1.6 * scale, y: -1.6 * scale)
+                    
+                    Circle()
+                        .fill(Color.white.opacity(0.85))
+                        .frame(width: 2.0 * scale, height: 2.0 * scale)
+                        .offset(x: 1.8 * scale, y: 1.8 * scale)
                 }
                 
             case .thinking:
@@ -298,11 +439,11 @@ struct VenusMascotFaceView: View {
                 ZStack {
                     Circle()
                         .fill(faceColor)
-                        .frame(width: 11.5 * scale, height: 11.5 * scale)
+                        .frame(width: 11.8 * scale, height: 11.8 * scale)
                     
                     Circle()
                         .fill(Color.white)
-                        .frame(width: 4.6 * scale, height: 4.6 * scale)
+                        .frame(width: 4.8 * scale, height: 4.8 * scale)
                         .offset(x: -1.4 * scale, y: -2.0 * scale)
                     
                     Circle()
@@ -319,14 +460,14 @@ struct VenusMascotFaceView: View {
     @ViewBuilder
     private var mouthView: some View {
         switch activeExpression {
-        case .happy, .celebrating, .petting:
+        case .happy, .celebrating, .petting, .welcoming, .excited:
             // Cute open smile with rounded tongue glow
             HappyMouthShape()
                 .fill(faceColor)
-                .frame(width: 11.5 * scale, height: 6.5 * scale)
+                .frame(width: (activeExpression == .excited ? 13 : 11.5) * scale, height: (activeExpression == .excited ? 7.5 : 6.5) * scale)
                 .scaleEffect(mouthPulse ? 1.15 : 1.0)
             
-        case .calm:
+        case .calm, .empathetic:
             // Gentle serene curve
             SereneSmileShape()
                 .stroke(faceColor, style: StrokeStyle(lineWidth: 2.4 * scale, lineCap: .round))
@@ -338,8 +479,14 @@ struct VenusMascotFaceView: View {
                 .fill(faceColor)
                 .frame(width: 13 * scale, height: 7.5 * scale)
             
+        case .curious:
+            // Cute soft small "o"
+            Circle()
+                .stroke(faceColor, lineWidth: 2.2 * scale)
+                .frame(width: 4.6 * scale, height: 4.6 * scale)
+            
         case .thinking:
-            // Small curious "o"
+            // Small curious "o" shifted
             Circle()
                 .stroke(faceColor, lineWidth: 2.2 * scale)
                 .frame(width: 5.0 * scale, height: 5.0 * scale)
@@ -399,21 +546,23 @@ struct VenusMascotFaceView: View {
     // MARK: - Helpers & Positions
     
     private var shouldShowBlush: Bool {
-        activeExpression == .happy || activeExpression == .celebrating || activeExpression == .energetic || activeExpression == .petting
+        activeExpression == .happy || activeExpression == .celebrating || activeExpression == .energetic || activeExpression == .petting || activeExpression == .welcoming || activeExpression == .excited || activeExpression == .empathetic
     }
     
     private var eyeVerticalOffset: CGFloat {
         switch activeExpression {
         case .thinking: return -4.5 * scale
+        case .curious: return -1.5 * scale
         default: return -2.5 * scale
         }
     }
     
     private var mouthVerticalOffset: CGFloat {
         switch activeExpression {
-        case .happy, .celebrating, .energetic, .petting: return 9.5 * scale
+        case .happy, .celebrating, .energetic, .petting, .welcoming, .excited: return 9.5 * scale
         case .thinking: return 8.5 * scale
         case .yawning: return 9.5 * scale
+        case .curious: return 8.5 * scale
         default: return 7.5 * scale
         }
     }
@@ -422,18 +571,32 @@ struct VenusMascotFaceView: View {
         blinkTask?.cancel()
         blinkTask = Task { @MainActor in
             while !Task.isCancelled {
-                let delay = Double.random(in: 3.2...5.8)
+                let delay = Double.random(in: 2.8...5.2)
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 guard !Task.isCancelled else { break }
                 
-                withAnimation(.easeInOut(duration: 0.12)) {
+                withAnimation(.spring(response: 0.10, dampingFraction: 0.8)) {
                     isBlinking = true
                 }
-                try? await Task.sleep(nanoseconds: 140_000_000)
+                try? await Task.sleep(nanoseconds: 120_000_000)
                 guard !Task.isCancelled else { break }
                 
-                withAnimation(.easeInOut(duration: 0.12)) {
+                withAnimation(.spring(response: 0.12, dampingFraction: 0.75)) {
                     isBlinking = false
+                }
+                
+                // 25% chance of charming double-blink
+                if Double.random(in: 0...1) < 0.25 {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                    guard !Task.isCancelled else { break }
+                    withAnimation(.spring(response: 0.09, dampingFraction: 0.8)) {
+                        isBlinking = true
+                    }
+                    try? await Task.sleep(nanoseconds: 110_000_000)
+                    guard !Task.isCancelled else { break }
+                    withAnimation(.spring(response: 0.12, dampingFraction: 0.75)) {
+                        isBlinking = false
+                    }
                 }
             }
         }
@@ -443,17 +606,17 @@ struct VenusMascotFaceView: View {
         saccadeTask?.cancel()
         saccadeTask = Task { @MainActor in
             while !Task.isCancelled {
-                let delay = Double.random(in: 4.0...7.5)
+                let delay = Double.random(in: 3.5...6.5)
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 guard !Task.isCancelled else { break }
                 
-                guard state == .idle || state == .listening else { continue }
+                guard state == .idle || state == .listening || state == .welcoming || state == .empathetic else { continue }
                 
                 let randomX = CGFloat.random(in: -2.2...2.2) * scale
                 let randomY = CGFloat.random(in: -1.0...1.0) * scale
                 saccadeOffset = CGSize(width: randomX, height: randomY)
                 
-                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                try? await Task.sleep(nanoseconds: 1_400_000_000)
                 guard !Task.isCancelled else { break }
                 saccadeOffset = .zero
             }

@@ -97,7 +97,7 @@ struct HomeHeroMascotView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(currentPhrase)
                     .font(.system(.subheadline, design: .rounded).weight(.medium))
-                    .foregroundColor(colorScheme == .dark ? .white : VenusTheme.text)
+                    .foregroundColor(VenusTheme.text)
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
                     .contentTransition(.numericText())
@@ -160,60 +160,14 @@ struct HomeHeroMascotView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(VenusTheme.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(colorScheme == .dark ? 0.18 : 0.60),
-                                        VenusTheme.cardBorder.opacity(colorScheme == .dark ? 0.0 : 0.6),
-                                        Color.white.opacity(colorScheme == .dark ? 0.06 : 0.30)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-            )
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.05), radius: 10, x: 0, y: 4)
-            .scaleEffect(isBouncingQuote ? 0.97 : 1.0)
-            .onTapGesture {
-                cycleQuote()
-            }
+            .neumorphicCard(cornerRadius: 22, style: .raised, depth: 6)
         }
-        .padding(.vertical, 6)
     }
     
     private func cycleQuote() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
-            isBouncingQuote = true
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
             quoteIndex += 1
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                isBouncingQuote = false
-            }
         }
-    }
-}
-
-#Preview {
-    ZStack {
-        VenusTheme.backgroundGradient.ignoresSafeArea()
-        HomeHeroMascotView(
-            userName: "Kauã",
-            dayMoment: .morning,
-            streakDays: 7,
-            todayMood: .happy,
-            hasCheckedInToday: false,
-            onCheckInTap: {},
-            onChatTap: {}
-        )
-        .padding(20)
     }
 }

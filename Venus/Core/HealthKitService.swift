@@ -17,11 +17,16 @@ public struct BiometricSnapshot: Sendable, Equatable {
     public let hrvBaselineDays: Int // quantos dias sustentam o baseline (exige >=3 p/ confianca)
     public let recoveryRatio: Double? // currentHRV / hrvBaseline7Days
     public let restingHeartRate: Double? // bpm
+    public let sleepingHeartRate: Double? // bpm
+    public let heartRateDipPercentage: Double? // % queda entre FC vigília e FC sono
     public let sleepScore: Double? // 0.0 - 10.0 based on duration & deep/REM ratio
     public let deepAndREMHours: Double?
     public let totalSleepHours: Double?
+    public let sleepRespiratoryRate: Double? // br/min (frequência respiratória no sono)
+    public let yesterdayActiveEnergy: Double? // kcal queimadas ontem
+    public let yesterdayWorkoutDurationMinutes: Double? // minutos de treino ontem
     public let ecgSinusRhythm: Bool?
-    public let hasLateNightScreenOveruse: Bool? // nil = DeviceActivity nao autorizado (planejado, ver spec)
+    public let hasLateNightScreenOveruse: Bool? // nil = DeviceActivity nao autorizado
     public let timestamp: Date
 
     public var dataFreshnessDate: Date { timestamp }
@@ -32,9 +37,14 @@ public struct BiometricSnapshot: Sendable, Equatable {
         hrvBaselineDays: Int = 0,
         recoveryRatio: Double? = nil,
         restingHeartRate: Double? = nil,
+        sleepingHeartRate: Double? = nil,
+        heartRateDipPercentage: Double? = nil,
         sleepScore: Double? = nil,
         deepAndREMHours: Double? = nil,
         totalSleepHours: Double? = nil,
+        sleepRespiratoryRate: Double? = nil,
+        yesterdayActiveEnergy: Double? = nil,
+        yesterdayWorkoutDurationMinutes: Double? = nil,
         ecgSinusRhythm: Bool? = nil,
         hasLateNightScreenOveruse: Bool? = nil,
         timestamp: Date = Date()
@@ -44,16 +54,21 @@ public struct BiometricSnapshot: Sendable, Equatable {
         self.hrvBaselineDays = hrvBaselineDays
         self.recoveryRatio = recoveryRatio
         self.restingHeartRate = restingHeartRate
+        self.sleepingHeartRate = sleepingHeartRate
+        self.heartRateDipPercentage = heartRateDipPercentage
         self.sleepScore = sleepScore
         self.deepAndREMHours = deepAndREMHours
         self.totalSleepHours = totalSleepHours
+        self.sleepRespiratoryRate = sleepRespiratoryRate
+        self.yesterdayActiveEnergy = yesterdayActiveEnergy
+        self.yesterdayWorkoutDurationMinutes = yesterdayWorkoutDurationMinutes
         self.ecgSinusRhythm = ecgSinusRhythm
         self.hasLateNightScreenOveruse = hasLateNightScreenOveruse
         self.timestamp = timestamp
     }
 
     public var hasBiometricData: Bool {
-        recoveryRatio != nil || sleepScore != nil || restingHeartRate != nil || currentHRV != nil
+        recoveryRatio != nil || sleepScore != nil || restingHeartRate != nil || currentHRV != nil || yesterdayActiveEnergy != nil
     }
 
     /// Baseline só é confiável com >=3 dias de amostras (evita ratio ruidoso no dia 1).
@@ -108,9 +123,20 @@ public final class HealthKitService: HealthKitServiceProtocol, @unchecked Sendab
         if let restingHRType = HKObjectType.quantityType(forIdentifier: .restingHeartRate) {
             typesToRead.insert(restingHRType)
         }
+        if let hrType = HKObjectType.quantityType(forIdentifier: .heartRate) {
+            typesToRead.insert(hrType)
+        }
         if let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
             typesToRead.insert(sleepType)
         }
+        if let activeEnergyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) {
+            typesToRead.insert(activeEnergyType)
+        }
+        if let respType = HKObjectType.quantityType(forIdentifier: .respiratoryRate) {
+            typesToRead.insert(respType)
+        }
+        typesToRead.insert(HKObjectType.workoutType())
+
         if #available(iOS 14.0, *) {
             let ecgType = HKObjectType.electrocardiogramType()
             typesToRead.insert(ecgType)
@@ -139,15 +165,41 @@ public final class HealthKitService: HealthKitServiceProtocol, @unchecked Sendab
         async let restingHR = fetchLatestRestingHeartRate()
         async let sleep = fetchLastNightSleepMetrics()
         async let ecg = fetchLatestECGClassification()
+        async let yesterdayActivity = fetchYesterdayActiveEnergyAndWorkouts()
 
-        let (todayHRV, baselineResult, rhr, sleepMetrics, ecgSinus) = await (latestHRV, baseline7d, restingHR, sleep, ecg)
+        let (todayHRV, baselineResult, rhr, sleepMetrics, ecgSinus, activityResult) = await (
+            latestHRV,
+            baseline7d,
+            restingHR,
+            sleep,
+            ecg,
+            yesterdayActivity
+        )
+
         let baseline = baselineResult?.average
         let baselineDays = baselineResult?.days ?? 0
 
-        // Ratio só é válido com baseline confiável (>=3 dias). Evita pico/vale no dia 1.
+        // Sleeping HR e Heart Rate Dip & Respiratory Rate
+        var sleepingHR: Double? = nil
+        var heartRateDip: Double? = nil
+        var respiratoryRate: Double? = nil
+
+        if let sleepMetrics = sleepMetrics, let start = sleepMetrics.startDate, let end = sleepMetrics.endDate {
+            async let sleepHRTask = fetchSleepingAverageHeartRate(start: start, end: end)
+            async let sleepRespTask = fetchSleepingRespiratoryRate(start: start, end: end)
+            let (hrVal, respVal) = await (sleepHRTask, sleepRespTask)
+            sleepingHR = hrVal
+            respiratoryRate = respVal
+
+            if let rhr = rhr, let sleepingHR = sleepingHR, rhr > 0 {
+                let dip = ((rhr - sleepingHR) / rhr) * 100.0
+                heartRateDip = max(-10.0, min(35.0, dip))
+            }
+        }
+
+        // Ratio só é válido com baseline confiável (>=3 dias)
         let ratio: Double? = {
             guard let today = todayHRV, let base = baseline, base > 0, baselineDays >= 3 else { return nil }
-            // Clamp para evitar outliers (relógio trocado, leitura errada)
             return max(0.5, min(1.6, today / base))
         }()
 
@@ -157,9 +209,14 @@ public final class HealthKitService: HealthKitServiceProtocol, @unchecked Sendab
             hrvBaselineDays: baselineDays,
             recoveryRatio: ratio,
             restingHeartRate: rhr,
+            sleepingHeartRate: sleepingHR,
+            heartRateDipPercentage: heartRateDip,
             sleepScore: sleepMetrics?.score,
             deepAndREMHours: sleepMetrics?.deepAndREMHours,
             totalSleepHours: sleepMetrics?.totalHours,
+            sleepRespiratoryRate: respiratoryRate,
+            yesterdayActiveEnergy: activityResult.activeEnergy,
+            yesterdayWorkoutDurationMinutes: activityResult.workoutMinutes,
             ecgSinusRhythm: ecgSinus,
             hasLateNightScreenOveruse: nil,
             timestamp: Date()
@@ -198,7 +255,8 @@ public final class HealthKitService: HealthKitServiceProtocol, @unchecked Sendab
         let sampleTypes: [HKSampleType?] = [
             HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN),
             HKObjectType.quantityType(forIdentifier: .restingHeartRate),
-            HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
+            HKObjectType.categoryType(forIdentifier: .sleepAnalysis),
+            HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)
         ]
 
         for sampleType in sampleTypes.compactMap({ $0 }) {
@@ -295,7 +353,6 @@ public final class HealthKitService: HealthKitServiceProtocol, @unchecked Sendab
                     return
                 }
 
-                // Group by day to compute daily averages, then average across available days (hardware agnostic)
                 var dailyBuckets: [Date: [Double]] = [:]
                 for sample in quantitySamples {
                     let day = calendar.startOfDay(for: sample.startDate)
@@ -350,6 +407,8 @@ public final class HealthKitService: HealthKitServiceProtocol, @unchecked Sendab
         let score: Double
         let deepAndREMHours: Double
         let totalHours: Double
+        let startDate: Date?
+        let endDate: Date?
     }
 
     private func fetchLastNightSleepMetrics() async -> SleepResult? {
@@ -376,9 +435,14 @@ public final class HealthKitService: HealthKitServiceProtocol, @unchecked Sendab
 
                 var totalSleepSeconds: TimeInterval = 0
                 var restorativeSleepSeconds: TimeInterval = 0
+                var earliestStart: Date?
+                var latestEnd: Date?
 
                 for sample in categorySamples {
                     let duration = sample.endDate.timeIntervalSince(sample.startDate)
+                    if earliestStart == nil || sample.startDate < earliestStart! { earliestStart = sample.startDate }
+                    if latestEnd == nil || sample.endDate > latestEnd! { latestEnd = sample.endDate }
+
                     if #available(iOS 16.0, *) {
                         switch sample.value {
                         case HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
@@ -405,7 +469,6 @@ public final class HealthKitService: HealthKitServiceProtocol, @unchecked Sendab
                     return
                 }
 
-                // Sleep score: 7-9 hours optimal, restorative >= 2.0h optimal
                 var score = min(10.0, (totalHours / 7.5) * 8.0)
                 if restorativeHours >= 1.8 {
                     score = min(10.0, score + 2.0)
@@ -416,11 +479,134 @@ public final class HealthKitService: HealthKitServiceProtocol, @unchecked Sendab
                 continuation.resume(returning: SleepResult(
                     score: max(1.0, min(10.0, score)),
                     deepAndREMHours: restorativeHours,
-                    totalHours: totalHours
+                    totalHours: totalHours,
+                    startDate: earliestStart,
+                    endDate: latestEnd
                 ))
             }
             healthStore.execute(query)
         }
+    }
+
+    private func fetchSleepingAverageHeartRate(start: Date, end: Date) async -> Double? {
+        guard let healthStore = healthStore,
+              let hrType = HKObjectType.quantityType(forIdentifier: .heartRate) else {
+            return nil
+        }
+
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: hrType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, samples, _ in
+                guard let quantitySamples = samples as? [HKQuantitySample], !quantitySamples.isEmpty else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                let bpmUnit = HKUnit.count().unitDivided(by: HKUnit.minute())
+                let values = quantitySamples.map { $0.quantity.doubleValue(for: bpmUnit) }
+                let avg = values.reduce(0, +) / Double(values.count)
+                continuation.resume(returning: avg)
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    private func fetchSleepingRespiratoryRate(start: Date, end: Date) async -> Double? {
+        guard let healthStore = healthStore,
+              let respType = HKObjectType.quantityType(forIdentifier: .respiratoryRate) else {
+            return nil
+        }
+
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: respType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, samples, _ in
+                guard let quantitySamples = samples as? [HKQuantitySample], !quantitySamples.isEmpty else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                let unit = HKUnit.count().unitDivided(by: HKUnit.minute())
+                let values = quantitySamples.map { $0.quantity.doubleValue(for: unit) }
+                let avg = values.reduce(0, +) / Double(values.count)
+                continuation.resume(returning: avg)
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    private struct ActivityResult {
+        let activeEnergy: Double?
+        let workoutMinutes: Double?
+    }
+
+    private func fetchYesterdayActiveEnergyAndWorkouts() async -> ActivityResult {
+        guard let healthStore = healthStore else {
+            return ActivityResult(activeEnergy: nil, workoutMinutes: nil)
+        }
+
+        let calendar = Calendar.current
+        let todayStart = calendar.startOfDay(for: Date())
+        guard let yesterdayStart = calendar.date(byAdding: .day, value: -1, to: todayStart) else {
+            return ActivityResult(activeEnergy: nil, workoutMinutes: nil)
+        }
+
+        let dayPredicate = HKQuery.predicateForSamples(withStart: yesterdayStart, end: todayStart, options: .strictStartDate)
+
+        // 1. Energy
+        let energy: Double? = await withCheckedContinuation { continuation in
+            guard let energyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) else {
+                continuation.resume(returning: nil)
+                return
+            }
+
+            let query = HKSampleQuery(
+                sampleType: energyType,
+                predicate: dayPredicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, _ in
+                guard let quantitySamples = samples as? [HKQuantitySample], !quantitySamples.isEmpty else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let total = quantitySamples.reduce(0.0) { $0 + $1.quantity.doubleValue(for: .kilocalorie()) }
+                continuation.resume(returning: total)
+            }
+            healthStore.execute(query)
+        }
+
+        // 2. Workouts
+        let workoutMins: Double? = await withCheckedContinuation { continuation in
+            let workoutType = HKObjectType.workoutType()
+            let query = HKSampleQuery(
+                sampleType: workoutType,
+                predicate: dayPredicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, _ in
+                guard let workoutSamples = samples as? [HKWorkout], !workoutSamples.isEmpty else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let totalDurationSeconds = workoutSamples.reduce(0.0) { $0 + $1.duration }
+                continuation.resume(returning: totalDurationSeconds / 60.0)
+            }
+            healthStore.execute(query)
+        }
+
+        return ActivityResult(activeEnergy: energy, workoutMinutes: workoutMins)
     }
 
     private func fetchLatestECGClassification() async -> Bool? {

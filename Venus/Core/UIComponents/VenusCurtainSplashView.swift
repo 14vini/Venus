@@ -83,11 +83,11 @@ struct VenusSplashView: View {
         ZStack {
             VenusReadingBackground(dayMoment: .current, isAnimated: true)
 
-            OnboardingWavesOverlay(
-                tint: VenusTheme.primary,
-                secondary: VenusTheme.accentBlue,
-                tertiary: VenusTheme.accentPurple
-            )
+//            OnboardingWavesOverlay(
+//                tint: VenusTheme.primary,
+//                secondary: VenusTheme.accentBlue,
+//                tertiary: VenusTheme.accentPurple
+//            )
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)

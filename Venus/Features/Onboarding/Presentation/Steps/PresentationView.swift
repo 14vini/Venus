@@ -12,6 +12,8 @@ struct PresentationView: View {
 
     @State private var appear = false
     @State private var orbAppear = false
+    @State private var mascotState: VenusMascotState = .welcoming
+    @State private var mascotMood: MoodType = .happy
 
     var body: some View {
         ZStack {
@@ -35,11 +37,20 @@ struct PresentationView: View {
                     VStack(spacing: 0) {
                         Spacer()
 
-                        // Orb
-                        VenusMoodOrb(mood: .happy, size: 140)
-                            .opacity(orbAppear ? 1 : 0)
-                            .scaleEffect(orbAppear ? 1 : 0.78)
-                            .animation(.spring(response: 0.7, dampingFraction: 0.68), value: orbAppear)
+                        // Interactive Hero Mascot
+                        VenusMoodOrb(
+                            mood: mascotMood,
+                            state: mascotState,
+                            size: 148,
+                            showFace: true,
+                            showHands: true,
+                            showShadow: true,
+                            isInteractive: true
+                        )
+                        .frame(width: 148, height: 148)
+                        .opacity(orbAppear ? 1 : 0)
+                        .scaleEffect(orbAppear ? 1 : 0.78)
+                        .animation(.spring(response: 0.7, dampingFraction: 0.68), value: orbAppear)
 
                         // Title block
                         VStack(spacing: 8) {
@@ -47,22 +58,23 @@ struct PresentationView: View {
                                 .font(.system(size: 42, weight: .black, design: .rounded))
                                 .foregroundColor(VenusTheme.text)
 
-                            Text("Inteligência pessoal de prontidão e energia.")
+                            Text("Seu refúgio diário para desacelerar a mente,\nentender seus sentimentos e viver com leveza.")
                                 .font(.system(.subheadline, design: .rounded).weight(.medium))
                                 .foregroundColor(VenusTheme.textSecondary)
                                 .multilineTextAlignment(.center)
+                                .lineSpacing(3)
                         }
                         .opacity(appear ? 1 : 0)
                         .offset(y: appear ? 0 : 14)
                         .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.18), value: appear)
-                        .padding(.top, 20)
+                        .padding(.top, 16)
 
                         Spacer()
 
                         // CTA card
                         VenusCard(cornerRadius: 32, padding: 22) {
                             VStack(spacing: 16) {
-                                Text("Vamos calibrar o seu ritmo e foco diário?")
+                                Text("Um espaço acolhedor e seguro, feito para você.")
                                     .font(.system(.callout, design: .rounded).weight(.medium))
                                     .foregroundColor(VenusTheme.textSecondary)
                                     .multilineTextAlignment(.center)

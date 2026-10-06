@@ -19,12 +19,17 @@ struct HomeView: View {
             VenusReadingBackground(dayMoment: viewModel.dayMoment, isAnimated: true)
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 26) {
+                VStack(alignment: .leading, spacing: 22) {
                     
-                    // Readiness & Energy Gauge (0-100)
-                    ReadinessEnergyGaugeView(assessment: viewModel.readinessAssessment)
+                    // Readiness & Energy Gauge (0-100) - Mantido com seu estilo exclusivo original
+                    ReadinessEnergyGaugeView(
+                        assessment: viewModel.readinessAssessment,
+                        onDetailTap: {
+                            viewModel.showReadinessBreakdown = true
+                        }
+                    )
                     
-                    // Hero Mascot Host
+                    // Hero Mascot Host (Card Neumórfico Monocromático)
                     HomeHeroMascotView(
                         userName: userName,
                         dayMoment: viewModel.dayMoment,
@@ -39,9 +44,18 @@ struct HomeView: View {
                             viewModel.showVenusChat = true
                         }
                     )
-                    .padding(.top, 4)
+                    .padding(.top, 2)
+
+                    // Curva Intradiária de Energia Circadiana (Card Neumórfico)
+                    IntradayEnergyCurveView(
+                        curve: viewModel.readinessAssessment.breakdown?.intradayCurve ?? .sampleDefault,
+                        baseScore: viewModel.readinessAssessment.score,
+                        onDetailTap: {
+                            viewModel.showReadinessBreakdown = true
+                        }
+                    )
                     
-                    // Galaxy & Venus Wrap Banner Card
+                    // Galaxy & Venus Wrap Banner Card (Card Neumórfico)
                     HomeGalaxyBannerCard(
                         checkInCount: viewModel.weekMoods.count,
                         onOpenGalaxy: {
@@ -52,19 +66,21 @@ struct HomeView: View {
                         }
                     )
 
-                    // "Sobre você:" (Trend summary)
-                    VStack(alignment: .leading, spacing: 12) {
+                    // "Sobre você:" (Trend summary - Card Neumórfico)
+                    VStack(alignment: .leading, spacing: 10) {
                         Text("Sobre você:")
-                            .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                            .foregroundColor(VenusTheme.primary)
+                            .font(.system(.subheadline, design: .rounded).weight(.bold))
+                            .foregroundColor(VenusTheme.textSecondary)
                             .textCase(.uppercase)
 
                         Text(viewModel.weeklyTrend?.summary ?? "Analisando seus dados iniciais para desenhar seu reflexo emocional. Continue registrando seus check-ins com Venus.")
-                            .font(.system(.title3, design: .serif).weight(.medium))
-                            .foregroundColor(colorScheme == .dark ? .white : VenusTheme.text)
-                            .lineSpacing(6)
+                            .font(.system(.body, design: .rounded).weight(.medium))
+                            .foregroundColor(VenusTheme.text)
+                            .lineSpacing(5)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .padding(20)
+                    .neumorphicCard(cornerRadius: 26, style: .raised, depth: 7)
                     .padding(.bottom, 120)
                 }
                 .padding(.horizontal, 20)
@@ -86,7 +102,7 @@ struct HomeView: View {
                     viewModel.showEmotionalGalaxy = true
                 } label: {
                     Image(systemName: "sparkles.rectangle.stack")
-                        .foregroundStyle(VenusTheme.primary)
+                        .foregroundStyle(VenusTheme.text)
                 }
                 
                 Button {
@@ -103,14 +119,13 @@ struct HomeView: View {
         }) {
             MoodCheckInView(
                 viewModel: inlineCheckInViewModel,
-                ritualProgressLabel: viewModel.ritualProgressLabel,
-                onCompleted: viewModel.handleMoodCheckInCompleted
+                ritualProgressLabel: viewModel.ritualProgressLabel
             )
         }
-        .fullScreenCover(isPresented: $viewModel.showVenusChat, onDismiss: {
-            viewModel.onChatDismissed()
-        }) {
-            VenusChatView(session: viewModel.selectedChatSession)
+        .sheet(isPresented: $viewModel.showReadinessBreakdown) {
+            ReadinessBreakdownSheet(
+                assessment: viewModel.readinessAssessment
+            )
         }
         .sheet(isPresented: $viewModel.showEmotionalGalaxy) {
             EmotionalGalaxyView(
@@ -120,48 +135,43 @@ struct HomeView: View {
                 readinessAssessment: viewModel.readinessAssessment
             )
         }
-        .fullScreenCover(isPresented: $viewModel.showVenusWrap) {
+        .sheet(isPresented: $viewModel.showVenusWrap) {
             VenusWrapStoryView(
                 userName: userName,
                 weekMoods: viewModel.weekMoods,
                 weeklyTrend: viewModel.weeklyTrend,
                 readinessAssessment: viewModel.readinessAssessment,
-                onDismiss: { viewModel.showVenusWrap = false }
+                onDismiss: {
+                    viewModel.showVenusWrap = false
+                }
             )
         }
-        .sheet(isPresented: $viewModel.showChatHistory) {
-            ChatHistoryView { session in
-                viewModel.selectedChatSession = session
-                viewModel.showChatHistory = false
-                viewModel.showVenusChat = true
+        .sheet(isPresented: $viewModel.showVenusChat) {
+            NavigationStack {
+                VenusChatView()
             }
         }
-        .sheet(isPresented: $viewModel.showUpgradePrompt) {
-            PremiumUpgradeSheet(
-                freeDailyLimit: viewModel.freePlanDailyLimit,
-                onDismiss: { viewModel.showUpgradePrompt = false },
-                onSeePlans: {
-                    viewModel.showUpgradePrompt = false
-                    viewModel.showVenusProPlans = true
-                }
-            )
-        }
-        .sheet(isPresented: $viewModel.showVenusProPlans) {
-            VenusProPlansSheet(
-                freeDailyLimit: viewModel.freePlanDailyLimit,
-                onContinueToSupport: {
-                    viewModel.showVenusProPlans = false
-                    viewModel.showVenusChat = true
-                }
-            )
+        .sheet(isPresented: $viewModel.showChatHistory) {
+            NavigationStack {
+                ChatHistoryView(
+                    onSelectSession: { session in
+                        viewModel.showChatHistory = false
+                        viewModel.showVenusChat = true
+                    }
+                )
+            }
         }
     }
 }
 
 #Preview {
     HomeView(
-        userName: "kaua",
-        viewModel: HomeViewModel(),
+        userName: "Kauã",
+        viewModel: HomeViewModel(
+            patternEngineUseCase: DependencyContainer.shared.makePatternEngineUseCase(),
+            checkInAllowanceUseCase: DependencyContainer.shared.makeCheckInAllowanceUseCase(),
+            moodRepository: DependencyContainer.shared.makeMoodRepository()
+        ),
         inlineCheckInViewModel: DependencyContainer.shared.makeMoodCheckInViewModel()
     )
 }

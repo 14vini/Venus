@@ -64,9 +64,8 @@ struct UserInsightsView: View {
                             .font(.body)
                             .foregroundColor(VenusTheme.textSecondary)
                         }
-                        .padding()
-                        .background(VenusTheme.surface)
-                        .cornerRadius(16)
+                        .padding(20)
+                        .neumorphicCard(cornerRadius: 20, style: .raised, depth: 5)
                         
                         if !session.userInsights.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
@@ -92,9 +91,8 @@ struct UserInsightsView: View {
                                     }
                                 }
                             }
-                            .padding()
-                            .background(VenusTheme.surface)
-                            .cornerRadius(16)
+                            .padding(20)
+                            .neumorphicCard(cornerRadius: 20, style: .raised, depth: 5)
                         }
                         
                         VStack(alignment: .leading, spacing: 12) {
@@ -108,9 +106,8 @@ struct UserInsightsView: View {
                                 .foregroundColor(VenusTheme.textSecondary)
                                 .lineLimit(nil)
                         }
-                        .padding()
-                        .background(VenusTheme.surface)
-                        .cornerRadius(16)
+                        .padding(20)
+                        .neumorphicCard(cornerRadius: 20, style: .raised, depth: 5)
                     }
                     .padding()
                 }

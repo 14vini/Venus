@@ -194,6 +194,7 @@ struct VenusMoodOrb: View {
     var showHands: Bool = true
     var showShadow: Bool = true
     var isInteractive: Bool = true
+    var gazeOffset: CGSize = .zero
     
     @State private var animate = false
     @State private var squishX: CGFloat = 1.0
@@ -209,6 +210,7 @@ struct VenusMoodOrb: View {
     @State private var activeParticles: [MascotParticleItem] = []
     @State private var internalState: VenusMascotState? = nil
     @State private var quirkTask: Task<Void, Never>? = nil
+    @State private var listeningWavePulse: Bool = false
     
     @Environment(\.colorScheme) private var colorScheme
     
@@ -243,8 +245,23 @@ struct VenusMoodOrb: View {
     private var effectiveExpression: VenusMascotExpression {
         if isPetting { return .petting }
         if effectiveState == .yawning { return .yawning }
+        if effectiveState == .welcoming { return .welcoming }
+        if effectiveState == .curious { return .curious }
+        if effectiveState == .excited { return .excited }
         if let expression { return expression }
         return VenusMascotExpression(from: mood)
+    }
+    
+    private var headTilt: Double {
+        switch effectiveState {
+        case .curious: return 9.0
+        case .thinking: return -7.0
+        case .listening: return 8.0
+        case .empathetic: return -5.5
+        case .welcoming: return 4.0
+        case .petting: return 3.0
+        default: return 0.0
+        }
     }
     
     private var handPose: VenusHandPose {
@@ -252,8 +269,12 @@ struct VenusMoodOrb: View {
             return .coveringCheeks
         }
         switch effectiveState {
+        case .welcoming: return .waving
+        case .celebrating, .excited: return .clapping
         case .thinking: return .thinking
-        case .celebrating: return .waving
+        case .curious: return .curiousPeek
+        case .empathetic: return .supportive
+        case .listening: return .floatingIdle
         case .sleeping: return .tucked
         default: return .floatingIdle
         }
@@ -266,21 +287,24 @@ struct VenusMoodOrb: View {
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
-                // Particles Layer (Hearts, Stars, Puffs)
+                // Particles Layer (Hearts, Stars, Puffs, Confetti)
                 MascotParticleEmitterView(particles: activeParticles)
                 
-                // Outer Ambient Aura
+                // Outer Ambient Aura with Listening Resonance
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [baseColor.opacity(effectiveState == .listening ? 0.45 : 0.30), baseColor.opacity(0)],
+                            colors: [
+                                baseColor.opacity(effectiveState == .listening ? (listeningWavePulse ? 0.55 : 0.35) : 0.30),
+                                baseColor.opacity(0)
+                            ],
                             center: .center,
                             startRadius: 0,
-                            endRadius: size * (effectiveState == .listening ? 0.62 : 0.5)
+                            endRadius: size * (effectiveState == .listening ? 0.68 : 0.5)
                         )
                     )
                     .blur(radius: 12)
-                    .scaleEffect(animate ? (effectiveState == .listening ? 1.15 : 1.08) : 0.94)
+                    .scaleEffect(animate ? (effectiveState == .listening ? (listeningWavePulse ? 1.22 : 1.12) : 1.08) : 0.94)
                 
                 // Cosmetics (Behind / Wings)
                 if cosmetic == .astralWings {
@@ -337,8 +361,8 @@ struct VenusMoodOrb: View {
                         .fill(
                             RadialGradient(
                                 colors: [
-                                    Color.white.opacity(0.40),
-                                    highlightColor.opacity(0.20),
+                                    Color.white.opacity(0.42),
+                                    highlightColor.opacity(0.22),
                                     Color.clear
                                 ],
                                 center: .center,
@@ -361,7 +385,7 @@ struct VenusMoodOrb: View {
                             )
                         )
                     
-                    // Top-down glassy dome highlight (glossy candy/glass effect)
+                    // Top-down glassy dome highlight (glossy candy/glass effect with 3D parallax)
                     Ellipse()
                         .fill(
                             LinearGradient(
@@ -375,14 +399,20 @@ struct VenusMoodOrb: View {
                             )
                         )
                         .frame(width: size * 0.54, height: size * 0.28)
-                        .offset(x: -size * 0.05, y: -size * 0.22)
+                        .offset(
+                            x: -size * 0.05 + (dragOffset.width * 0.04) + (gazeOffset.width * 0.03),
+                            y: -size * 0.22 + (dragOffset.height * 0.04) + (gazeOffset.height * 0.03)
+                        )
                         .blur(radius: max(1.0, size * 0.015))
                     
                     // Specular star glint on upper dome
                     Circle()
                         .fill(Color.white.opacity(0.85))
                         .frame(width: max(4, size * 0.035), height: max(4, size * 0.035))
-                        .offset(x: -size * 0.20, y: -size * 0.24)
+                        .offset(
+                            x: -size * 0.20 + (dragOffset.width * 0.02) + (gazeOffset.width * 0.02),
+                            y: -size * 0.24 + (dragOffset.height * 0.02) + (gazeOffset.height * 0.02)
+                        )
                         .blur(radius: 0.5)
                     
                     // Fresnel Rim Lighting Stroke
@@ -409,7 +439,8 @@ struct VenusMoodOrb: View {
                                 expression: effectiveExpression,
                                 state: effectiveState,
                                 faceColor: faceColor,
-                                size: size * 0.76
+                                size: size * 0.76,
+                                gazeOffset: gazeOffset
                             )
                         }
                     }
@@ -441,7 +472,8 @@ struct VenusMoodOrb: View {
             }
             .scaleEffect(x: squishX, y: squishY)
             .scaleEffect(animate ? (effectiveState == .sleeping ? 1.01 : 1.03) : 0.97)
-            .rotationEffect(.degrees(dangleAngle + flipRotation))
+            .rotationEffect(.degrees(dangleAngle + flipRotation + headTilt))
+            .animation(.spring(response: 0.42, dampingFraction: 0.68), value: headTilt)
             .offset(x: dragOffset.width, y: dragOffset.height + jumpOffset)
             .gesture(isInteractive ? dragGesture : nil)
             .onTapGesture(count: 2) {
@@ -474,17 +506,31 @@ struct VenusMoodOrb: View {
                     orbitAngle = 360
                 }
             }
+            if effectiveState == .listening {
+                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                    listeningWavePulse = true
+                }
+            }
             startIdleQuirksLoop()
         }
         .onDisappear {
             quirkTask?.cancel()
             quirkTask = nil
         }
-        .onChange(of: effectiveState) { _, newState in
+        .onChange(of: effectiveState) { oldState, newState in
             if newState == .thinking {
                 withAnimation(.linear(duration: 4.0).repeatForever(autoreverses: false)) {
                     orbitAngle = 360
                 }
+            } else if newState == .listening {
+                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                    listeningWavePulse = true
+                }
+                spawnListeningWaves()
+            } else if newState == .celebrating || newState == .excited {
+                spawnCelebrationConfetti()
+            } else if newState == .welcoming {
+                spawnSparkles()
             }
         }
     }
@@ -629,10 +675,26 @@ struct VenusMoodOrb: View {
     }
     
     private func spawnSparkles() {
-        let sparkles = MascotParticleFactory.makeSparkleBurst(count: 8)
+        let sparkles = MascotParticleFactory.makeSparkleBurst(count: 8, tint: highlightColor)
         activeParticles.append(contentsOf: sparkles)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
             activeParticles.removeAll { p in sparkles.contains { $0.id == p.id } }
+        }
+    }
+    
+    private func spawnListeningWaves() {
+        let waves = MascotParticleFactory.makeVoiceListeningWaves(count: 4, tint: baseColor)
+        activeParticles.append(contentsOf: waves)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+            activeParticles.removeAll { p in waves.contains { $0.id == p.id } }
+        }
+    }
+    
+    private func spawnCelebrationConfetti() {
+        let confetti = MascotParticleFactory.makeCheeringConfetti(count: 12)
+        activeParticles.append(contentsOf: confetti)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
+            activeParticles.removeAll { p in confetti.contains { $0.id == p.id } }
         }
     }
     
@@ -673,3 +735,4 @@ struct VenusMoodOrb: View {
         }
     }
 }
+

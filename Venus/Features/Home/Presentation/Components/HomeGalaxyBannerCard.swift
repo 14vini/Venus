@@ -15,62 +15,39 @@ struct HomeGalaxyBannerCard: View {
     @State private var isPulsing: Bool = false
     
     var body: some View {
-        VStack(spacing: 14) {
-            HStack{
-                HStack(spacing: 8) {
+        HStack {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles.rectangle.stack.fill")
+                    .foregroundColor(VenusTheme.text)
+                    .font(.system(size: 16, weight: .semibold))
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Venus Wrap")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                    }
-                }
-                
-                Spacer()
-                
-                Button {
-                    onOpenWrap()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "play.circle.fill")
-                    }
-                    .foregroundColor(.white)
-                    .padding(4)
-                    .background(VenusTheme.primary, in: Capsule())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Venus Wrap")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundColor(VenusTheme.text)
+                    Text("Sua retrospectiva emocional")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundColor(VenusTheme.textSecondary)
                 }
             }
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
-        .background(
-            Capsule()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(hex: "17142B").opacity(0.9),
-                            Color(hex: "0D0A1C").opacity(0.3)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(
-                            LinearGradient(
-                                colors: [VenusTheme.primary.opacity(0.4), VenusTheme.accentPurple.opacity(0.2)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-                .shadow(color: VenusTheme.primary.opacity(0.15), radius: 12, x: 0, y: 4)
-        )
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                isPulsing = true
+            
+            Spacer()
+            
+            Button {
+                onOpenWrap()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .foregroundColor(VenusTheme.text)
+                .frame(width: 32, height: 32)
+                .neumorphicCircle(style: .raised, depth: 4)
             }
+            .buttonStyle(.plain)
         }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .neumorphicCard(cornerRadius: 22, style: .raised, depth: 6)
     }
 }

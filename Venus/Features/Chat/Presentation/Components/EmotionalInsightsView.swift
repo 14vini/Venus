@@ -39,14 +39,7 @@ struct EmotionalInsightsView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(VenusTheme.surface.opacity(0.5))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(emotionColor(for: state.primaryEmotion).opacity(0.3), lineWidth: 1)
-                    )
-            )
+            .neumorphicCard(cornerRadius: 16, style: .raised, depth: 4)
         }
     }
     

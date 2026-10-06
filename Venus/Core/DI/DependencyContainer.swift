@@ -63,10 +63,14 @@ class DependencyContainer {
         return OpenRouterService()
     }
 
-    // MARK: - Biometrics / HealthKit
+    // MARK: - Biometrics / HealthKit / Readiness
 
     func makeHealthKitService() -> HealthKitServiceProtocol {
         return HealthKitService.shared
+    }
+
+    func makeReadinessEngine() -> ReadinessEngineProtocol {
+        return ReadinessEngine.shared
     }
     
     // MARK: - Speech & Notifications

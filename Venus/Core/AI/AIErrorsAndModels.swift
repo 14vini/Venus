@@ -19,40 +19,32 @@ enum VenusAIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noResponse:
-            return "Não foi possível obter resposta da Venus."
+            return "Não foi possível obter resposta da Venus no momento. Logo isso será corrigido."
         case .invalidResponse:
-            return "Resposta da inteligência artificial inválida ou corrompida."
+            return "Resposta da inteligência artificial temporariamente indisponível. Logo isso será corrigido."
         case .networkError:
-            return "Falha de conexão com os serviços de inteligência artificial."
+            return "Falha de conexão com os serviços de inteligência artificial. Logo isso será corrigido."
         case .missingAPIKey:
-            return "Chave de API do OpenRouter não configurada."
+            return "A conexão com a inteligência artificial está temporariamente indisponível. Logo isso será corrigido."
         case .apiError(let code, let message):
-            return "Erro da API OpenRouter (\(code)): \(message)"
+            return "Erro da API (\(code)): \(message)"
         }
+    }
+
+    var userFriendlyMessage: String {
+        return "Desculpe, tive uma instabilidade temporária na minha conexão com a inteligência artificial. Logo isso será corrigido. Por favor, tente novamente em instantes. 💜"
     }
 }
 
 // MARK: - OpenRouter API DTOs
 
-struct OpenRouterReasoning: Codable, Sendable {
-    let max_tokens: Int?
-    let effort: String?
-    
-    init(max_tokens: Int? = 0, effort: String? = nil) {
-        self.max_tokens = max_tokens
-        self.effort = effort
-    }
-}
-
 struct OpenRouterMessage: Codable, Sendable {
     let role: String
     let content: String?
-    let reasoning: String?
     
-    init(role: String, content: String?, reasoning: String? = nil) {
+    init(role: String, content: String?) {
         self.role = role
         self.content = content
-        self.reasoning = reasoning
     }
 }
 
@@ -62,22 +54,19 @@ struct OpenRouterChatRequest: Codable, Sendable {
     let temperature: Double?
     let max_tokens: Int?
     let stream: Bool?
-    let reasoning: OpenRouterReasoning?
     
     init(
         model: String,
         messages: [OpenRouterMessage],
         temperature: Double? = 0.7,
         max_tokens: Int? = 1200,
-        stream: Bool? = nil,
-        reasoning: OpenRouterReasoning? = OpenRouterReasoning(max_tokens: 0)
+        stream: Bool? = nil
     ) {
         self.model = model
         self.messages = messages
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.stream = stream
-        self.reasoning = reasoning
     }
 }
 
@@ -188,6 +177,12 @@ struct AIOnboardingProfileResponse: Codable, Sendable {
     let strengths: String
     let growthArea: String
     let statText: String
+}
+
+struct AIOnboardingQuestionResponse: Codable, Sendable {
+    let empathyReaction: String
+    let nextQuestion: String
+    let suggestedTone: String?
 }
 
 // MARK: - System Prompts

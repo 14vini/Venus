@@ -13,6 +13,9 @@ enum VenusHandPose: Equatable, Sendable {
     case thinking
     case coveringCheeks
     case tucked
+    case clapping
+    case curiousPeek
+    case supportive
 }
 
 struct VenusMascotHandsView: View {
@@ -22,11 +25,12 @@ struct VenusMascotHandsView: View {
     let size: CGFloat
     
     @State private var waveAngle: Double = -14
+    @State private var clapOffset: CGFloat = 0
     @State private var idleFloat = false
     
     private var scale: CGFloat { size / 100.0 }
     
-    // Body radius is 0.38 * size. Flank paws sit at ±0.37 * size to peek out from the edges
+    // Body radius is 0.38 * size. Flank paws sit at ±0.38 * size to peek out from the edges
     private var flankX: CGFloat { size * 0.38 }
 
     var body: some View {
@@ -97,6 +101,36 @@ struct VenusMascotHandsView: View {
                         .rotationEffect(.degrees(-12))
                 }
                 .offset(y: size * 0.32)
+                
+            case .clapping:
+                // Quick playful clapping animation
+                HStack(spacing: max(2, 8 * scale + clapOffset)) {
+                    singlePaw(isRight: false)
+                        .rotationEffect(.degrees(18))
+                    singlePaw(isRight: true)
+                        .rotationEffect(.degrees(-18))
+                }
+                .offset(y: size * 0.28)
+                
+            case .curiousPeek:
+                // Resting paws at bottom edge peeking upwards
+                HStack(spacing: size * 0.38) {
+                    singlePaw(isRight: false)
+                        .rotationEffect(.degrees(8))
+                    singlePaw(isRight: true)
+                        .rotationEffect(.degrees(-8))
+                }
+                .offset(y: size * 0.30)
+                
+            case .supportive:
+                // Gentle open paws extended forward
+                HStack(spacing: size * 0.44) {
+                    singlePaw(isRight: false)
+                        .rotationEffect(.degrees(32))
+                    singlePaw(isRight: true)
+                        .rotationEffect(.degrees(-32))
+                }
+                .offset(y: size * 0.22)
             }
         }
         .allowsHitTesting(false)
@@ -108,12 +142,20 @@ struct VenusMascotHandsView: View {
                 withAnimation(.easeInOut(duration: 0.32).repeatForever(autoreverses: true)) {
                     waveAngle = 24
                 }
+            } else if pose == .clapping {
+                withAnimation(.easeInOut(duration: 0.16).repeatForever(autoreverses: true)) {
+                    clapOffset = -6 * scale
+                }
             }
         }
         .onChange(of: pose) { _, newPose in
             if newPose == .waving {
                 withAnimation(.easeInOut(duration: 0.32).repeatForever(autoreverses: true)) {
                     waveAngle = 24
+                }
+            } else if newPose == .clapping {
+                withAnimation(.easeInOut(duration: 0.16).repeatForever(autoreverses: true)) {
+                    clapOffset = -6 * scale
                 }
             }
         }

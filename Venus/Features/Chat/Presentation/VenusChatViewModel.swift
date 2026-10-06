@@ -114,7 +114,8 @@ final class VenusChatViewModel {
         } catch {
             print("Erro ao gerar resumo do espelho: \(error)")
             self.isVenusThinking = false
-            await animateTypewriter(text: "Olá! Notei que você veio pelo Espelho de Autocuidado. Como posso te apoiar com suas reflexões de hoje?", speed: 0.018)
+            let friendlyError = (error as? VenusAIError)?.userFriendlyMessage ?? "Desculpe, tive uma instabilidade temporária ao carregar o resumo do Espelho. Logo isso será corrigido. Como posso te apoiar hoje? 💜"
+            await animateTypewriter(text: friendlyError, speed: 0.018)
         }
     }
     
@@ -281,9 +282,17 @@ final class VenusChatViewModel {
                 
                 withAnimation(.easeOut(duration: 0.25)) {
                     self.isVenusThinking = false
+                    self.currentlyStreamingMessageId = nil
                 }
-                let fallbackResponse = self.generateFallbackResponse(for: trimmed)
-                await animateTypewriter(text: fallbackResponse, speed: 0.018)
+                
+                let friendlyErrorMessage: String
+                if let aiError = error as? VenusAIError {
+                    friendlyErrorMessage = aiError.userFriendlyMessage
+                } else {
+                    friendlyErrorMessage = "Desculpe, tive uma instabilidade temporária na minha conexão com a inteligência artificial. Logo isso será corrigido. Por favor, tente novamente em instantes. 💜"
+                }
+                
+                await animateTypewriter(text: friendlyErrorMessage, speed: 0.018)
                 await saveCurrentSession()
             }
         }
@@ -403,19 +412,5 @@ final class VenusChatViewModel {
     private func showErrorMessage(_ message: String) {
         errorMessage = message
         showError = true
-    }
-    
-    private func generateFallbackResponse(for input: String) -> String {
-        let lowercased = input.lowercased()
-        
-        if lowercased.contains("ansios") || lowercased.contains("ansiedade") {
-            return "Sinto muito que você esteja sentindo isso. A ansiedade pode ser desafiadora. Que tal fazermos um exercício de respiração juntos? Inspire profundamente por 4 segundos, segure por 4 e expire por 6. Estou aqui com você. 🌿"
-        } else if lowercased.contains("triste") || lowercased.contains("mal") {
-            return "É completamente compreensível se sentir assim às vezes. Acolha seus sentimentos sem julgamentos. Se quiser desabafar mais, estou ouvindo com todo carinho. 💜"
-        } else if lowercased.contains("cansa") || lowercased.contains("exaust") {
-            return "Parece que seu corpo ou sua mente estão pedindo uma pausa. Lembre-se de ser gentil consigo mesmo hoje e priorizar o descanso quando possível. 🌙"
-        } else {
-            return "Estou te ouvindo com muita atenção. Cada emoção que você sente tem um propósito e faz parte da sua jornada. Me conte mais sobre isso se quiser. ✨"
-        }
     }
 }
