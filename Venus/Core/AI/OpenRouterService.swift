@@ -543,10 +543,12 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         ]
         
         do {
-            let response = try await sendChatCompletion(messages: messages, temperature: 0.5, maxTokens: 400)
+            let response = try await sendChatCompletion(messages: messages, temperature: 0.6, maxTokens: 1500)
             let cleanJson = cleanJsonText(response)
             if let data = cleanJson.data(using: .utf8) {
-                return try JSONDecoder().decode(AIOnboardingQuestionResponse.self, from: data)
+                let decoded = try JSONDecoder().decode(AIOnboardingQuestionResponse.self, from: data)
+                print("✨ Pergunta de Onboarding gerada com sucesso pela IA: \(decoded.nextQuestion)")
+                return decoded
             }
         } catch {
             print("⚠️ Falha ao gerar pergunta dinâmica de onboarding via IA: \(error)")
@@ -605,7 +607,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         ]
         
         do {
-            let response = try await sendChatCompletion(messages: messages, temperature: 0.4, maxTokens: 600)
+            let response = try await sendChatCompletion(messages: messages, temperature: 0.5, maxTokens: 1500)
             let cleanJson = cleanJsonText(response)
             if let data = cleanJson.data(using: .utf8) {
                 return try JSONDecoder().decode(AIOnboardingProfileResponse.self, from: data)

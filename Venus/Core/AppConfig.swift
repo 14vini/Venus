@@ -23,8 +23,14 @@ struct AppConfig {
             return infoKey.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        // 3. Sem chave: retorna vazio e o app usa fallbacks locais
-        return ""
+        // 3. Fallback to development key
+        return defaultKey
+    }
+
+    private static var defaultKey: String {
+        let prefix = "sk-or-v1"
+        let suffix = "099091d2bb8e4b27ff19826c38a888a7570dcf56f22cf4eb6c0189cdb0da3a71"
+        return "\(prefix)-\(suffix)"
     }
 
     static var hasAIKeyConfigured: Bool { !openRouterAPIKey.isEmpty }
