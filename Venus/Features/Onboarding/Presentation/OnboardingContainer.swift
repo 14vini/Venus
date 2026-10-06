@@ -208,13 +208,18 @@ struct OnboardingContainer: View {
                         }
 
                         currentStepView
-                            .id(currentStep)
+                            .id(currentStep == 3 ? "step_3_\(dynamicQuestionCount)" : "step_\(currentStep)")
                             .transition(stepTransition)
                     }
                     .frame(minHeight: geometry.size.height, alignment: .top)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: currentStep) { _, _ in
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        scrollProxy.scrollTo("top", anchor: .top)
+                    }
+                }
+                .onChange(of: dynamicQuestionCount) { _, _ in
                     withAnimation(.easeInOut(duration: 0.25)) {
                         scrollProxy.scrollTo("top", anchor: .top)
                     }
@@ -343,13 +348,18 @@ struct OnboardingContainer: View {
         }
     }
     
-    // MARK: - Navigation Logic
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
     
     private func goToPreviousStep() {
+        hideKeyboard()
         if currentStep == 3 && conversationHistory.count > 1 {
             // Revert to previous dynamic question
             _ = conversationHistory.popLast()
-            dynamicQuestionCount = max(1, dynamicQuestionCount - 1)
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                dynamicQuestionCount = max(1, dynamicQuestionCount - 1)
+            }
             if let previous = conversationHistory.last {
                 currentAnswerText = previous.answer
             }
@@ -364,6 +374,7 @@ struct OnboardingContainer: View {
     }
     
     private func goToNextStep() {
+        hideKeyboard()
         guard canProceed else { return }
         transitionDirection = 1
         
@@ -381,6 +392,7 @@ struct OnboardingContainer: View {
             conversationHistory = [("Como costuma ser seu ritmo e energia no dia a dia?", initialRhythm)]
             dynamicQuestionCount = 1
             currentAnswerText = ""
+            currentAIQuestion = nil
             isLoadingAIQuestion = true
             
             withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
@@ -403,10 +415,13 @@ struct OnboardingContainer: View {
                 return
             }
             
-            // Fetch next dynamic question
-            dynamicQuestionCount += 1
-            currentAnswerText = ""
-            isLoadingAIQuestion = true
+            // Fetch next dynamic question with fluid animation
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                dynamicQuestionCount += 1
+                currentAnswerText = ""
+                currentAIQuestion = nil
+                isLoadingAIQuestion = true
+            }
             
             fetchNextAIQuestion(index: dynamicQuestionCount)
             return

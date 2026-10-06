@@ -18,7 +18,6 @@ struct AIDeepeningStep: View {
     @State private var displayedQuestion: String = ""
     @State private var isTyping: Bool = false
     @State private var cursorBlink: Bool = true
-    @State private var hasFinishedTyping: Bool = false
     @FocusState private var isTextFocused: Bool
     
     private var targetQuestion: String {
@@ -36,15 +35,9 @@ struct AIDeepeningStep: View {
             Spacer(minLength: 40)
         }
         .padding(.horizontal, 24)
-        .padding(.top, 20)
-        .task(id: targetQuestion) {
-            await startTypewriterAnimation(for: targetQuestion)
-        }
-        .onChange(of: isLoadingAI) { _, loading in
-            if !loading && !targetQuestion.isEmpty {
-                Task {
-                    await startTypewriterAnimation(for: targetQuestion)
-                }
+        .task(id: "\(isLoadingAI)_\(targetQuestion)") {
+            if !isLoadingAI && !targetQuestion.isEmpty {
+                await runTypewriter(for: targetQuestion)
             }
         }
     }
@@ -60,7 +53,7 @@ struct AIDeepeningStep: View {
                     .font(.system(size: 24, weight: .black, design: .rounded))
                     .foregroundStyle(VenusTheme.primary)
                     .opacity(cursorBlink ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true), value: cursorBlink)
+                    .animation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true), value: cursorBlink)
             }
             .padding(.top, 16)
         }
@@ -101,23 +94,22 @@ struct AIDeepeningStep: View {
             }
             .contentShape(Rectangle())
             .onTapGesture {
-                // Skip typing on tap
+                // Skip typing instantly on tap
                 if isTyping {
                     displayedQuestion = targetQuestion
                     isTyping = false
-                    hasFinishedTyping = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         isTextFocused = true
                     }
                 }
             }
             
-            // Clean Borderless Floating Input Area
+            // Clean Borderless Floating Input Area (Always clear & focused)
             ZStack(alignment: .topLeading) {
                 if text.isEmpty {
                     Text(placeholder)
                         .font(.system(size: 19, weight: .medium, design: .rounded))
-                        .foregroundColor(VenusTheme.textSecondary.opacity(0.55))
+                        .foregroundColor(VenusTheme.textSecondary.opacity(0.65))
                         .padding(.top, 8)
                         .padding(.leading, 4)
                         .allowsHitTesting(false)
@@ -131,33 +123,31 @@ struct AIDeepeningStep: View {
                     .background(Color.clear)
                     .frame(minHeight: 180, maxHeight: 300)
                     .focused($isTextFocused)
-                    .opacity(hasFinishedTyping || !isTyping ? 1 : 0.6)
-                    .animation(.easeInOut(duration: 0.25), value: hasFinishedTyping)
             }
             .padding(.top, 8)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isTextFocused = true
+            }
         }
     }
     
     @MainActor
-    private func startTypewriterAnimation(for fullText: String) async {
+    private func runTypewriter(for fullText: String) async {
         guard !fullText.isEmpty else { return }
         
-        // Reset state
         displayedQuestion = ""
         isTyping = true
-        hasFinishedTyping = false
         cursorBlink = true
         
         for char in fullText {
             guard isTyping else { break }
             displayedQuestion.append(char)
-            try? await Task.sleep(nanoseconds: 20_000_000) // 20ms per character
+            try? await Task.sleep(nanoseconds: 14_000_000) // 14ms per character (fluent & natural)
         }
         
         isTyping = false
-        hasFinishedTyping = true
-        
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        try? await Task.sleep(nanoseconds: 150_000_000)
         isTextFocused = true
     }
 }
