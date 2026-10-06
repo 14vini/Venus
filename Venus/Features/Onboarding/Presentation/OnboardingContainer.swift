@@ -12,20 +12,29 @@ struct OnboardingContainer: View {
     @State private var currentStep: Int
     @State private var transitionDirection: Int = 1
     
-    // AI Dynamic Data
-    @State private var aiQuestionResult: AIOnboardingQuestionResponse? = nil
+    // Dynamic Conversation Answers
+    @State private var recoveryHabitsAnswer: String = ""
+    @State private var goalsAnswer: String = ""
+    
+    // AI Responses
+    @State private var aiQuestion1: AIOnboardingQuestionResponse? = nil
+    @State private var aiQuestion2: AIOnboardingQuestionResponse? = nil
     @State private var isLoadingAIQuestion: Bool = false
     @State private var aiProfileResult: AIOnboardingProfileResponse? = nil
     @State private var isLoadingAIProfile: Bool = false
     
-    private let totalQuestionSteps = 3 // Steps 1, 2, 3
+    // HealthKit
+    @State private var isRequestingHealth: Bool = false
+    
+    private let totalQuestionSteps = 5 // Steps 1, 2, 3, 4, 5
     private let venusAI: VenusAIServiceProtocol = DependencyContainer.shared.makeVenusAIService()
+    private let healthKitService: HealthKitServiceProtocol = DependencyContainer.shared.makeHealthKitService()
     
     @Environment(\.colorScheme) private var colorScheme
     @State private var bottomControlsHeight: CGFloat = 0
     
     init(userProfile: UserProfile, initialStep: Int = 0) {
-        let safeInitialStep = min(max(initialStep, 0), 4)
+        let safeInitialStep = min(max(initialStep, 0), 6)
         _userProfile = State(initialValue: userProfile)
         _currentStep = State(initialValue: safeInitialStep)
     }
@@ -36,8 +45,6 @@ struct OnboardingContainer: View {
             return !userProfile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case 2:
             return !userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case 3:
-            return true // Opcional ou preenchido
         default:
             return true
         }
@@ -49,14 +56,11 @@ struct OnboardingContainer: View {
             return "Começar"
         case 1:
             return "Continuar"
-        case 2:
+        case 2, 3, 4:
             return "Avançar"
-        case 3:
-            if userProfile.improvementAreas.isEmpty {
-                return "Pular"
-            }
-            return "Continuar"
-        case 4:
+        case 5:
+            return "Conectar Apple Saúde"
+        case 6:
             return "Entrar no Meu Espaço"
         default:
             return "Continuar"
@@ -65,7 +69,9 @@ struct OnboardingContainer: View {
     
     private var nextButtonIcon: String {
         switch currentStep {
-        case 4:
+        case 5:
+            return "heart.fill"
+        case 6:
             return "arrow.right.circle.fill"
         default:
             return "chevron.right"
@@ -95,7 +101,7 @@ struct OnboardingContainer: View {
 
             if currentStep == 0 {
                 presentationStepView
-            } else if currentStep >= 1 && currentStep <= 3 {
+            } else if currentStep >= 1 && currentStep <= 5 {
                 conversationalFlowView
             } else {
                 revealStepView
@@ -121,7 +127,7 @@ struct OnboardingContainer: View {
             Spacer(minLength: 0)
             ZStack(alignment: .top) {
                 contentView
-                    .safeAreaPadding(.top, 74)
+                    .safeAreaPadding(.top, 70)
                     .safeAreaPadding(.bottom, max(110, bottomControlsHeight + 16))
 
                 topHUDView
@@ -200,7 +206,7 @@ struct OnboardingContainer: View {
                             .frame(height: 1)
                             .id("top")
 
-                        if currentStep >= 1 && currentStep <= 3 {
+                        if currentStep >= 1 && currentStep <= 4 {
                             OnboardingMascotCompanionView(
                                 currentStep: currentStep,
                                 userProfile: $userProfile
@@ -225,12 +231,25 @@ struct OnboardingContainer: View {
     }
 
     private var bottomControlsView: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 8) {
             nextButton
-                .padding(.horizontal, 24)
-                .padding(.top, 8)
-                .padding(.bottom, 12)
+            
+            if currentStep == 5 {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    advanceToRevealStep()
+                } label: {
+                    Text("Configurar depois")
+                        .font(.system(.footnote, design: .rounded).weight(.semibold))
+                        .foregroundColor(VenusTheme.textSecondary)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.plain)
+            }
         }
+        .padding(.horizontal, 24)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
         .readHeight { height in
             bottomControlsHeight = height
         }
@@ -242,10 +261,10 @@ struct OnboardingContainer: View {
             goToNextStep()
         } label: {
             HStack(spacing: 8) {
-                if isLoadingAIProfile {
+                if isRequestingHealth || isLoadingAIProfile {
                     ProgressView()
                         .tint(.white)
-                    Text("Preparando seu espaço...")
+                    Text(isRequestingHealth ? "Conectando..." : "Preparando seu espaço...")
                         .font(.system(.headline, design: .rounded).weight(.bold))
                 } else {
                     Text(nextButtonTitle)
@@ -283,7 +302,7 @@ struct OnboardingContainer: View {
         }
         .buttonStyle(.plain)
         .buttonStyle(OnboardingPressableButtonStyle())
-        .disabled(!canProceed || isLoadingAIProfile)
+        .disabled(!canProceed || isRequestingHealth || isLoadingAIProfile)
         .opacity(canProceed ? 1 : 0.70)
         .accessibilityLabel(nextButtonTitle)
     }
@@ -307,11 +326,27 @@ struct OnboardingContainer: View {
             })
         case 3:
             AIDeepeningStep(
-                userProfile: $userProfile,
-                aiQuestion: aiQuestionResult,
-                isLoadingAI: isLoadingAIQuestion
+                text: $recoveryHabitsAnswer,
+                aiQuestion: aiQuestion1,
+                isLoadingAI: isLoadingAIQuestion,
+                defaultQuestion: "Como costuma ser seu sono e momentos de descanso?",
+                placeholder: "Conte como você costuma dormir, fazer pausas e recarregar...",
+                tintColor: VenusTheme.accentPurple
             )
         case 4:
+            AIDeepeningStep(
+                text: $goalsAnswer,
+                aiQuestion: aiQuestion2,
+                isLoadingAI: isLoadingAIQuestion,
+                defaultQuestion: "O que você mais gostaria que a Venus te ajudasse a otimizar?",
+                placeholder: "Ex: Foco profundo, sono restaurador, rotina consistente ou clareza mental...",
+                tintColor: VenusTheme.accentOrange
+            )
+        case 5:
+            HealthPermissionsStep(onContinue: {
+                advanceToRevealStep()
+            })
+        case 6:
             EmotionalProfileRevealStep(
                 userProfile: userProfile,
                 aiProfile: aiProfileResult,
@@ -347,7 +382,7 @@ struct OnboardingContainer: View {
         }
         
         if currentStep == 2 {
-            // Trigger AI question generation for Step 3
+            // Request AI Question 1 (Recovery & Rhythm)
             isLoadingAIQuestion = true
             withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
                 currentStep = 3
@@ -355,12 +390,14 @@ struct OnboardingContainer: View {
             
             Task {
                 do {
+                    let history = [("Como costuma ser seu ritmo e energia no dia a dia?", userProfile.contextNote)]
                     let aiResponse = try await venusAI.generateNextOnboardingQuestion(
                         userName: userProfile.name,
-                        userResponse: userProfile.contextNote
+                        conversationHistory: history,
+                        questionIndex: 2
                     )
                     await MainActor.run {
-                        self.aiQuestionResult = aiResponse
+                        self.aiQuestion1 = aiResponse
                         if let tone = aiResponse.suggestedTone {
                             self.userProfile.coachingTone = tone
                         }
@@ -376,25 +413,31 @@ struct OnboardingContainer: View {
         }
         
         if currentStep == 3 {
-            // Prepare final profile for Step 4
-            isLoadingAIProfile = true
+            // Save recovery answer and request AI Question 2 (Objectives & Optimization)
+            userProfile.improvementAreas = [recoveryHabitsAnswer]
+            isLoadingAIQuestion = true
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                currentStep = 4
+            }
             
             Task {
                 do {
-                    let profileResp = try await venusAI.generateOnboardingProfile(userProfile: userProfile)
+                    let history = [
+                        ("Como costuma ser seu ritmo e energia?", userProfile.contextNote),
+                        ("Como costuma ser seu sono e descanso?", recoveryHabitsAnswer)
+                    ]
+                    let aiResponse = try await venusAI.generateNextOnboardingQuestion(
+                        userName: userProfile.name,
+                        conversationHistory: history,
+                        questionIndex: 3
+                    )
                     await MainActor.run {
-                        self.aiProfileResult = profileResp
-                        self.isLoadingAIProfile = false
-                        withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
-                            self.currentStep = 4
-                        }
+                        self.aiQuestion2 = aiResponse
+                        self.isLoadingAIQuestion = false
                     }
                 } catch {
                     await MainActor.run {
-                        self.isLoadingAIProfile = false
-                        withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
-                            self.currentStep = 4
-                        }
+                        self.isLoadingAIQuestion = false
                     }
                 }
             }
@@ -402,7 +445,54 @@ struct OnboardingContainer: View {
         }
         
         if currentStep == 4 {
+            // Save goals answer and advance to HealthKit permissions
+            if !goalsAnswer.isEmpty {
+                userProfile.primaryGoal = goalsAnswer
+            }
+            
+            // Preload AI profile in background while user is on Health step
+            preloadAIProfile()
+            
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                currentStep = 5
+            }
+            return
+        }
+        
+        if currentStep == 5 {
+            // Request Apple HealthKit permissions
+            isRequestingHealth = true
+            Task {
+                _ = try? await healthKitService.requestAuthorization()
+                await MainActor.run {
+                    self.isRequestingHealth = false
+                    advanceToRevealStep()
+                }
+            }
+            return
+        }
+        
+        if currentStep == 6 {
             finishOnboarding()
+        }
+    }
+    
+    private func preloadAIProfile() {
+        Task {
+            do {
+                let profileResp = try await venusAI.generateOnboardingProfile(userProfile: userProfile)
+                await MainActor.run {
+                    self.aiProfileResult = profileResp
+                }
+            } catch {
+                print("⚠️ Falha ao pré-carregar perfil de onboarding: \(error)")
+            }
+        }
+    }
+    
+    private func advanceToRevealStep() {
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+            currentStep = 6
         }
     }
     

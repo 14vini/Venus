@@ -42,7 +42,11 @@ protocol VenusAIServiceProtocol: Sendable {
     
     func generateSuggestion(mood: MoodType, userContext: UserProfile) async throws -> String
     func generateGreeting(userName: String, mood: MoodType?) async throws -> String
-    func generateNextOnboardingQuestion(userName: String, userResponse: String) async throws -> AIOnboardingQuestionResponse
+    func generateNextOnboardingQuestion(
+        userName: String,
+        conversationHistory: [(question: String, answer: String)],
+        questionIndex: Int
+    ) async throws -> AIOnboardingQuestionResponse
     func generateOnboardingProfile(userProfile: UserProfile) async throws -> AIOnboardingProfileResponse
 
     // MARK: - Biometrics & Readiness AI Methods

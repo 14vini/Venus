@@ -8,11 +8,13 @@
 import SwiftUI
 
 struct AIDeepeningStep: View {
-    @Binding var userProfile: UserProfile
+    @Binding var text: String
     let aiQuestion: AIOnboardingQuestionResponse?
     let isLoadingAI: Bool
+    let defaultQuestion: String
+    let placeholder: String
+    var tintColor: Color = VenusTheme.accentPurple
     
-    @State private var answerText: String = ""
     @FocusState private var isTextFocused: Bool
     
     var body: some View {
@@ -28,9 +30,6 @@ struct AIDeepeningStep: View {
         .padding(.horizontal, 24)
         .padding(.top, 20)
         .onAppear {
-            if let existing = userProfile.improvementAreas.first {
-                answerText = existing
-            }
             if !isLoadingAI {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     isTextFocused = true
@@ -58,7 +57,7 @@ struct AIDeepeningStep: View {
                         .scaleEffect(1.3)
                         .tint(VenusTheme.primary)
                     
-                    Text("Ouvindo com carinho o que você me contou...")
+                    Text("Conectando com o que você me contou...")
                         .font(.system(.subheadline, design: .rounded).weight(.medium))
                         .foregroundStyle(VenusTheme.textSecondary)
                         .multilineTextAlignment(.center)
@@ -89,7 +88,7 @@ struct AIDeepeningStep: View {
             }
             
             // Dynamic Question Header (sem subtítulo)
-            Text(aiQuestion?.nextQuestion ?? "O que você mais gostaria que a gente aliviasse juntos hoje?")
+            Text(aiQuestion?.nextQuestion ?? defaultQuestion)
                 .font(.system(size: 26, weight: .black, design: .rounded))
                 .foregroundStyle(VenusTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
@@ -97,8 +96,8 @@ struct AIDeepeningStep: View {
             
             // Clean Borderless Input Area (sem background, sem voz)
             ZStack(alignment: .topLeading) {
-                if answerText.isEmpty {
-                    Text("Escreva aqui o que você sente que mais precisa mudar ou focar...")
+                if text.isEmpty {
+                    Text(placeholder)
                         .font(.system(size: 19, weight: .medium, design: .rounded))
                         .foregroundColor(VenusTheme.textSecondary.opacity(0.55))
                         .padding(.top, 8)
@@ -106,17 +105,14 @@ struct AIDeepeningStep: View {
                         .allowsHitTesting(false)
                 }
                 
-                TextEditor(text: $answerText)
+                TextEditor(text: $text)
                     .font(.system(size: 19, weight: .medium, design: .rounded))
                     .foregroundColor(VenusTheme.text)
-                    .tint(VenusTheme.accentPurple)
+                    .tint(tintColor)
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
                     .frame(minHeight: 180, maxHeight: 300)
                     .focused($isTextFocused)
-                    .onChange(of: answerText) { _, newValue in
-                        userProfile.improvementAreas = [newValue]
-                    }
             }
             .padding(.top, 8)
         }
@@ -125,13 +121,15 @@ struct AIDeepeningStep: View {
 
 #Preview {
     AIDeepeningStep(
-        userProfile: .constant(UserProfile()),
+        text: .constant(""),
         aiQuestion: AIOnboardingQuestionResponse(
-            empathyReaction: "Entendo bem... demandas acumuladas pesam muito 💙",
-            nextQuestion: "O que mais tem te impedido de desacelerar à noite?",
-            suggestedTone: "Gentil"
+            empathyReaction: "Entender seu ritmo ajuda muito a calibrar seus picos de energia ⚡",
+            nextQuestion: "Como costuma ser a qualidade do seu sono e descanso?",
+            suggestedTone: "Prático"
         ),
-        isLoadingAI: false
+        isLoadingAI: false,
+        defaultQuestion: "Como costuma ser o seu sono e descanso?",
+        placeholder: "Conte sobre seu sono e momentos de recarregar a bateria..."
     )
     .background(VenusTheme.backgroundGradient)
 }

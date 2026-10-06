@@ -490,24 +490,42 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
     
     // MARK: - Dynamic Interactive Onboarding Question Generation
     
-    func generateNextOnboardingQuestion(userName: String, userResponse: String) async throws -> AIOnboardingQuestionResponse {
+    func generateNextOnboardingQuestion(
+        userName: String,
+        conversationHistory: [(question: String, answer: String)],
+        questionIndex: Int
+    ) async throws -> AIOnboardingQuestionResponse {
         let name = userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "amigo(a)" : userName
         
+        var historyText = ""
+        for (q, a) in conversationHistory {
+            historyText += "Pergunta anterior: \(q)\nResposta do usuário: \(a)\n\n"
+        }
+        
         let prompt = """
-        Você é a Venus, uma inteligência de acolhimento e escuta emocional empática.
-        O usuário se chama \(name) e acabou de responder como está se sentindo ou desabafar:
-        "\(userResponse)"
+        Você é a Venus, uma inteligência pessoal e companheira de prontidão (Readiness), energia, foco sustentável, rotina, sono e clareza mental do app Venus.
+        O aplicativo analisa como o usuário funciona (ritmo de energia, sono, descanso, hábitos e picos de foco) para calcular um Score de Prontidão inteligente diário.
+        
+        O usuário se chama \(name).
+        
+        Histórico das respostas até o momento:
+        \(historyText)
+        
+        Objetivo da etapa atual (\(questionIndex)):
+        - Se for a etapa 2 (após ele falar do ritmo/energia): Investigue como ele costuma recarregar as baterias, como é o sono/descanso dele, ou quais são os momentos de maior foco/desgaste na rotina dele.
+        - Se for a etapa 3: Investigue o principal objetivo dele com a Venus (ex: alta performance e produtividade, sono mais reparador, manter consistência de hábitos, ou mais clareza e equilíbrio).
+        - IMPORTANTE: Não foque apenas em ansiedade ou estresse. A Venus é para alto rendimento, produtividade, descanso, sono e energia no dia a dia. Queremos entender como ele opera para calibrar o algoritmo de Readiness e comportamento perfeitamente.
         
         Sua missão:
-        1. "empathyReaction": Reagir em 1 frase curta (máximo 15 palavras) com profunda empatia, afeto e acolhimento humano genuíno ao que ele falou.
-        2. "nextQuestion": Fazer 1 pergunta aberta, carinhosa e direta para entender melhor onde ele mais precisa de apoio, o que mais tem pesado no dia a dia dele ou como podemos aliviar isso juntos.
-        3. "suggestedTone": Sugerir um tom de conversa ("Gentil", "Direto", "Prático" ou "Motivacional").
+        1. "empathyReaction": Reagir em 1 frase curta (máximo 12 palavras) reconhecendo de forma empática, inteligente e humana o que ele respondeu.
+        2. "nextQuestion": Fazer 1 pergunta aberta, direta e cativante (máximo 16 palavras) para entender como ele funciona no dia a dia.
+        3. "suggestedTone": Sugerir o tom de conversa ideal ("Gentil", "Direto", "Prático" ou "Motivacional").
         
         Responda APENAS em JSON válido:
         {
-            "empathyReaction": "Frase curta de acolhimento e validação empática",
-            "nextQuestion": "Pergunta aberta, acolhedora e investigativa para aprofundar",
-            "suggestedTone": "Gentil"
+            "empathyReaction": "Frase curta de acolhimento e reconhecimento inteligente",
+            "nextQuestion": "Pergunta aberta e direta para conhecer melhor o funcionamento dele",
+            "suggestedTone": "Prático"
         }
         """
         
@@ -526,33 +544,20 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             print("⚠️ Falha ao gerar pergunta dinâmica de onboarding via IA: \(error)")
         }
         
-        // Intelligent Fallbacks based on keywords
-        let lower = userResponse.lowercased()
-        if lower.contains("cansad") || lower.contains("sono") || lower.contains("dorm") || lower.contains("exaust") {
+        // Intelligent Fallbacks based on question index
+        if questionIndex == 2 {
             return AIOnboardingQuestionResponse(
-                empathyReaction: "Entendo perfeitamente... noites difíceis e mente cheia pesam muito no corpo 💙",
-                nextQuestion: "O que você sente que mais tem te impedido de desligar e descansar com calma?",
-                suggestedTone: "Gentil"
+                empathyReaction: "Entender seu ritmo ajuda muito a calibrar seus picos de energia ⚡",
+                nextQuestion: "Como costuma ser a qualidade do seu sono e seus momentos de descanso?",
+                suggestedTone: "Prático"
             )
-        } else if lower.contains("trabalh") || lower.contains("press") || lower.contains("demand") || lower.contains("praz") {
+        } else {
             return AIOnboardingQuestionResponse(
-                empathyReaction: "Faz todo sentido você se sentir assim com tantas responsabilidades acumuladas 🌿",
-                nextQuestion: "Qual é a principal coisa que, se ficasse mais leve hoje, te traria mais alívio?",
-                suggestedTone: "Direto"
-            )
-        } else if lower.contains("ansio") || lower.contains("medo") || lower.contains("cobran") || lower.contains("angust") {
-            return AIOnboardingQuestionResponse(
-                empathyReaction: "Eu te ouço com todo carinho. Respira fundo, você não está sozinho(a) 🤍",
-                nextQuestion: "O que tem gerado essa sensação de urgência ou cobrança dentro de você ultimamente?",
+                empathyReaction: "Perfeito! Isso nos dá clareza total sobre o seu funcionamento 🌿",
+                nextQuestion: "O que você mais gostaria que a Venus te ajudasse a otimizar no seu dia?",
                 suggestedTone: "Gentil"
             )
         }
-        
-        return AIOnboardingQuestionResponse(
-            empathyReaction: "Obrigada por se abrir comigo, \(name). É muito bom poder te ouvir 🤍",
-            nextQuestion: "O que você mais gostaria que a gente trabalhasse juntos para trazer mais leveza ao seu dia?",
-            suggestedTone: "Gentil"
-        )
     }
     
     // MARK: - Onboarding Profile Generation
