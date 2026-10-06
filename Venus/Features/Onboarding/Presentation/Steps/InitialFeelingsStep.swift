@@ -48,11 +48,10 @@ struct InitialFeelingsStep: View {
                     .focused($isTextFocused)
                     .onChange(of: textInput) { _, newValue in
                         userProfile.contextNote = newValue
-                        userProfile.primaryGoal = newValue
                     }
             }
             .padding(.top, 8)
-            
+             
             Spacer(minLength: 40)
         }
         .padding(.horizontal, 24)

@@ -13,12 +13,15 @@ struct OnboardingContainer: View {
     @State private var transitionDirection: Int = 1
     
     // Dynamic Conversation Answers
-    @State private var recoveryHabitsAnswer: String = ""
-    @State private var goalsAnswer: String = ""
+    @State private var initialRhythmAnswer: String = ""
+    @State private var focusFrictionAnswer: String = ""
+    @State private var recoverySleepAnswer: String = ""
+    @State private var goalsOptimizationAnswer: String = ""
     
     // AI Responses
     @State private var aiQuestion1: AIOnboardingQuestionResponse? = nil
     @State private var aiQuestion2: AIOnboardingQuestionResponse? = nil
+    @State private var aiQuestion3: AIOnboardingQuestionResponse? = nil
     @State private var isLoadingAIQuestion: Bool = false
     @State private var aiProfileResult: AIOnboardingProfileResponse? = nil
     @State private var isLoadingAIProfile: Bool = false
@@ -26,7 +29,7 @@ struct OnboardingContainer: View {
     // HealthKit
     @State private var isRequestingHealth: Bool = false
     
-    private let totalQuestionSteps = 5 // Steps 1, 2, 3, 4, 5
+    private let totalQuestionSteps = 6 // Steps 1, 2, 3, 4, 5, 6
     private let venusAI: VenusAIServiceProtocol = DependencyContainer.shared.makeVenusAIService()
     private let healthKitService: HealthKitServiceProtocol = DependencyContainer.shared.makeHealthKitService()
     
@@ -34,7 +37,7 @@ struct OnboardingContainer: View {
     @State private var bottomControlsHeight: CGFloat = 0
     
     init(userProfile: UserProfile, initialStep: Int = 0) {
-        let safeInitialStep = min(max(initialStep, 0), 6)
+        let safeInitialStep = min(max(initialStep, 0), 7)
         _userProfile = State(initialValue: userProfile)
         _currentStep = State(initialValue: safeInitialStep)
     }
@@ -45,6 +48,12 @@ struct OnboardingContainer: View {
             return !userProfile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case 2:
             return !userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case 3:
+            return !focusFrictionAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case 4:
+            return !recoverySleepAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case 5:
+            return !goalsOptimizationAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         default:
             return true
         }
@@ -56,11 +65,11 @@ struct OnboardingContainer: View {
             return "Começar"
         case 1:
             return "Continuar"
-        case 2, 3, 4:
+        case 2, 3, 4, 5:
             return "Avançar"
-        case 5:
-            return "Conectar Apple Saúde"
         case 6:
+            return "Conectar Apple Saúde"
+        case 7:
             return "Entrar no Meu Espaço"
         default:
             return "Continuar"
@@ -69,9 +78,9 @@ struct OnboardingContainer: View {
     
     private var nextButtonIcon: String {
         switch currentStep {
-        case 5:
-            return "heart.fill"
         case 6:
+            return "heart.fill"
+        case 7:
             return "arrow.right.circle.fill"
         default:
             return "chevron.right"
@@ -101,7 +110,7 @@ struct OnboardingContainer: View {
 
             if currentStep == 0 {
                 presentationStepView
-            } else if currentStep >= 1 && currentStep <= 5 {
+            } else if currentStep >= 1 && currentStep <= 6 {
                 conversationalFlowView
             } else {
                 revealStepView
@@ -206,7 +215,7 @@ struct OnboardingContainer: View {
                             .frame(height: 1)
                             .id("top")
 
-                        if currentStep >= 1 && currentStep <= 4 {
+                        if currentStep >= 1 && currentStep <= 5 {
                             OnboardingMascotCompanionView(
                                 currentStep: currentStep,
                                 userProfile: $userProfile
@@ -234,7 +243,7 @@ struct OnboardingContainer: View {
         VStack(spacing: 8) {
             nextButton
             
-            if currentStep == 5 {
+            if currentStep == 6 {
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     advanceToRevealStep()
@@ -326,27 +335,36 @@ struct OnboardingContainer: View {
             })
         case 3:
             AIDeepeningStep(
-                text: $recoveryHabitsAnswer,
+                text: $focusFrictionAnswer,
                 aiQuestion: aiQuestion1,
                 isLoadingAI: isLoadingAIQuestion,
-                defaultQuestion: "Como costuma ser seu sono e momentos de descanso?",
-                placeholder: "Conte como você costuma dormir, fazer pausas e recarregar...",
-                tintColor: VenusTheme.accentPurple
+                defaultQuestion: "Em que momentos sua mente funciona melhor e o que costuma drenar seu foco?",
+                placeholder: "Conte sobre seus picos de clareza, distrações ou onde surgem as maiores sobrecargas...",
+                tintColor: VenusTheme.accentBlue
             )
         case 4:
             AIDeepeningStep(
-                text: $goalsAnswer,
+                text: $recoverySleepAnswer,
                 aiQuestion: aiQuestion2,
                 isLoadingAI: isLoadingAIQuestion,
-                defaultQuestion: "O que você mais gostaria que a Venus te ajudasse a otimizar?",
-                placeholder: "Ex: Foco profundo, sono restaurador, rotina consistente ou clareza mental...",
-                tintColor: VenusTheme.accentOrange
+                defaultQuestion: "Quando chega a noite, o que mais impede sua mente de desligar e descansar?",
+                placeholder: "Conte sobre a qualidade do seu sono, hábitos noturnos e como você recarrega a bateria...",
+                tintColor: VenusTheme.accentPurple
             )
         case 5:
+            AIDeepeningStep(
+                text: $goalsOptimizationAnswer,
+                aiQuestion: aiQuestion3,
+                isLoadingAI: isLoadingAIQuestion,
+                defaultQuestion: "Se você pudesse transformar um hábito ou momento da rotina, qual seria?",
+                placeholder: "Ex: Foco profundo sem culpa, noites sem telas, mais constância ou calma sob pressão...",
+                tintColor: VenusTheme.accentOrange
+            )
+        case 6:
             HealthPermissionsStep(onContinue: {
                 advanceToRevealStep()
             })
-        case 6:
+        case 7:
             EmotionalProfileRevealStep(
                 userProfile: userProfile,
                 aiProfile: aiProfileResult,
@@ -382,7 +400,8 @@ struct OnboardingContainer: View {
         }
         
         if currentStep == 2 {
-            // Request AI Question 1 (Recovery & Rhythm)
+            // Save initial rhythm answer and request AI Question 1 (Focus & Mental Frictions)
+            initialRhythmAnswer = userProfile.contextNote
             isLoadingAIQuestion = true
             withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
                 currentStep = 3
@@ -413,8 +432,7 @@ struct OnboardingContainer: View {
         }
         
         if currentStep == 3 {
-            // Save recovery answer and request AI Question 2 (Objectives & Optimization)
-            userProfile.improvementAreas = [recoveryHabitsAnswer]
+            // Request AI Question 2 (Sleep & Biological Recovery)
             isLoadingAIQuestion = true
             withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
                 currentStep = 4
@@ -424,7 +442,7 @@ struct OnboardingContainer: View {
                 do {
                     let history = [
                         ("Como costuma ser seu ritmo e energia?", userProfile.contextNote),
-                        ("Como costuma ser seu sono e descanso?", recoveryHabitsAnswer)
+                        ("Como sua mente opera e onde estão as fricções de foco?", focusFrictionAnswer)
                     ]
                     let aiResponse = try await venusAI.generateNextOnboardingQuestion(
                         userName: userProfile.name,
@@ -445,21 +463,51 @@ struct OnboardingContainer: View {
         }
         
         if currentStep == 4 {
-            // Save goals answer and advance to HealthKit permissions
-            if !goalsAnswer.isEmpty {
-                userProfile.primaryGoal = goalsAnswer
-            }
-            
-            // Preload AI profile in background while user is on Health step
-            preloadAIProfile()
-            
+            // Request AI Question 3 (Optimization & Daily Levers)
+            isLoadingAIQuestion = true
             withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
                 currentStep = 5
+            }
+            
+            Task {
+                do {
+                    let history = [
+                        ("Ritmo e energia", userProfile.contextNote),
+                        ("Foco e fricções mentais", focusFrictionAnswer),
+                        ("Sono e descanso", recoverySleepAnswer)
+                    ]
+                    let aiResponse = try await venusAI.generateNextOnboardingQuestion(
+                        userName: userProfile.name,
+                        conversationHistory: history,
+                        questionIndex: 4
+                    )
+                    await MainActor.run {
+                        self.aiQuestion3 = aiResponse
+                        self.isLoadingAIQuestion = false
+                    }
+                } catch {
+                    await MainActor.run {
+                        self.isLoadingAIQuestion = false
+                    }
+                }
             }
             return
         }
         
         if currentStep == 5 {
+            // Compile all answers into userProfile
+            compileAnswersToProfile()
+            
+            // Preload AI profile in background while user is on Health step
+            preloadAIProfile()
+            
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                currentStep = 6
+            }
+            return
+        }
+        
+        if currentStep == 6 {
             // Request Apple HealthKit permissions
             isRequestingHealth = true
             Task {
@@ -472,9 +520,33 @@ struct OnboardingContainer: View {
             return
         }
         
-        if currentStep == 6 {
+        if currentStep == 7 {
             finishOnboarding()
         }
+    }
+    
+    private func compileAnswersToProfile() {
+        var notes: [String] = []
+        let initialRhythm = initialRhythmAnswer.isEmpty ? userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines) : initialRhythmAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !initialRhythm.isEmpty {
+            notes.append("• Ritmo & Energia Basal: \(initialRhythm)")
+        }
+        let friction = focusFrictionAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !friction.isEmpty {
+            notes.append("• Foco & Fricções: \(friction)")
+        }
+        let recovery = recoverySleepAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !recovery.isEmpty {
+            notes.append("• Sono & Recuperação: \(recovery)")
+        }
+        let goal = goalsOptimizationAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !goal.isEmpty {
+            notes.append("• Alavanca & Otimização: \(goal)")
+            userProfile.primaryGoal = goal
+        }
+        
+        userProfile.contextNote = notes.joined(separator: "\n")
+        userProfile.improvementAreas = [friction, recovery].filter { !$0.isEmpty }
     }
     
     private func preloadAIProfile() {
@@ -492,12 +564,17 @@ struct OnboardingContainer: View {
     
     private func advanceToRevealStep() {
         withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
-            currentStep = 6
+            currentStep = 7
         }
     }
     
     private func finishOnboarding() {
+        compileAnswersToProfile()
         userProfile.isOnboardingComplete = true
+        Task {
+            let repo = DependencyContainer.shared.makeUserProfileRepository()
+            try? await repo.save(profile: userProfile)
+        }
     }
 }
 

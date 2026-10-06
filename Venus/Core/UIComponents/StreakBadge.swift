@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+@MainActor
 struct StreakBadge: View {
     let days: Int
     let celebrated: Bool
@@ -71,24 +72,35 @@ struct StreakBadge: View {
             return
         }
 
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) { burstScale = 1.35 }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { burstScale = 1.0 }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+            burstScale = 1.35
+        }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                burstScale = 1.0
+            }
         }
 
         withAnimation(.easeInOut(duration: 0.25).repeatCount(4, autoreverses: true)) {
             animateFlame = true
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            withAnimation(.default) { animateFlame = false }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            withAnimation(.default) {
+                animateFlame = false
+            }
         }
 
         if milestone != nil {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                 showConfetti = true
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                withAnimation { showConfetti = false }
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+                withAnimation {
+                    showConfetti = false
+                }
             }
         }
     }

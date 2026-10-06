@@ -257,6 +257,9 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             if !profile.improvementAreas.isEmpty {
                 prompt += "- Áreas de atenção: \(profile.improvementAreas.joined(separator: ", "))\n"
             }
+            if !profile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                prompt += "- Como o usuário funciona no dia a dia (Onboarding): \"\(profile.contextNote)\"\n"
+            }
         }
         
         if !moods.isEmpty {
@@ -503,28 +506,33 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         }
         
         let prompt = """
-        Você é a Venus, uma inteligência pessoal e companheira de prontidão (Readiness), energia, foco sustentável, rotina, sono e clareza mental do app Venus.
-        O aplicativo analisa como o usuário funciona (ritmo de energia, sono, descanso, hábitos e picos de foco) para calcular um Score de Prontidão inteligente diário.
+        Você é a Venus, uma inteligência pessoal de prontidão (Readiness), energia, foco, rotina, sono e clareza mental do aplicativo Venus.
+        Seu objetivo neste onboarding é fazer perguntas profundas, empáticas e instigantes para fazer o usuário refletir sobre como ele realmente funciona no dia a dia, para calibrar com precisão o algoritmo de Readiness e comportamento diário.
         
         O usuário se chama \(name).
         
-        Histórico das respostas até o momento:
+        Histórico das respostas do usuário até o momento:
         \(historyText)
         
-        Objetivo da etapa atual (\(questionIndex)):
-        - Se for a etapa 2 (após ele falar do ritmo/energia): Investigue como ele costuma recarregar as baterias, como é o sono/descanso dele, ou quais são os momentos de maior foco/desgaste na rotina dele.
-        - Se for a etapa 3: Investigue o principal objetivo dele com a Venus (ex: alta performance e produtividade, sono mais reparador, manter consistência de hábitos, ou mais clareza e equilíbrio).
-        - IMPORTANTE: Não foque apenas em ansiedade ou estresse. A Venus é para alto rendimento, produtividade, descanso, sono e energia no dia a dia. Queremos entender como ele opera para calibrar o algoritmo de Readiness e comportamento perfeitamente.
+        Objetivo da pergunta atual (Etapa \(questionIndex)):
+        - Se Etapa 2 (Foco, Picos de Energia & Fricções Mentais): Analise o relato inicial de ritmo e gere uma pergunta provocativa e inteligente sobre como a mente dele opera sob demanda — onde ocorrem seus melhores picos de clareza, o que costuma drenar sua energia ou onde surgem as maiores fricções no dia a dia (ex: autocobrança, sobrecarga de decisões, dispersão, falta de pausas).
+        - Se Etapa 3 (Descompressão & Recuperação Biológica): Analise as respostas anteriores e gere uma pergunta reflexiva sobre como ele realmente desliga e restaura a bateria mental e física (ex: sono restaurador, pensamentos acelerados à noite, rituais de descompressão ou momentos de pausa genuína).
+        - Se Etapa 4 (Alavanca de Mudança & Ritmo Ideal): Analise todo o quadro do usuário e gere uma pergunta reflexiva sobre qual transformação ou hábito seria o maior ponto de virada para ele viver no seu ritmo mais lúcido, consistente e equilibrado.
+        
+        Diretrizes essenciais:
+        - Faça perguntas inteligentes, instigantes e acolhedoras que provoquem uma reflexão genuína ("nunca parei para pensar nisso desse jeito").
+        - NUNCA limite o app a 'ansiedade' ou 'tristeza'. O app é sobre funcionamento humano integral: foco, energia, sono, clareza, rotina e prontidão.
+        - Não faça perguntas genéricas de formulário. Conecte de forma humana com o que ele acabou de relatar.
         
         Sua missão:
-        1. "empathyReaction": Reagir em 1 frase curta (máximo 12 palavras) reconhecendo de forma empática, inteligente e humana o que ele respondeu.
-        2. "nextQuestion": Fazer 1 pergunta aberta, direta e cativante (máximo 16 palavras) para entender como ele funciona no dia a dia.
-        3. "suggestedTone": Sugerir o tom de conversa ideal ("Gentil", "Direto", "Prático" ou "Motivacional").
+        1. "empathyReaction": Reagir em 1 frase curta (máximo 12 palavras) validando com sabedoria, empatia e sagacidade a resposta dele.
+        2. "nextQuestion": Fazer 1 pergunta aberta, reflexiva e direta (máximo 18 palavras).
+        3. "suggestedTone": Sugerir o tom ideal ("Gentil", "Direto", "Prático" ou "Motivacional").
         
         Responda APENAS em JSON válido:
         {
             "empathyReaction": "Frase curta de acolhimento e reconhecimento inteligente",
-            "nextQuestion": "Pergunta aberta e direta para conhecer melhor o funcionamento dele",
+            "nextQuestion": "Pergunta aberta e reflexiva para o usuário se auto-observar",
             "suggestedTone": "Prático"
         }
         """
@@ -544,18 +552,24 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             print("⚠️ Falha ao gerar pergunta dinâmica de onboarding via IA: \(error)")
         }
         
-        // Intelligent Fallbacks based on question index
+        // Intelligent Reflective Fallbacks based on question index
         if questionIndex == 2 {
             return AIOnboardingQuestionResponse(
-                empathyReaction: "Entender seu ritmo ajuda muito a calibrar seus picos de energia ⚡",
-                nextQuestion: "Como costuma ser a qualidade do seu sono e seus momentos de descanso?",
+                empathyReaction: "Entender seu ritmo ajuda muito a mapear seus picos e quedas de energia ⚡",
+                nextQuestion: "Em que momentos do dia sua mente funciona melhor e o que mais costuma dispersar seu foco?",
                 suggestedTone: "Prático"
+            )
+        } else if questionIndex == 3 {
+            return AIOnboardingQuestionResponse(
+                empathyReaction: "Ter clareza sobre suas noites é a chave para calibrar sua recuperação 🌿",
+                nextQuestion: "Quando chega a noite, o que você sente que mais impede sua mente de desligar de verdade?",
+                suggestedTone: "Gentil"
             )
         } else {
             return AIOnboardingQuestionResponse(
-                empathyReaction: "Perfeito! Isso nos dá clareza total sobre o seu funcionamento 🌿",
-                nextQuestion: "O que você mais gostaria que a Venus te ajudasse a otimizar no seu dia?",
-                suggestedTone: "Gentil"
+                empathyReaction: "Isso nos dá clareza total sobre o seu funcionamento e necessidades 🤍",
+                nextQuestion: "Se você pudesse alinhar uma única coisa na sua rotina para viver no seu melhor ritmo, qual seria?",
+                suggestedTone: "Motivacional"
             )
         }
     }
