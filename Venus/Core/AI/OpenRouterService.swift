@@ -498,82 +498,132 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         conversationHistory: [(question: String, answer: String)],
         questionIndex: Int
     ) async throws -> AIOnboardingQuestionResponse {
-        let name = userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "amigo(a)" : userName
+        let name = userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "amigo" : userName
         
         var historyText = ""
         for (q, a) in conversationHistory {
-            historyText += "Pergunta anterior: \(q)\nResposta do usuário: \(a)\n\n"
+            let cleanQ = sanitizeOnboardingText(q)
+            let cleanA = sanitizeOnboardingText(a)
+            historyText += "Pergunta anterior: \(cleanQ)\nResposta do usuário: \(cleanA)\n\n"
         }
         
         let prompt = """
-        Você é a Venus, uma inteligência pessoal de prontidão (Readiness), energia, foco, rotina, sono e clareza mental do aplicativo Venus.
-        Seu objetivo neste onboarding é fazer perguntas profundas, empáticas e instigantes para fazer o usuário refletir sobre como ele realmente funciona no dia a dia, para calibrar com precisão o algoritmo de Readiness e comportamento diário.
+        Você é a Venus, uma inteligência pessoal de prontidão, energia, foco, rotina, sono e clareza mental do aplicativo Venus.
+        Seu objetivo neste onboarding é conduzir uma conversa reflexiva e profunda com o usuário para entender como ele realmente funciona no dia a dia.
         
         O usuário se chama \(name).
         
-        Histórico das respostas do usuário até o momento:
+        Histórico da conversa até agora:
         \(historyText)
         
-        Objetivo da pergunta atual (Etapa \(questionIndex)):
-        - Se Etapa 2 (Foco, Picos de Energia & Fricções Mentais): Analise o relato inicial de ritmo e gere uma pergunta provocativa e inteligente sobre como a mente dele opera sob demanda — onde ocorrem seus melhores picos de clareza, o que costuma drenar sua energia ou onde surgem as maiores fricções no dia a dia (ex: autocobrança, sobrecarga de decisões, dispersão, falta de pausas).
-        - Se Etapa 3 (Descompressão & Recuperação Biológica): Analise as respostas anteriores e gere uma pergunta reflexiva sobre como ele realmente desliga e restaura a bateria mental e física (ex: sono restaurador, pensamentos acelerados à noite, rituais de descompressão ou momentos de pausa genuína).
-        - Se Etapa 4 (Alavanca de Mudança & Ritmo Ideal): Analise todo o quadro do usuário e gere uma pergunta reflexiva sobre qual transformação ou hábito seria o maior ponto de virada para ele viver no seu ritmo mais lúcido, consistente e equilibrado.
+        REGRAS DE FORMATAÇÃO E ESTILO RIGOROSAS:
+        1. NUNCA use travessões (—, -, –), traços ou hífens no início ou meio das frases.
+        2. NUNCA use emojis de nenhum tipo (sem emoticons, sem símbolos gráficos, sem estrelas, etc.).
+        3. Fale de forma humana, empática, inteligente e fluida em português do Brasil com pontuação padrão.
+        4. O app não é apenas sobre ansiedade: explore ritmo biológico, energia, sobrecarga mental, foco, sono e metas práticas.
         
-        Diretrizes essenciais:
-        - Faça perguntas inteligentes, instigantes e acolhedoras que provoquem uma reflexão genuína ("nunca parei para pensar nisso desse jeito").
-        - NUNCA limite o app a 'ansiedade' ou 'tristeza'. O app é sobre funcionamento humano integral: foco, energia, sono, clareza, rotina e prontidão.
-        - Não faça perguntas genéricas de formulário. Conecte de forma humana com o que ele acabou de relatar.
+        AVALIAÇÃO DE PROFUNDIDADE:
+        - Avalie se as respostas do usuário já deram clareza suficiente sobre:
+          a) Ritmo de energia diário e picos de foco
+          b) Fricções, sobrecarga mental ou dispersão
+          c) Recuperação noturna e sono
+          d) O que ele mais quer transformar na rotina
+        - Se você já tiver informações ricas sobre esses pontos essenciais, defina "hasEnoughContext": true.
+        - Se ainda faltar entender como ele opera ou se a resposta foi curta, defina "hasEnoughContext": false e formule a próxima pergunta reflexiva que aprofunde no ponto que falta.
         
         Sua missão:
-        1. "empathyReaction": Reagir em 1 frase curta (máximo 12 palavras) validando com sabedoria, empatia e sagacidade a resposta dele.
-        2. "nextQuestion": Fazer 1 pergunta aberta, reflexiva e direta (máximo 18 palavras).
-        3. "suggestedTone": Sugerir o tom ideal ("Gentil", "Direto", "Prático" ou "Motivacional").
+        1. "empathyReaction": Reagir em 1 frase curta (máximo 14 palavras) validando com sagacidade o que ele disse (sem travessão, sem emojis).
+        2. "nextQuestion": Formular 1 pergunta aberta, inteligente e reflexiva (máximo 18 palavras) para aprofundar no funcionamento dele (sem travessão, sem emojis).
+        3. "hasEnoughContext": true ou false.
+        4. "suggestedTone": "Gentil", "Direto", "Prático" ou "Motivacional".
         
-        Responda APENAS em JSON válido:
+        Responda EXCLUSIVAMENTE em JSON válido:
         {
             "empathyReaction": "Frase curta de acolhimento e reconhecimento inteligente",
-            "nextQuestion": "Pergunta aberta e reflexiva para o usuário se auto-observar",
+            "nextQuestion": "Pergunta reflexiva para o usuário se auto-observar",
+            "hasEnoughContext": false,
             "suggestedTone": "Prático"
         }
         """
         
         let messages = [
-            OpenRouterMessage(role: "system", content: "Responda apenas com JSON válido em português."),
+            OpenRouterMessage(role: "system", content: "Responda apenas com JSON válido em português. Sem travessões e sem emojis."),
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
         do {
-            let response = try await sendChatCompletion(messages: messages, temperature: 0.6, maxTokens: 1500)
+            let response = try await sendChatCompletion(messages: messages, temperature: 0.4, maxTokens: 2500)
             let cleanJson = cleanJsonText(response)
             if let data = cleanJson.data(using: .utf8) {
                 let decoded = try JSONDecoder().decode(AIOnboardingQuestionResponse.self, from: data)
-                print("✨ Pergunta de Onboarding gerada com sucesso pela IA: \(decoded.nextQuestion)")
-                return decoded
+                let cleanReaction = sanitizeOnboardingText(decoded.empathyReaction)
+                let cleanQuestion = sanitizeOnboardingText(decoded.nextQuestion)
+                let sanitizedResponse = AIOnboardingQuestionResponse(
+                    empathyReaction: cleanReaction,
+                    nextQuestion: cleanQuestion,
+                    suggestedTone: decoded.suggestedTone,
+                    hasEnoughContext: decoded.hasEnoughContext
+                )
+                print("✨ Pergunta de Onboarding gerada com sucesso pela IA: \(cleanQuestion)")
+                return sanitizedResponse
             }
         } catch {
             print("⚠️ Falha ao gerar pergunta dinâmica de onboarding via IA: \(error)")
         }
         
-        // Intelligent Reflective Fallbacks based on question index
-        if questionIndex == 2 {
+        // Intelligent Reflective Fallbacks based on question index (sem travessão, sem emojis)
+        if questionIndex == 1 {
             return AIOnboardingQuestionResponse(
-                empathyReaction: "Entender seu ritmo ajuda muito a mapear seus picos e quedas de energia ⚡",
-                nextQuestion: "Em que momentos do dia sua mente funciona melhor e o que mais costuma dispersar seu foco?",
-                suggestedTone: "Prático"
+                empathyReaction: "Entender seu ritmo ajuda muito a mapear seus picos e quedas de energia.",
+                nextQuestion: "Em que momentos do dia sua mente funciona melhor e o que costuma dispersar seu foco?",
+                suggestedTone: "Prático",
+                hasEnoughContext: false
             )
-        } else if questionIndex == 3 {
+        } else if questionIndex == 2 {
             return AIOnboardingQuestionResponse(
-                empathyReaction: "Ter clareza sobre suas noites é a chave para calibrar sua recuperação 🌿",
+                empathyReaction: "Ter clareza sobre suas noites é a chave para calibrar sua recuperação.",
                 nextQuestion: "Quando chega a noite, o que você sente que mais impede sua mente de desligar de verdade?",
-                suggestedTone: "Gentil"
+                suggestedTone: "Gentil",
+                hasEnoughContext: false
             )
         } else {
             return AIOnboardingQuestionResponse(
-                empathyReaction: "Isso nos dá clareza total sobre o seu funcionamento e necessidades 🤍",
+                empathyReaction: "Isso nos dá clareza total sobre o seu funcionamento e necessidades.",
                 nextQuestion: "Se você pudesse alinhar uma única coisa na sua rotina para viver no seu melhor ritmo, qual seria?",
-                suggestedTone: "Motivacional"
+                suggestedTone: "Motivacional",
+                hasEnoughContext: true
             )
         }
+    }
+    
+    private func sanitizeOnboardingText(_ text: String) -> String {
+        var clean = text
+        // Remove dashes/hyphens used as bullets or dashes
+        clean = clean.replacingOccurrences(of: "—", with: "")
+        clean = clean.replacingOccurrences(of: "–", with: "")
+        clean = clean.replacingOccurrences(of: "- ", with: "")
+        clean = clean.replacingOccurrences(of: " -", with: "")
+        
+        // Filter out all emojis (Unicode scalars for emoji Presentation, Symbols, Pictographs)
+        let filteredScalars = clean.unicodeScalars.filter { scalar in
+            if scalar.properties.isEmoji && scalar.properties.isEmojiPresentation { return false }
+            if scalar.properties.isEmoji && scalar.value > 0x2380 { return false }
+            if scalar.value >= 0x1F600 && scalar.value <= 0x1F64F { return false } // Emoticons
+            if scalar.value >= 0x1F300 && scalar.value <= 0x1F5FF { return false } // Misc Symbols and Pictographs
+            if scalar.value >= 0x1F680 && scalar.value <= 0x1F6FF { return false } // Transport and Map
+            if scalar.value >= 0x1F700 && scalar.value <= 0x1F77F { return false } // Alchemical Symbols
+            if scalar.value >= 0x1F780 && scalar.value <= 0x1F7FF { return false } // Geometric Shapes
+            if scalar.value >= 0x1F800 && scalar.value <= 0x1F8FF { return false } // Supplemental Arrows
+            if scalar.value >= 0x1F900 && scalar.value <= 0x1F9FF { return false } // Supplemental Symbols
+            if scalar.value >= 0x1FA00 && scalar.value <= 0x1FA6F { return false } // Chess Symbols
+            if scalar.value >= 0x1FA70 && scalar.value <= 0x1FAFF { return false } // Symbols and Pictographs Extended-A
+            if scalar.value >= 0x2600 && scalar.value <= 0x26FF { return false } // Misc symbols
+            if scalar.value >= 0x2700 && scalar.value <= 0x27BF { return false } // Dingbats
+            return true
+        }
+        
+        clean = String(String.UnicodeScalarView(filteredScalars))
+        return clean.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
     // MARK: - Onboarding Profile Generation

@@ -183,6 +183,7 @@ struct AIOnboardingQuestionResponse: Codable, Sendable {
     let empathyReaction: String
     let nextQuestion: String
     let suggestedTone: String?
+    let hasEnoughContext: Bool?
 }
 
 // MARK: - System Prompts

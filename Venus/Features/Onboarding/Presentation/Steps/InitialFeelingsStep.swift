@@ -50,6 +50,7 @@ struct InitialFeelingsStep: View {
                         userProfile.contextNote = newValue
                     }
             }
+            
             .padding(.top, 8)
              
             Spacer(minLength: 40)

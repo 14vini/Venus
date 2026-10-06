@@ -12,24 +12,18 @@ struct OnboardingContainer: View {
     @State private var currentStep: Int
     @State private var transitionDirection: Int = 1
     
-    // Dynamic Conversation Answers
-    @State private var initialRhythmAnswer: String = ""
-    @State private var focusFrictionAnswer: String = ""
-    @State private var recoverySleepAnswer: String = ""
-    @State private var goalsOptimizationAnswer: String = ""
-    
-    // AI Responses
-    @State private var aiQuestion1: AIOnboardingQuestionResponse? = nil
-    @State private var aiQuestion2: AIOnboardingQuestionResponse? = nil
-    @State private var aiQuestion3: AIOnboardingQuestionResponse? = nil
+    // Dynamic Conversation State
+    @State private var conversationHistory: [(question: String, answer: String)] = []
+    @State private var currentAIQuestion: AIOnboardingQuestionResponse? = nil
+    @State private var currentAnswerText: String = ""
+    @State private var dynamicQuestionCount: Int = 0
     @State private var isLoadingAIQuestion: Bool = false
+    
+    // AI Profile & HealthKit
     @State private var aiProfileResult: AIOnboardingProfileResponse? = nil
     @State private var isLoadingAIProfile: Bool = false
-    
-    // HealthKit
     @State private var isRequestingHealth: Bool = false
     
-    private let totalQuestionSteps = 6 // Steps 1, 2, 3, 4, 5, 6
     private let venusAI: VenusAIServiceProtocol = DependencyContainer.shared.makeVenusAIService()
     private let healthKitService: HealthKitServiceProtocol = DependencyContainer.shared.makeHealthKitService()
     
@@ -37,7 +31,7 @@ struct OnboardingContainer: View {
     @State private var bottomControlsHeight: CGFloat = 0
     
     init(userProfile: UserProfile, initialStep: Int = 0) {
-        let safeInitialStep = min(max(initialStep, 0), 7)
+        let safeInitialStep = min(max(initialStep, 0), 5)
         _userProfile = State(initialValue: userProfile)
         _currentStep = State(initialValue: safeInitialStep)
     }
@@ -49,11 +43,7 @@ struct OnboardingContainer: View {
         case 2:
             return !userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case 3:
-            return !focusFrictionAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case 4:
-            return !recoverySleepAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case 5:
-            return !goalsOptimizationAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return !currentAnswerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         default:
             return true
         }
@@ -65,11 +55,11 @@ struct OnboardingContainer: View {
             return "Começar"
         case 1:
             return "Continuar"
-        case 2, 3, 4, 5:
+        case 2, 3:
             return "Avançar"
-        case 6:
+        case 4:
             return "Conectar Apple Saúde"
-        case 7:
+        case 5:
             return "Entrar no Meu Espaço"
         default:
             return "Continuar"
@@ -78,9 +68,9 @@ struct OnboardingContainer: View {
     
     private var nextButtonIcon: String {
         switch currentStep {
-        case 6:
+        case 4:
             return "heart.fill"
-        case 7:
+        case 5:
             return "arrow.right.circle.fill"
         default:
             return "chevron.right"
@@ -110,7 +100,7 @@ struct OnboardingContainer: View {
 
             if currentStep == 0 {
                 presentationStepView
-            } else if currentStep >= 1 && currentStep <= 6 {
+            } else if currentStep >= 1 && currentStep <= 4 {
                 conversationalFlowView
             } else {
                 revealStepView
@@ -176,15 +166,9 @@ struct OnboardingContainer: View {
     }
 
     private var topHUDView: some View {
-        HStack(spacing: 12) {
+        HStack {
             topBackButton
-            
-            VenusProgressBar(
-                currentStep: currentStep,
-                totalSteps: totalQuestionSteps,
-                tint: palette.accent
-            )
-            .allowsHitTesting(false)
+            Spacer()
         }
         .padding(.horizontal, 24)
     }
@@ -215,7 +199,7 @@ struct OnboardingContainer: View {
                             .frame(height: 1)
                             .id("top")
 
-                        if currentStep >= 1 && currentStep <= 5 {
+                        if currentStep >= 1 && currentStep <= 3 {
                             OnboardingMascotCompanionView(
                                 currentStep: currentStep,
                                 userProfile: $userProfile
@@ -243,7 +227,7 @@ struct OnboardingContainer: View {
         VStack(spacing: 8) {
             nextButton
             
-            if currentStep == 6 {
+            if currentStep == 4 {
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     advanceToRevealStep()
@@ -335,36 +319,18 @@ struct OnboardingContainer: View {
             })
         case 3:
             AIDeepeningStep(
-                text: $focusFrictionAnswer,
-                aiQuestion: aiQuestion1,
+                text: $currentAnswerText,
+                aiQuestion: currentAIQuestion,
                 isLoadingAI: isLoadingAIQuestion,
-                defaultQuestion: "Em que momentos sua mente funciona melhor e o que costuma drenar seu foco?",
-                placeholder: "Conte sobre seus picos de clareza, distrações ou onde surgem as maiores sobrecargas...",
-                tintColor: VenusTheme.accentBlue
+                defaultQuestion: "Como costuma ser seu foco e quais momentos do dia são mais produtivos para você?",
+                placeholder: "Conte sobre como sua mente opera, momentos de clareza ou distrações...",
+                tintColor: palette.accent
             )
         case 4:
-            AIDeepeningStep(
-                text: $recoverySleepAnswer,
-                aiQuestion: aiQuestion2,
-                isLoadingAI: isLoadingAIQuestion,
-                defaultQuestion: "Quando chega a noite, o que mais impede sua mente de desligar e descansar?",
-                placeholder: "Conte sobre a qualidade do seu sono, hábitos noturnos e como você recarrega a bateria...",
-                tintColor: VenusTheme.accentPurple
-            )
-        case 5:
-            AIDeepeningStep(
-                text: $goalsOptimizationAnswer,
-                aiQuestion: aiQuestion3,
-                isLoadingAI: isLoadingAIQuestion,
-                defaultQuestion: "Se você pudesse transformar um hábito ou momento da rotina, qual seria?",
-                placeholder: "Ex: Foco profundo sem culpa, noites sem telas, mais constância ou calma sob pressão...",
-                tintColor: VenusTheme.accentOrange
-            )
-        case 6:
             HealthPermissionsStep(onContinue: {
                 advanceToRevealStep()
             })
-        case 7:
+        case 5:
             EmotionalProfileRevealStep(
                 userProfile: userProfile,
                 aiProfile: aiProfileResult,
@@ -380,6 +346,16 @@ struct OnboardingContainer: View {
     // MARK: - Navigation Logic
     
     private func goToPreviousStep() {
+        if currentStep == 3 && conversationHistory.count > 1 {
+            // Revert to previous dynamic question
+            _ = conversationHistory.popLast()
+            dynamicQuestionCount = max(1, dynamicQuestionCount - 1)
+            if let previous = conversationHistory.last {
+                currentAnswerText = previous.answer
+            }
+            return
+        }
+        
         guard currentStep > 0 else { return }
         transitionDirection = -1
         withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
@@ -400,114 +376,43 @@ struct OnboardingContainer: View {
         }
         
         if currentStep == 2 {
-            // Save initial rhythm answer and request AI Question 1 (Focus & Mental Frictions)
-            initialRhythmAnswer = userProfile.contextNote
+            // Setup initial conversation history and fetch first dynamic AI question
+            let initialRhythm = userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines)
+            conversationHistory = [("Como costuma ser seu ritmo e energia no dia a dia?", initialRhythm)]
+            dynamicQuestionCount = 1
+            currentAnswerText = ""
             isLoadingAIQuestion = true
+            
             withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
                 currentStep = 3
             }
             
-            Task {
-                do {
-                    let history = [("Como costuma ser seu ritmo e energia no dia a dia?", userProfile.contextNote)]
-                    let aiResponse = try await venusAI.generateNextOnboardingQuestion(
-                        userName: userProfile.name,
-                        conversationHistory: history,
-                        questionIndex: 2
-                    )
-                    await MainActor.run {
-                        self.aiQuestion1 = aiResponse
-                        if let tone = aiResponse.suggestedTone {
-                            self.userProfile.coachingTone = tone
-                        }
-                        self.isLoadingAIQuestion = false
-                    }
-                } catch {
-                    await MainActor.run {
-                        self.isLoadingAIQuestion = false
-                    }
-                }
-            }
+            fetchNextAIQuestion(index: 1)
             return
         }
         
         if currentStep == 3 {
-            // Request AI Question 2 (Sleep & Biological Recovery)
-            isLoadingAIQuestion = true
-            withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
-                currentStep = 4
+            let answer = currentAnswerText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let question = currentAIQuestion?.nextQuestion ?? "Como costuma ser seu foco?"
+            conversationHistory.append((question, answer))
+            
+            // Check if AI has enough context (minimum 2 questions, safety cap 5)
+            let hasEnough = currentAIQuestion?.hasEnoughContext ?? false
+            if (hasEnough && dynamicQuestionCount >= 2) || dynamicQuestionCount >= 5 {
+                advanceToHealthStep()
+                return
             }
             
-            Task {
-                do {
-                    let history = [
-                        ("Como costuma ser seu ritmo e energia?", userProfile.contextNote),
-                        ("Como sua mente opera e onde estão as fricções de foco?", focusFrictionAnswer)
-                    ]
-                    let aiResponse = try await venusAI.generateNextOnboardingQuestion(
-                        userName: userProfile.name,
-                        conversationHistory: history,
-                        questionIndex: 3
-                    )
-                    await MainActor.run {
-                        self.aiQuestion2 = aiResponse
-                        self.isLoadingAIQuestion = false
-                    }
-                } catch {
-                    await MainActor.run {
-                        self.isLoadingAIQuestion = false
-                    }
-                }
-            }
+            // Fetch next dynamic question
+            dynamicQuestionCount += 1
+            currentAnswerText = ""
+            isLoadingAIQuestion = true
+            
+            fetchNextAIQuestion(index: dynamicQuestionCount)
             return
         }
         
         if currentStep == 4 {
-            // Request AI Question 3 (Optimization & Daily Levers)
-            isLoadingAIQuestion = true
-            withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
-                currentStep = 5
-            }
-            
-            Task {
-                do {
-                    let history = [
-                        ("Ritmo e energia", userProfile.contextNote),
-                        ("Foco e fricções mentais", focusFrictionAnswer),
-                        ("Sono e descanso", recoverySleepAnswer)
-                    ]
-                    let aiResponse = try await venusAI.generateNextOnboardingQuestion(
-                        userName: userProfile.name,
-                        conversationHistory: history,
-                        questionIndex: 4
-                    )
-                    await MainActor.run {
-                        self.aiQuestion3 = aiResponse
-                        self.isLoadingAIQuestion = false
-                    }
-                } catch {
-                    await MainActor.run {
-                        self.isLoadingAIQuestion = false
-                    }
-                }
-            }
-            return
-        }
-        
-        if currentStep == 5 {
-            // Compile all answers into userProfile
-            compileAnswersToProfile()
-            
-            // Preload AI profile in background while user is on Health step
-            preloadAIProfile()
-            
-            withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
-                currentStep = 6
-            }
-            return
-        }
-        
-        if currentStep == 6 {
             // Request Apple HealthKit permissions
             isRequestingHealth = true
             Task {
@@ -520,33 +425,67 @@ struct OnboardingContainer: View {
             return
         }
         
-        if currentStep == 7 {
+        if currentStep == 5 {
             finishOnboarding()
         }
     }
     
+    private func fetchNextAIQuestion(index: Int) {
+        Task {
+            do {
+                let aiResponse = try await venusAI.generateNextOnboardingQuestion(
+                    userName: userProfile.name,
+                    conversationHistory: conversationHistory,
+                    questionIndex: index
+                )
+                await MainActor.run {
+                    if let tone = aiResponse.suggestedTone, !tone.isEmpty {
+                        self.userProfile.coachingTone = tone
+                    }
+                    
+                    // If AI deems it already has enough context and we have at least 2 questions answered
+                    if (aiResponse.hasEnoughContext == true) && self.conversationHistory.count >= 2 {
+                        self.advanceToHealthStep()
+                    } else {
+                        self.currentAIQuestion = aiResponse
+                        self.isLoadingAIQuestion = false
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.isLoadingAIQuestion = false
+                }
+            }
+        }
+    }
+    
+    private func advanceToHealthStep() {
+        compileAnswersToProfile()
+        preloadAIProfile()
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+            currentStep = 4
+        }
+    }
+    
+    private func advanceToRevealStep() {
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+            currentStep = 5
+        }
+    }
+    
     private func compileAnswersToProfile() {
-        var notes: [String] = []
-        let initialRhythm = initialRhythmAnswer.isEmpty ? userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines) : initialRhythmAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !initialRhythm.isEmpty {
-            notes.append("• Ritmo & Energia Basal: \(initialRhythm)")
+        var summaryLines: [String] = []
+        for (q, a) in conversationHistory {
+            summaryLines.append("• Pergunta: \(q)\n  Resposta: \(a)")
         }
-        let friction = focusFrictionAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !friction.isEmpty {
-            notes.append("• Foco & Fricções: \(friction)")
-        }
-        let recovery = recoverySleepAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !recovery.isEmpty {
-            notes.append("• Sono & Recuperação: \(recovery)")
-        }
-        let goal = goalsOptimizationAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !goal.isEmpty {
-            notes.append("• Alavanca & Otimização: \(goal)")
-            userProfile.primaryGoal = goal
+        userProfile.contextNote = summaryLines.joined(separator: "\n\n")
+        
+        if let lastAnswer = conversationHistory.last?.answer {
+            userProfile.primaryGoal = lastAnswer
         }
         
-        userProfile.contextNote = notes.joined(separator: "\n")
-        userProfile.improvementAreas = [friction, recovery].filter { !$0.isEmpty }
+        let answersOnly = conversationHistory.map { $0.answer }
+        userProfile.improvementAreas = Array(answersOnly.prefix(3))
     }
     
     private func preloadAIProfile() {
@@ -559,12 +498,6 @@ struct OnboardingContainer: View {
             } catch {
                 print("⚠️ Falha ao pré-carregar perfil de onboarding: \(error)")
             }
-        }
-    }
-    
-    private func advanceToRevealStep() {
-        withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
-            currentStep = 7
         }
     }
     

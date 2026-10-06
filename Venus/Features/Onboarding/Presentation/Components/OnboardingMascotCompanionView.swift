@@ -55,28 +55,28 @@ struct OnboardingMascotCompanionView: View {
         case 1:
             let name = userProfile.name.trimmingCharacters(in: .whitespacesAndNewlines)
             if !name.isEmpty {
-                return "Que alegria te conhecer, \(name)! É um prazer ter você aqui ✨"
+                return "Que alegria te conhecer, \(name). É um prazer ter você aqui."
             }
-            return "Oi! Como você prefere que eu te chame?"
+            return "Olá, como você prefere que eu te chame?"
             
         case 2:
             if !userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return "Entender seu ritmo nos dá a base perfeita para calibrar seus dias 🌿"
+                return "Entender seu ritmo diário nos dá a base perfeita para calibrar seus dias."
             }
             let name = userProfile.name.isEmpty ? "" : ", \(userProfile.name)"
             return "Como costuma ser seu ritmo e nível de energia\(name)?"
             
         case 3:
-            return "Sintonizando com seus momentos de foco e onde ocorrem as principais fricções ⚡"
+            return "Sintonizando com o que você me contou para entender como você funciona."
             
         case 4:
-            return "Mapeando como você recarrega suas energias e desliga a mente à noite 🌙"
+            return "Analisando seus padrões de energia, foco e descanso."
             
         case 5:
-            return "Identificando o ponto de virada para potencializar sua clareza e rotina 🤍"
+            return "Mapeando o que é mais importante para potencializar sua rotina."
             
         default:
-            return "Estou pronta para começar!"
+            return "Estou pronta para começar."
         }
     }
 

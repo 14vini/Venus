@@ -69,22 +69,16 @@ struct AIDeepeningStep: View {
     
     private var questionContentView: some View {
         VStack(alignment: .leading, spacing: 18) {
-            // Empathy Reaction from Venus
+            // Empathy Reaction from Venus (limpo, sem emojis, sem travessao)
             if let reaction = aiQuestion?.empathyReaction, !reaction.isEmpty {
-                HStack(spacing: 8) {
-                    Image(systemName: "sparkle")
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundColor(VenusTheme.primary)
-                    
-                    Text(reaction)
-                        .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                        .foregroundColor(VenusTheme.text)
-                        .lineSpacing(2)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                Text(reaction)
+                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                    .foregroundColor(VenusTheme.text)
+                    .lineSpacing(2)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
             
             // Dynamic Question Header (sem subtítulo)
