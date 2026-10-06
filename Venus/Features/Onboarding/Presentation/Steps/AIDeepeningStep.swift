@@ -15,12 +15,20 @@ struct AIDeepeningStep: View {
     let placeholder: String
     var tintColor: Color = VenusTheme.accentPurple
     
+    @State private var displayedQuestion: String = ""
+    @State private var isTyping: Bool = false
+    @State private var cursorBlink: Bool = true
+    @State private var hasFinishedTyping: Bool = false
     @FocusState private var isTextFocused: Bool
+    
+    private var targetQuestion: String {
+        aiQuestion?.nextQuestion ?? defaultQuestion
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            if isLoadingAI {
-                loadingView
+            if isLoadingAI && displayedQuestion.isEmpty {
+                aiThinkingIndicator
             } else {
                 questionContentView
             }
@@ -29,41 +37,35 @@ struct AIDeepeningStep: View {
         }
         .padding(.horizontal, 24)
         .padding(.top, 20)
-        .onAppear {
-            if !isLoadingAI {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    isTextFocused = true
-                }
-            }
+        .task(id: targetQuestion) {
+            await startTypewriterAnimation(for: targetQuestion)
         }
         .onChange(of: isLoadingAI) { _, loading in
-            if !loading {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    isTextFocused = true
+            if !loading && !targetQuestion.isEmpty {
+                Task {
+                    await startTypewriterAnimation(for: targetQuestion)
                 }
             }
         }
     }
     
-    private var loadingView: some View {
-        VStack(spacing: 24) {
-            Spacer()
-                .frame(height: 40)
-            
-            HStack {
-                Spacer()
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .scaleEffect(1.3)
-                        .tint(VenusTheme.primary)
-                    
-                    Text("Conectando com o que você me contou...")
-                        .font(.system(.subheadline, design: .rounded).weight(.medium))
-                        .foregroundStyle(VenusTheme.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                Spacer()
+    private var aiThinkingIndicator: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 6) {
+                Text("Venus está formulando sua pergunta")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(VenusTheme.textSecondary)
+                
+                Text("|")
+                    .font(.system(size: 24, weight: .black, design: .rounded))
+                    .foregroundStyle(VenusTheme.primary)
+                    .opacity(cursorBlink ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true), value: cursorBlink)
             }
+            .padding(.top, 16)
+        }
+        .onAppear {
+            cursorBlink = true
         }
     }
     
@@ -81,14 +83,36 @@ struct AIDeepeningStep: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
             
-            // Dynamic Question Header (sem subtítulo)
-            Text(aiQuestion?.nextQuestion ?? defaultQuestion)
-                .font(.system(size: 26, weight: .black, design: .rounded))
-                .foregroundStyle(VenusTheme.text)
-                .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(2)
+            // Dynamic Question with Typewriter & Blinking Cursor
+            HStack(alignment: .top, spacing: 2) {
+                Text(displayedQuestion)
+                    .font(.system(size: 26, weight: .black, design: .rounded))
+                    .foregroundStyle(VenusTheme.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(2)
+                
+                if isTyping {
+                    Text("|")
+                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .foregroundStyle(tintColor)
+                        .opacity(cursorBlink ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.35).repeatForever(autoreverses: true), value: cursorBlink)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                // Skip typing on tap
+                if isTyping {
+                    displayedQuestion = targetQuestion
+                    isTyping = false
+                    hasFinishedTyping = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        isTextFocused = true
+                    }
+                }
+            }
             
-            // Clean Borderless Input Area (sem background, sem voz)
+            // Clean Borderless Floating Input Area
             ZStack(alignment: .topLeading) {
                 if text.isEmpty {
                     Text(placeholder)
@@ -107,9 +131,34 @@ struct AIDeepeningStep: View {
                     .background(Color.clear)
                     .frame(minHeight: 180, maxHeight: 300)
                     .focused($isTextFocused)
+                    .opacity(hasFinishedTyping || !isTyping ? 1 : 0.6)
+                    .animation(.easeInOut(duration: 0.25), value: hasFinishedTyping)
             }
             .padding(.top, 8)
         }
+    }
+    
+    @MainActor
+    private func startTypewriterAnimation(for fullText: String) async {
+        guard !fullText.isEmpty else { return }
+        
+        // Reset state
+        displayedQuestion = ""
+        isTyping = true
+        hasFinishedTyping = false
+        cursorBlink = true
+        
+        for char in fullText {
+            guard isTyping else { break }
+            displayedQuestion.append(char)
+            try? await Task.sleep(nanoseconds: 20_000_000) // 20ms per character
+        }
+        
+        isTyping = false
+        hasFinishedTyping = true
+        
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        isTextFocused = true
     }
 }
 
@@ -117,9 +166,10 @@ struct AIDeepeningStep: View {
     AIDeepeningStep(
         text: .constant(""),
         aiQuestion: AIOnboardingQuestionResponse(
-            empathyReaction: "Entender seu ritmo ajuda muito a calibrar seus picos de energia ⚡",
+            empathyReaction: "Entender seu ritmo ajuda muito a calibrar seus picos de energia.",
             nextQuestion: "Como costuma ser a qualidade do seu sono e descanso?",
-            suggestedTone: "Prático"
+            suggestedTone: "Prático",
+            hasEnoughContext: false
         ),
         isLoadingAI: false,
         defaultQuestion: "Como costuma ser o seu sono e descanso?",

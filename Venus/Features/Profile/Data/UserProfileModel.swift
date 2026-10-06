@@ -21,6 +21,7 @@ class UserProfileModel {
     var improvementAreas: [String]
     var emotionalAreas: [String]
     var contextNote: String = ""
+    var gender: String = "Prefiro não dizer"
     var isOnboardingComplete: Bool
     
     // Work Schedule (optional)
@@ -36,6 +37,7 @@ class UserProfileModel {
     init(profile: UserProfile) {
         self.id = UUID()
         self.name = profile.name
+        self.gender = profile.gender
         self.interests = profile.interests
         self.primaryGoal = profile.primaryGoal
         self.coachingTone = profile.coachingTone
@@ -59,6 +61,7 @@ class UserProfileModel {
     func toDomain() -> UserProfile {
         let profile = UserProfile()
         profile.name = name
+        profile.gender = gender
         profile.interests = interests
         profile.primaryGoal = primaryGoal
         profile.coachingTone = coachingTone

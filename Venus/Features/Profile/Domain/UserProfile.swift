@@ -11,6 +11,7 @@ import Foundation
 class UserProfile: Sendable {
     // Informações básicas
     var name: String = ""
+    var gender: String = "Prefiro não dizer"
     var interests: [String] = []
 
     // Preferências (calibração da Venus)
@@ -36,6 +37,7 @@ class UserProfile: Sendable {
 
     func reset() {
         name = ""
+        gender = "Prefiro não dizer"
         interests = []
         primaryGoal = ""
         coachingTone = ""

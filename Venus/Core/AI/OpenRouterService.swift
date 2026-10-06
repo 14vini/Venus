@@ -245,6 +245,16 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         if let profile = profile {
             prompt += "\n\nSOBRE O USUÁRIO:\n"
             prompt += "- Nome: \(profile.name)\n"
+            if !profile.gender.isEmpty {
+                prompt += "- Identidade / Gênero: \(profile.gender)\n"
+                if profile.gender == "Feminino" {
+                    prompt += "- Diretriz de linguagem: Use pronomes femininos (ela/dela, bem-vinda, acolhida).\n"
+                } else if profile.gender == "Masculino" {
+                    prompt += "- Diretriz de linguagem: Use pronomes masculinos (ele/dele, bem-vindo, acolhido).\n"
+                } else {
+                    prompt += "- Diretriz de linguagem: Use ESTRITAMENTE pronomes neutros e linguagem inclusiva sem flexão binária de gênero (você, seu espaço, acolhimento).\n"
+                }
+            }
             if !profile.primaryGoal.isEmpty {
                 prompt += "- Objetivo: \(profile.primaryGoal)\n"
             }
@@ -829,6 +839,16 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         
         var context = "Perfil do Usuário:\n"
         context += "- Nome: \(profile.name)\n"
+        if !profile.gender.isEmpty {
+            context += "- Identidade / Gênero: \(profile.gender)\n"
+            if profile.gender == "Feminino" {
+                context += "- Pronomes: Femininos (ela/dela, bem-vinda, acolhida)\n"
+            } else if profile.gender == "Masculino" {
+                context += "- Pronomes: Masculinos (ele/dele, bem-vindo, acolhido)\n"
+            } else {
+                context += "- Pronomes: Neutros e Inclusivos (você, seu espaço, sem flexão binária de gênero)\n"
+            }
+        }
         if !profile.primaryGoal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             context += "- Objetivo Principal: \(profile.primaryGoal)\n"
         }
