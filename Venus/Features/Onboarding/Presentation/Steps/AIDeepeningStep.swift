@@ -6,8 +6,6 @@
 //
 
 import SwiftUI
-import Speech
-import AVFoundation
 
 struct AIDeepeningStep: View {
     @Binding var userProfile: UserProfile
@@ -15,11 +13,7 @@ struct AIDeepeningStep: View {
     let isLoadingAI: Bool
     
     @State private var answerText: String = ""
-    @State private var isRecording: Bool = false
-    @State private var recordingPulse: Bool = false
     @FocusState private var isTextFocused: Bool
-    
-    private let speechService: SpeechRecognitionServiceProtocol = DependencyContainer.shared.makeSpeechRecognitionService()
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -32,12 +26,11 @@ struct AIDeepeningStep: View {
             Spacer(minLength: 40)
         }
         .padding(.horizontal, 24)
-        .padding(.top, 16)
+        .padding(.top, 20)
         .onAppear {
             if let existing = userProfile.improvementAreas.first {
                 answerText = existing
             }
-            speechService.requestPermissions()
             if !isLoadingAI {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     isTextFocused = true
@@ -51,18 +44,12 @@ struct AIDeepeningStep: View {
                 }
             }
         }
-        .onDisappear {
-            if isRecording {
-                speechService.stopRecording()
-                isRecording = false
-            }
-        }
     }
     
     private var loadingView: some View {
         VStack(spacing: 24) {
             Spacer()
-                .frame(height: 30)
+                .frame(height: 40)
             
             HStack {
                 Spacer()
@@ -101,110 +88,37 @@ struct AIDeepeningStep: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
             
-            // Dynamic Question Header
-            OnboardingStepHeader(
-                eyebrow: "aprofundando",
-                title: aiQuestion?.nextQuestion ?? "O que mais tem ocupado seus pensamentos ultimamente?",
-                subtitle: "Pode escrever com calma. Isso me ajuda a entender onde te dar mais apoio.",
-                systemImage: "wand.and.stars",
-                tint: VenusTheme.accentPurple
-            )
+            // Dynamic Question Header (sem subtítulo)
+            Text(aiQuestion?.nextQuestion ?? "O que você mais gostaria que a gente aliviasse juntos hoje?")
+                .font(.system(size: 26, weight: .black, design: .rounded))
+                .foregroundStyle(VenusTheme.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(2)
             
-            // Clean Borderless Input Area
-            VStack(alignment: .leading, spacing: 12) {
-                ZStack(alignment: .topLeading) {
-                    if answerText.isEmpty && !isRecording {
-                        Text("Conte o que você gostaria de mudar, aliviar ou focar nos seus dias...")
-                            .font(.system(size: 18, weight: .medium, design: .rounded))
-                            .foregroundColor(VenusTheme.textSecondary.opacity(0.6))
-                            .padding(.top, 8)
-                            .padding(.leading, 4)
-                            .allowsHitTesting(false)
-                    }
-                    
-                    TextEditor(text: $answerText)
-                        .font(.system(size: 18, weight: .medium, design: .rounded))
-                        .foregroundColor(VenusTheme.text)
-                        .tint(VenusTheme.accentPurple)
-                        .scrollContentBackground(.hidden)
-                        .background(Color.clear)
-                        .frame(minHeight: 140, maxHeight: 220)
-                        .focused($isTextFocused)
-                        .onChange(of: answerText) { _, newValue in
-                            userProfile.improvementAreas = [newValue]
-                        }
+            // Clean Borderless Input Area (sem background, sem voz)
+            ZStack(alignment: .topLeading) {
+                if answerText.isEmpty {
+                    Text("Escreva aqui o que você sente que mais precisa mudar ou focar...")
+                        .font(.system(size: 19, weight: .medium, design: .rounded))
+                        .foregroundColor(VenusTheme.textSecondary.opacity(0.55))
+                        .padding(.top, 8)
+                        .padding(.leading, 4)
+                        .allowsHitTesting(false)
                 }
                 
-                // Voice and Clear Buttons
-                HStack(spacing: 12) {
-                    Button {
-                        toggleVoiceRecording()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: isRecording ? "stop.fill" : "mic.fill")
-                                .font(.system(size: 14, weight: .bold))
-                            Text(isRecording ? "Ouvindo... Toque para parar" : "Falar por voz")
-                                .font(.system(.footnote, design: .rounded).weight(.bold))
-                        }
-                        .foregroundStyle(isRecording ? VenusTheme.accentOrange : VenusTheme.accentPurple)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .glassEffect(.regular, in: Capsule())
-                        .scaleEffect(recordingPulse ? 1.05 : 1.0)
-                        .animation(isRecording ? .easeInOut(duration: 0.6).repeatForever(autoreverses: true) : .default, value: recordingPulse)
+                TextEditor(text: $answerText)
+                    .font(.system(size: 19, weight: .medium, design: .rounded))
+                    .foregroundColor(VenusTheme.text)
+                    .tint(VenusTheme.accentPurple)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.clear)
+                    .frame(minHeight: 180, maxHeight: 300)
+                    .focused($isTextFocused)
+                    .onChange(of: answerText) { _, newValue in
+                        userProfile.improvementAreas = [newValue]
                     }
-                    .buttonStyle(.plain)
-                    
-                    Spacer()
-                    
-                    if !answerText.isEmpty {
-                        Button {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            answerText = ""
-                            userProfile.improvementAreas = []
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 18))
-                                .foregroundColor(VenusTheme.textSecondary.opacity(0.5))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
             }
-            .padding(.top, 4)
-        }
-    }
-    
-    private func toggleVoiceRecording() {
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        
-        if isRecording {
-            speechService.stopRecording()
-            isRecording = false
-            recordingPulse = false
-        } else {
-            isTextFocused = false
-            do {
-                try speechService.startRecording(
-                    onTextRecognized: { recognizedText in
-                        DispatchQueue.main.async {
-                            self.answerText = recognizedText
-                            self.userProfile.improvementAreas = [recognizedText]
-                        }
-                    },
-                    onError: { _ in
-                        DispatchQueue.main.async {
-                            self.isRecording = false
-                            self.recordingPulse = false
-                        }
-                    }
-                )
-                isRecording = true
-                recordingPulse = true
-            } catch {
-                isRecording = false
-                recordingPulse = false
-            }
+            .padding(.top, 8)
         }
     }
 }

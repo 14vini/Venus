@@ -32,80 +32,59 @@ struct PresentationView: View {
                     .offset(x: 130, y: 180)
             }
 
-            GeometryReader { geometry in
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        Spacer()
+            VStack(spacing: 0) {
+                Spacer()
 
-                        // Interactive Hero Mascot
-                        VenusMoodOrb(
-                            mood: mascotMood,
-                            state: mascotState,
-                            size: 148,
-                            showFace: true,
-                            showHands: true,
-                            showShadow: true,
-                            isInteractive: true
-                        )
-                        .frame(width: 148, height: 148)
-                        .opacity(orbAppear ? 1 : 0)
-                        .scaleEffect(orbAppear ? 1 : 0.78)
-                        .animation(.spring(response: 0.7, dampingFraction: 0.68), value: orbAppear)
+                // Interactive Hero Mascot
+                VenusMoodOrb(
+                    mood: mascotMood,
+                    state: mascotState,
+                    size: 154,
+                    showFace: true,
+                    showHands: true,
+                    showShadow: true,
+                    isInteractive: true
+                )
+                .frame(width: 154, height: 154)
+                .opacity(orbAppear ? 1 : 0)
+                .scaleEffect(orbAppear ? 1 : 0.78)
+                .animation(.spring(response: 0.7, dampingFraction: 0.68), value: orbAppear)
 
-                        // Title block
-                        VStack(spacing: 8) {
-                            Text("Venus")
-                                .font(.system(size: 42, weight: .black, design: .rounded))
-                                .foregroundColor(VenusTheme.text)
+                // Title block (sem subtitulo)
+                Text("Venus")
+                    .font(.system(size: 44, weight: .black, design: .rounded))
+                    .foregroundColor(VenusTheme.text)
+                    .opacity(appear ? 1 : 0)
+                    .offset(y: appear ? 0 : 14)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.18), value: appear)
+                    .padding(.top, 20)
 
-                            Text("Seu refúgio diário para desacelerar a mente,\nentender seus sentimentos e viver com leveza.")
-                                .font(.system(.subheadline, design: .rounded).weight(.medium))
-                                .foregroundColor(VenusTheme.textSecondary)
-                                .multilineTextAlignment(.center)
-                                .lineSpacing(3)
-                        }
-                        .opacity(appear ? 1 : 0)
-                        .offset(y: appear ? 0 : 14)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.18), value: appear)
-                        .padding(.top, 16)
+                Spacer()
 
-                        Spacer()
-
-                        // CTA card
-                        VenusCard(cornerRadius: 32, padding: 22) {
-                            VStack(spacing: 16) {
-                                Text("Um espaço acolhedor e seguro, feito para você.")
-                                    .font(.system(.callout, design: .rounded).weight(.medium))
-                                    .foregroundColor(VenusTheme.textSecondary)
-                                    .multilineTextAlignment(.center)
-
-                                Button {
-                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                    onNext()
-                                } label: {
-                                    HStack(spacing: 8) {
-                                        Text("Começar")
-                                            .font(.system(.headline, design: .rounded).weight(.black))
-                                        Image(systemName: "arrow.right")
-                                            .font(.system(size: 14, weight: .black))
-                                    }
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(VenusTheme.primaryGradient, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                                    .shadow(color: VenusTheme.primary.opacity(0.30), radius: 18, x: 0, y: 12)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 32)
-                        .opacity(appear ? 1 : 0)
-                        .offset(y: appear ? 0 : 40)
-                        .animation(.spring(response: 0.6, dampingFraction: 0.78).delay(0.32), value: appear)
+                // Bottom Action Button
+                Button {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    onNext()
+                } label: {
+                    HStack(spacing: 8) {
+                        Text("Começar")
+                            .font(.system(.headline, design: .rounded).weight(.black))
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 14, weight: .black))
                     }
-                    .frame(minHeight: geometry.size.height, alignment: .center)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(VenusTheme.primaryGradient, in: Capsule())
+                    .shadow(color: VenusTheme.primary.opacity(0.30), radius: 16, x: 0, y: 8)
                 }
+                .buttonStyle(.plain)
+                .buttonStyle(OnboardingPressableButtonStyle())
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+                .opacity(appear ? 1 : 0)
+                .offset(y: appear ? 0 : 30)
+                .animation(.spring(response: 0.6, dampingFraction: 0.78).delay(0.28), value: appear)
             }
         }
         .onAppear {

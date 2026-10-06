@@ -21,7 +21,7 @@ struct EmotionalProfileResult {
 struct EmotionalProfileRevealStep: View {
     let userProfile: UserProfile
     var aiProfile: AIOnboardingProfileResponse? = nil
-    let onFinish: () -> Void
+    var onFinish: (() -> Void)? = nil
     
     @State private var cardAppeared = false
     
@@ -130,7 +130,6 @@ struct EmotionalProfileRevealStep: View {
             // Warm Diagnosis Card
             VenusCard(cornerRadius: 28, padding: 20) {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Subtitle
                     Text(result.subtitle)
                         .font(.system(.subheadline, design: .rounded).weight(.medium))
                         .foregroundStyle(VenusTheme.text)
@@ -195,34 +194,6 @@ struct EmotionalProfileRevealStep: View {
             .opacity(cardAppeared ? 1 : 0)
             .scaleEffect(cardAppeared ? 1 : 0.96)
             .animation(.spring(response: 0.6, dampingFraction: 0.8), value: cardAppeared)
-            
-            // Single Final CTA - Enter App Directly
-            Button {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                onFinish()
-            } label: {
-                HStack(spacing: 10) {
-                    Text("Entrar no Meu Espaço")
-                        .font(.system(.headline, design: .rounded).weight(.black))
-                    Image(systemName: "arrow.right.circle.fill")
-                        .font(.system(size: 18, weight: .black))
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(
-                    LinearGradient(
-                        colors: [result.color, result.color.opacity(0.8)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: Capsule()
-                )
-                .shadow(color: result.color.opacity(0.35), radius: 16, x: 0, y: 8)
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 4)
-            .padding(.bottom, 12)
         }
         .padding(.horizontal, 24)
         .onAppear {

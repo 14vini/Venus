@@ -15,19 +15,17 @@ struct IdentityStep: View {
     @FocusState private var isInputFocused: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            // Header / Question
-            OnboardingStepHeader(
-                eyebrow: "apresentação",
-                title: "Como posso te chamar?",
-                subtitle: "Para conversarmos com intimidade e carinho.",
-                systemImage: "person.crop.circle.fill",
-                tint: VenusTheme.primary
-            )
+        VStack(alignment: .leading, spacing: 20) {
+            // Question Header (sem subtítulo)
+            Text("Como posso te chamar?")
+                .font(.system(size: 28, weight: .black, design: .rounded))
+                .foregroundStyle(VenusTheme.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(2)
             
             // Clean Borderless Input
             VStack(alignment: .leading, spacing: 8) {
-                TextField("Digite seu nome ou apelido...", text: $inputName)
+                TextField("Digite seu nome...", text: $inputName)
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundColor(VenusTheme.text)
                     .tint(VenusTheme.primary)
@@ -50,23 +48,12 @@ struct IdentityStep: View {
                     .frame(height: 1.5)
                     .animation(.easeInOut(duration: 0.2), value: isInputFocused)
             }
-            .padding(.top, 12)
-            
-            HStack(spacing: 8) {
-                Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(VenusTheme.primary.opacity(0.8))
-                
-                Text("100% privado. Seu refúgio emocional é confidencial.")
-                    .font(.system(.caption, design: .rounded).weight(.medium))
-                    .foregroundColor(VenusTheme.textSecondary)
-            }
-            .padding(.top, 4)
+            .padding(.top, 16)
             
             Spacer(minLength: 40)
         }
         .padding(.horizontal, 24)
-        .padding(.top, 16)
+        .padding(.top, 20)
         .onAppear {
             inputName = userProfile.name
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {

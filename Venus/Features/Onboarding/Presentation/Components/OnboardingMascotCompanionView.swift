@@ -10,7 +10,6 @@ import SwiftUI
 struct OnboardingMascotCompanionView: View {
     let currentStep: Int
     @Binding var userProfile: UserProfile
-    var isVoiceRecording: Bool = false
     var isTextFocused: Bool = false
     
     @Environment(\.colorScheme) private var colorScheme
@@ -37,10 +36,8 @@ struct OnboardingMascotCompanionView: View {
         case 1:
             return userProfile.name.isEmpty ? .welcoming : .celebrating
         case 2:
-            if isVoiceRecording { return .listening }
             return userProfile.contextNote.isEmpty ? .curious : .empathetic
         case 3:
-            if isVoiceRecording { return .listening }
             return .thinking
         case 4:
             return .celebrating
@@ -59,20 +56,14 @@ struct OnboardingMascotCompanionView: View {
             return "Oi! Como você prefere que eu te chame?"
             
         case 2:
-            if isVoiceRecording {
-                return "Estou te ouvindo com carinho... pode desabafar 🎙️"
-            }
             if !userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 return "Obrigada por se abrir comigo. É muito bom poder te ouvir 🤍"
             }
             let name = userProfile.name.isEmpty ? "" : ", \(userProfile.name)"
-            return "Como você está se sentindo hoje\(name)? Pode falar ou digitar livremente ✨"
+            return "Como você está se sentindo hoje\(name)? Pode escrever livremente ✨"
             
         case 3:
-            if isVoiceRecording {
-                return "Pode falar, estou prestando atenção em cada detalhe 🎙️"
-            }
-            return "Estou sintonizando com o seu momento para entender onde te dar mais apoio 🌿"
+            return "Estou sintonizando com o que você me contou para entender onde te dar mais apoio 🌿"
             
         case 4:
             return "Seu espaço está pronto! Seja muito bem-vindo(a) 🤍"
