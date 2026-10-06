@@ -12,7 +12,7 @@ struct IdentityStep: View {
     var onSubmit: (() -> Void)? = nil
     
     @State private var inputName: String = ""
-    @State private var selectedGender: String = "Prefiro não dizer"
+    @State private var selectedGender: String = ""
     @FocusState private var isInputFocused: Bool
     
     private let genderOptions = [
@@ -49,7 +49,9 @@ struct IdentityStep: View {
                     }
                     .onSubmit {
                         commitIdentity()
-                        onSubmit?()
+                        if !userProfile.gender.isEmpty {
+                            onSubmit?()
+                        }
                     }
                 
                 Rectangle()
@@ -103,11 +105,7 @@ struct IdentityStep: View {
         .padding(.top, 20)
         .onAppear {
             inputName = userProfile.name
-            if !userProfile.gender.isEmpty {
-                selectedGender = userProfile.gender
-            } else {
-                userProfile.gender = selectedGender
-            }
+            selectedGender = userProfile.gender
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 isInputFocused = true
             }

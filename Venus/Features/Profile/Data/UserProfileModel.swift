@@ -21,7 +21,7 @@ class UserProfileModel {
     var improvementAreas: [String]
     var emotionalAreas: [String]
     var contextNote: String = ""
-    var gender: String = "Prefiro não dizer"
+    var gender: String = ""
     var isOnboardingComplete: Bool
     
     // Work Schedule (optional)

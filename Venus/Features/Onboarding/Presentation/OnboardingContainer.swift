@@ -39,7 +39,9 @@ struct OnboardingContainer: View {
     private var canProceed: Bool {
         switch currentStep {
         case 1:
-            return !userProfile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let hasName = !userProfile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let hasGender = !userProfile.gender.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return hasName && hasGender
         case 2:
             return !userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case 3:
