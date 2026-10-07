@@ -21,7 +21,7 @@ struct InitialFeelingsStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             // Question Header (sem subtítulo)
-            Text("Como costuma ser seu ritmo e nível de energia, \(displayName)?")
+            Text("Como costuma ser sua rotina e o que mais tem ocupado sua mente ultimamente, \(displayName)?")
                 .font(.system(size: 26, weight: .black, design: .rounded))
                 .foregroundStyle(VenusTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
@@ -30,7 +30,7 @@ struct InitialFeelingsStep: View {
             // Clean Borderless Input Area (sem background, sem voz)
             ZStack(alignment: .topLeading) {
                 if textInput.isEmpty {
-                    Text("Ex: Acordo com boa energia, produzo melhor de manhã, mas sinto que preciso melhorar meu foco à tarde...")
+                    Text("Ex: Meus dias são corridos entre trabalho e estudos, sinto picos de foco mas também momentos de sobrecarga e cansaço mental...")
                         .font(.system(size: 19, weight: .medium, design: .rounded))
                         .foregroundColor(VenusTheme.textSecondary.opacity(0.55))
                         .padding(.top, 8)

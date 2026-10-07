@@ -505,54 +505,63 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
     
     func generateNextOnboardingQuestion(
         userName: String,
+        userProfile: UserProfile? = nil,
         conversationHistory: [(question: String, answer: String)],
         questionIndex: Int
     ) async throws -> AIOnboardingQuestionResponse {
         let name = userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "amigo" : userName
         
         var historyText = ""
-        for (q, a) in conversationHistory {
-            let cleanQ = sanitizeOnboardingText(q)
-            let cleanA = sanitizeOnboardingText(a)
-            historyText += "Pergunta anterior: \(cleanQ)\nResposta do usuário: \(cleanA)\n\n"
+        for (idx, item) in conversationHistory.enumerated() {
+            let cleanQ = sanitizeOnboardingText(item.question)
+            let cleanA = sanitizeOnboardingText(item.answer)
+            historyText += "Momento \(idx + 1):\n- Pergunta da Venus: \"\(cleanQ)\"\n- Resposta de \(name): \"\(cleanA)\"\n\n"
+        }
+        
+        var pronounDirective = "Use linguagem inclusiva e pronomes neutros."
+        if let gender = userProfile?.gender {
+            if gender == "Feminino" {
+                pronounDirective = "Use pronomes femininos (ela/dela, acolhida, atenta, pronta)."
+            } else if gender == "Masculino" {
+                pronounDirective = "Use pronomes masculinos (ele/dele, acolhido, atento, pronto)."
+            }
         }
         
         let prompt = """
-        Você é a Venus, uma inteligência pessoal de prontidão, energia, foco, rotina, sono e clareza mental do aplicativo Venus.
-        Seu objetivo neste onboarding é conduzir uma conversa reflexiva e profunda com o usuário para entender como ele realmente funciona no dia a dia.
+        Você é a Venus, uma inteligência pessoal empática, perspicaz e instigante de autoconhecimento, prontidão, clareza mental e rotina do aplicativo Venus.
+        Você está em um diálogo fluido e reflexivo com \(name).
         
-        O usuário se chama \(name).
-        
-        Histórico da conversa até agora:
+        HISTÓRICO DA CONVERSA ATÉ AGORA:
         \(historyText)
         
-        REGRAS DE FORMATAÇÃO E ESTILO RIGOROSAS:
+        DIRETRIZ DE LINGUAGEM:
+        \(pronounDirective)
+        
+        SUA MISSÃO DE PERSONALIZAÇÃO PROFUNDA:
+        1. PROIBIDO repetir perguntas de questionário padrão ou seguir um roteiro engessado.
+        2. ANCORAGEM DIRETA: Puxe um fio direto, citando ou se conectando a detalhes específicos, palavras, sentimentos, ambientes, horários ou situações que \(name) acabou de relatar na última resposta.
+        3. VARIE OS ÂNGULOS DE REFLEXÃO: A cada nova pergunta, explore uma dimensão fascinante e ainda não explorada da mente e do funcionamento de \(name):
+           - O que drena ou recarrega sua bateria mental naquele contexto
+           - Como a mente dele reage sob pressão, prazos, expectativas ou interrupções
+           - O que impede ele de desligar à noite ou encontrar foco profundo
+           - A relação dele com o perfeccionismo, autocobrança, pausas ou momentos de lazer
+           - O que traz um estado de leveza, fluidez e presença genuína para ele
+        4. O app não é apenas sobre ansiedade: aborde rotina, clareza mental, energia, recuperação e funcionamento prático.
+        
+        REGRAS RIGOROSAS DE FORMATAÇÃO:
         1. NUNCA use travessões (—, -, –), traços ou hífens no início ou meio das frases.
-        2. NUNCA use emojis de nenhum tipo (sem emoticons, sem símbolos gráficos, sem estrelas, etc.).
-        3. Fale de forma humana, empática, inteligente e fluida em português do Brasil com pontuação padrão.
-        4. O app não é apenas sobre ansiedade: explore ritmo biológico, energia, sobrecarga mental, foco, sono e metas práticas.
-        
-        AVALIAÇÃO DE PROFUNDIDADE:
-        - Avalie se as respostas do usuário já deram clareza suficiente sobre:
-          a) Ritmo de energia diário e picos de foco
-          b) Fricções, sobrecarga mental ou dispersão
-          c) Recuperação noturna e sono
-          d) O que ele mais quer transformar na rotina
-        - Se você já tiver informações ricas sobre esses pontos essenciais, defina "hasEnoughContext": true.
-        - Se ainda faltar entender como ele opera ou se a resposta foi curta, defina "hasEnoughContext": false e formule a próxima pergunta reflexiva que aprofunde no ponto que falta.
-        
-        Sua missão:
-        1. "empathyReaction": Reagir em 1 frase curta (máximo 14 palavras) validando com sagacidade o que ele disse (sem travessão, sem emojis).
-        2. "nextQuestion": Formular 1 pergunta aberta, inteligente e reflexiva (máximo 18 palavras) para aprofundar no funcionamento dele (sem travessão, sem emojis).
-        3. "hasEnoughContext": true ou false.
-        4. "suggestedTone": "Gentil", "Direto", "Prático" ou "Motivacional".
+        2. NUNCA use emojis de nenhum tipo (sem símbolos gráficos, sem estrelas, sem emoticons).
+        3. "empathyReaction": Reação empática curta (máximo 14 palavras) validando com sagacidade o que ele disse (sem travessão, sem emojis).
+        4. "nextQuestion": Pergunta aberta, inteligente, surpreendente e reflexiva (máximo 18 palavras) puxando o detalhe do usuário (sem travessão, sem emojis).
+        5. "hasEnoughContext": Defina true se as respostas anteriores já deram um mapa rico e completo de como \(name) funciona (ou após 3 ou mais respostas detalhadas); caso contrário, false.
+        6. "suggestedTone": "Gentil", "Direto", "Prático", "Curioso" ou "Motivacional".
         
         Responda EXCLUSIVAMENTE em JSON válido:
         {
-            "empathyReaction": "Frase curta de acolhimento e reconhecimento inteligente",
-            "nextQuestion": "Pergunta reflexiva para o usuário se auto-observar",
+            "empathyReaction": "Frase curta e sagaz de acolhimento conectada ao que ele disse",
+            "nextQuestion": "Pergunta instigante e única puxando o gancho do relato",
             "hasEnoughContext": false,
-            "suggestedTone": "Prático"
+            "suggestedTone": "Curioso"
         }
         """
         
@@ -562,7 +571,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         ]
         
         do {
-            let response = try await sendChatCompletion(messages: messages, temperature: 0.4, maxTokens: 2500)
+            let response = try await sendChatCompletion(messages: messages, temperature: 0.85, maxTokens: 2500)
             let cleanJson = cleanJsonText(response)
             if let data = cleanJson.data(using: .utf8) {
                 let decoded = try JSONDecoder().decode(AIOnboardingQuestionResponse.self, from: data)
@@ -581,29 +590,37 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             print("⚠️ Falha ao gerar pergunta dinâmica de onboarding via IA: \(error)")
         }
         
-        // Intelligent Reflective Fallbacks based on question index (sem travessão, sem emojis)
-        if questionIndex == 1 {
-            return AIOnboardingQuestionResponse(
-                empathyReaction: "Entender seu ritmo ajuda muito a mapear seus picos e quedas de energia.",
-                nextQuestion: "Em que momentos do dia sua mente funciona melhor e o que costuma dispersar seu foco?",
-                suggestedTone: "Prático",
-                hasEnoughContext: false
-            )
-        } else if questionIndex == 2 {
-            return AIOnboardingQuestionResponse(
-                empathyReaction: "Ter clareza sobre suas noites é a chave para calibrar sua recuperação.",
-                nextQuestion: "Quando chega a noite, o que você sente que mais impede sua mente de desligar de verdade?",
-                suggestedTone: "Gentil",
-                hasEnoughContext: false
-            )
-        } else {
-            return AIOnboardingQuestionResponse(
-                empathyReaction: "Isso nos dá clareza total sobre o seu funcionamento e necessidades.",
-                nextQuestion: "Se você pudesse alinhar uma única coisa na sua rotina para viver no seu melhor ritmo, qual seria?",
-                suggestedTone: "Motivacional",
-                hasEnoughContext: true
-            )
-        }
+        // Dynamic Varied Fallback Pools (Sem travessão, sem emojis)
+        let fallbackOptions: [(reaction: String, question: String, tone: String, enough: Bool)] = [
+            ("Perceber seus momentos de dispersão é essencial para desenhar seu melhor ritmo.",
+             "Quando surgem várias demandas ao mesmo tempo, qual costuma ser sua primeira reação mental?",
+             "Curioso",
+             false),
+            ("Identificar o que rouba sua energia ajuda a proteger seus momentos mais valiosos.",
+             "O que hoje mais impede você de desacelerar de verdade quando o dia termina?",
+             "Gentil",
+             false),
+            ("Compreender sua relação com o descanso transforma como você produz e vive.",
+             "Se pudesse alinhar um único momento da sua rotina para fluir com mais leveza, qual seria?",
+             "Motivacional",
+             questionIndex >= 3),
+            ("Reconhecer suas necessidades diárias traz clareza para calibrar suas pausas.",
+             "Em que tipo de atividade você sente que sua mente entra em foco natural sem esforço?",
+             "Prático",
+             false),
+            ("Mapear seu funcionamento interno nos dá clareza total sobre o que você precisa.",
+             "O que você mais gostaria que a Venus te ajudasse a manter sob controle nos dias cheios?",
+             "Acolhedor",
+             true)
+        ]
+        
+        let selectedFallback = fallbackOptions[(questionIndex - 1 + fallbackOptions.count) % fallbackOptions.count]
+        return AIOnboardingQuestionResponse(
+            empathyReaction: selectedFallback.reaction,
+            nextQuestion: selectedFallback.question,
+            suggestedTone: selectedFallback.tone,
+            hasEnoughContext: selectedFallback.enough
+        )
     }
     
     private func sanitizeOnboardingText(_ text: String) -> String {

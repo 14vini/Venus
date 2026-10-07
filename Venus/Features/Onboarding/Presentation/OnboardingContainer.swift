@@ -390,8 +390,8 @@ struct OnboardingContainer: View {
         
         if currentStep == 2 {
             // Setup initial conversation history and fetch first dynamic AI question
-            let initialRhythm = userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines)
-            conversationHistory = [("Como costuma ser seu ritmo e energia no dia a dia?", initialRhythm)]
+            let initialContext = userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines)
+            conversationHistory = [("Como costuma ser sua rotina e o que mais tem ocupado sua mente ultimamente?", initialContext)]
             dynamicQuestionCount = 1
             currentAnswerText = ""
             currentAIQuestion = nil
@@ -407,7 +407,7 @@ struct OnboardingContainer: View {
         
         if currentStep == 3 {
             let answer = currentAnswerText.trimmingCharacters(in: .whitespacesAndNewlines)
-            let question = currentAIQuestion?.nextQuestion ?? "Como costuma ser seu foco?"
+            let question = currentAIQuestion?.nextQuestion ?? "Como sua mente costuma reagir quando surgem várias demandas?"
             conversationHistory.append((question, answer))
             
             // Check if AI has enough context (minimum 2 questions, safety cap 5)
@@ -452,6 +452,7 @@ struct OnboardingContainer: View {
             do {
                 let aiResponse = try await venusAI.generateNextOnboardingQuestion(
                     userName: userProfile.name,
+                    userProfile: userProfile,
                     conversationHistory: conversationHistory,
                     questionIndex: index
                 )

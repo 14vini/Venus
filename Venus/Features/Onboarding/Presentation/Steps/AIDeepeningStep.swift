@@ -26,39 +26,17 @@ struct AIDeepeningStep: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            if isLoadingAI && displayedQuestion.isEmpty {
-                aiThinkingIndicator
-            } else {
-                questionContentView
-            }
-            
+            questionContentView
             Spacer(minLength: 40)
         }
         .padding(.horizontal, 24)
+        .onAppear {
+            cursorBlink = true
+        }
         .task(id: "\(isLoadingAI)_\(targetQuestion)") {
             if !isLoadingAI && !targetQuestion.isEmpty {
                 await runTypewriter(for: targetQuestion)
             }
-        }
-    }
-    
-    private var aiThinkingIndicator: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 6) {
-                Text("Venus está formulando sua pergunta")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(VenusTheme.textSecondary)
-                
-                Text("|")
-                    .font(.system(size: 24, weight: .black, design: .rounded))
-                    .foregroundStyle(VenusTheme.primary)
-                    .opacity(cursorBlink ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true), value: cursorBlink)
-            }
-            .padding(.top, 16)
-        }
-        .onAppear {
-            cursorBlink = true
         }
     }
     
@@ -76,15 +54,17 @@ struct AIDeepeningStep: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
             
-            // Dynamic Question with Typewriter & Blinking Cursor
+            // Dynamic Question with Typewriter & Blinking Cursor (Sem texto de pensando)
             HStack(alignment: .top, spacing: 2) {
-                Text(displayedQuestion)
-                    .font(.system(size: 26, weight: .black, design: .rounded))
-                    .foregroundStyle(VenusTheme.text)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .lineSpacing(2)
+                if !displayedQuestion.isEmpty {
+                    Text(displayedQuestion)
+                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .foregroundStyle(VenusTheme.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineSpacing(2)
+                }
                 
-                if isTyping {
+                if isTyping || isLoadingAI || displayedQuestion.isEmpty {
                     Text("|")
                         .font(.system(size: 26, weight: .black, design: .rounded))
                         .foregroundStyle(tintColor)
@@ -98,6 +78,7 @@ struct AIDeepeningStep: View {
                 if isTyping {
                     displayedQuestion = targetQuestion
                     isTyping = false
+                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         isTextFocused = true
                     }
@@ -140,13 +121,33 @@ struct AIDeepeningStep: View {
         isTyping = true
         cursorBlink = true
         
+        // Haptic feedback on start loading/typing text
+        let startHaptic = UIImpactFeedbackGenerator(style: .medium)
+        startHaptic.prepare()
+        startHaptic.impactOccurred()
+        
+        let typingHaptic = UIImpactFeedbackGenerator(style: .light)
+        typingHaptic.prepare()
+        
+        var charCount = 0
         for char in fullText {
             guard isTyping else { break }
             displayedQuestion.append(char)
+            charCount += 1
+            
+            // Subtle rhythmic vibration as text loads
+            if char == " " || charCount % 7 == 0 {
+                typingHaptic.impactOccurred(intensity: 0.6)
+            }
+            
             try? await Task.sleep(nanoseconds: 14_000_000) // 14ms per character (fluent & natural)
         }
         
         isTyping = false
+        
+        // Soft completion feedback
+        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+        
         try? await Task.sleep(nanoseconds: 150_000_000)
         isTextFocused = true
     }

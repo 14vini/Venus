@@ -44,6 +44,7 @@ protocol VenusAIServiceProtocol: Sendable {
     func generateGreeting(userName: String, mood: MoodType?) async throws -> String
     func generateNextOnboardingQuestion(
         userName: String,
+        userProfile: UserProfile?,
         conversationHistory: [(question: String, answer: String)],
         questionIndex: Int
     ) async throws -> AIOnboardingQuestionResponse
