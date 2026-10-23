@@ -35,9 +35,32 @@ struct AppConfig {
 
     static var hasAIKeyConfigured: Bool { !openRouterAPIKey.isEmpty }
 
-    /// Modelo OpenRouter exclusivo
-    static let openRouterModel = "inclusionai/ling-3.0-flash-sante:free"
+    /// Modelo OpenRouter configurado (respan/span-01-lite)
+    /// Pode ser configurado via variável de ambiente OPENROUTER_MODEL ou Info.plist
+    static var openRouterModel: String {
+        // 1. Process Environment Variable (Xcode Scheme Run Arguments / CI)
+        if let envModel = ProcessInfo.processInfo.environment["OPENROUTER_MODEL"],
+           !envModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return envModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        // 2. Info.plist key
+        if let infoModel = Bundle.main.object(forInfoDictionaryKey: "OPENROUTER_MODEL") as? String,
+           !infoModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           !infoModel.hasPrefix("$(") {
+            return infoModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        // 3. Modelo solicitado
+        return "respan/span-01-lite"
+    }
+
+    /// Modelo de fallback gratuito para rotas de chat/streaming caso o modelo principal seja exclusivo da Decisions API
+    static let fallbackChatModel = "openrouter/free"
 
     /// OpenRouter Chat Completions endpoint
     static let openRouterBaseURL = "https://openrouter.ai/api/v1/chat/completions"
+    
+    /// OpenRouter Decisions API endpoint (alpha)
+    static let openRouterDecisionsURL = "https://openrouter.ai/api/alpha/decisions"
 }

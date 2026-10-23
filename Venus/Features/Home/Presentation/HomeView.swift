@@ -21,7 +21,7 @@ struct HomeView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 22) {
                     
-                    // Readiness & Energy Gauge (0-100) - Mantido com seu estilo exclusivo original
+                    // Readiness & Energy Gauge (Arco 0-100 Original)
                     ReadinessEnergyGaugeView(
                         assessment: viewModel.readinessAssessment,
                         onDetailTap: {
@@ -45,42 +45,6 @@ struct HomeView: View {
                         }
                     )
                     .padding(.top, 2)
-
-                    // Curva Intradiária de Energia Circadiana (Card Neumórfico)
-                    IntradayEnergyCurveView(
-                        curve: viewModel.readinessAssessment.breakdown?.intradayCurve ?? .sampleDefault,
-                        baseScore: viewModel.readinessAssessment.score,
-                        onDetailTap: {
-                            viewModel.showReadinessBreakdown = true
-                        }
-                    )
-                    
-                    // Galaxy & Venus Wrap Banner Card (Card Neumórfico)
-                    HomeGalaxyBannerCard(
-                        checkInCount: viewModel.weekMoods.count,
-                        onOpenGalaxy: {
-                            viewModel.showEmotionalGalaxy = true
-                        },
-                        onOpenWrap: {
-                            viewModel.showVenusWrap = true
-                        }
-                    )
-
-                    // "Sobre você:" (Trend summary - Card Neumórfico)
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Sobre você:")
-                            .font(.system(.subheadline, design: .rounded).weight(.bold))
-                            .foregroundColor(VenusTheme.textSecondary)
-                            .textCase(.uppercase)
-
-                        Text(viewModel.weeklyTrend?.summary ?? "Analisando seus dados iniciais para desenhar seu reflexo emocional. Continue registrando seus check-ins com Venus.")
-                            .font(.system(.body, design: .rounded).weight(.medium))
-                            .foregroundColor(VenusTheme.text)
-                            .lineSpacing(5)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding(20)
-                    .neumorphicCard(cornerRadius: 26, style: .raised, depth: 7)
                     .padding(.bottom, 120)
                 }
                 .padding(.horizontal, 20)
@@ -102,7 +66,7 @@ struct HomeView: View {
                     viewModel.showEmotionalGalaxy = true
                 } label: {
                     Image(systemName: "sparkles.rectangle.stack")
-                        .foregroundStyle(VenusTheme.text)
+                        .foregroundStyle(VenusTheme.primary)
                 }
                 
                 Button {
@@ -135,26 +99,16 @@ struct HomeView: View {
                 readinessAssessment: viewModel.readinessAssessment
             )
         }
-        .sheet(isPresented: $viewModel.showVenusWrap) {
-            VenusWrapStoryView(
-                userName: userName,
-                weekMoods: viewModel.weekMoods,
-                weeklyTrend: viewModel.weeklyTrend,
-                readinessAssessment: viewModel.readinessAssessment,
-                onDismiss: {
-                    viewModel.showVenusWrap = false
-                }
-            )
-        }
-        .sheet(isPresented: $viewModel.showVenusChat) {
-            NavigationStack {
-                VenusChatView()
-            }
+        .fullScreenCover(isPresented: $viewModel.showVenusChat, onDismiss: {
+            viewModel.selectedChatSession = nil
+        }) {
+            VenusChatView(session: viewModel.selectedChatSession)
         }
         .sheet(isPresented: $viewModel.showChatHistory) {
             NavigationStack {
                 ChatHistoryView(
                     onSelectSession: { session in
+                        viewModel.selectedChatSession = session
                         viewModel.showChatHistory = false
                         viewModel.showVenusChat = true
                     }
@@ -174,4 +128,5 @@ struct HomeView: View {
         ),
         inlineCheckInViewModel: DependencyContainer.shared.makeMoodCheckInViewModel()
     )
+    .preferredColorScheme(.dark)
 }

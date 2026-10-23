@@ -9,35 +9,36 @@ import SwiftUI
 import UIKit
 
 struct VenusTheme {
-    // MARK: - Palette (Pure Monochrome Neumorphism & Clean Grayscale)
+    // MARK: - Palette (Ocean & Glacier Cyan-Blue Design System)
+    // 03045E | 023E8A | 0077B6 | 0096C7 | 00B4D8 | 48CAE4 | 90E0EF | ADE8F4 | CAF0F8
     
     // Primary Brand Colors
-    static let primary = Color(dynamicProvider(light: "#FF5C38", dark: "#FF733E"))
-    static let primaryLight = Color(dynamicProvider(light: "#FF8159", dark: "#FF9A6E"))
-    static let primaryDark = Color(dynamicProvider(light: "#E04818", dark: "#E6501C"))
-    static let secondary = Color(dynamicProvider(light: "#FF7E56", dark: "#FFA076"))
-    static let tertiary = Color(dynamicProvider(light: "#FFAA8A", dark: "#FFC2A3"))
+    static let primary = Color(dynamicProvider(light: "#0077B6", dark: "#00B4D8"))
+    static let primaryLight = Color(dynamicProvider(light: "#00B4D8", dark: "#48CAE4"))
+    static let primaryDark = Color(dynamicProvider(light: "#023E8A", dark: "#0077B6"))
+    static let secondary = Color(dynamicProvider(light: "#0096C7", dark: "#00B4D8"))
+    static let tertiary = Color(dynamicProvider(light: "#48CAE4", dark: "#90E0EF"))
     
     // Accents
-    static let accentOrange = Color(dynamicProvider(light: "#FF5C38", dark: "#FF7E4A"))
-    static let accentPink = Color(dynamicProvider(light: "#EC4899", dark: "#FF759E"))
-    static let accentBlue = Color(dynamicProvider(light: "#3B82F6", dark: "#6EA0F5"))
-    static let accentGreen = Color(dynamicProvider(light: "#10B981", dark: "#55CE90"))
-    static let accentPurple = Color(dynamicProvider(light: "#8B5CF6", dark: "#AD7AF7"))
-    static let accentPurpleDeep = Color(dynamicProvider(light: "#6D28D9", dark: "#8855D6"))
-    static let moodMint = Color(dynamicProvider(light: "#10B981", dark: "#50CFA4"))
-    static let moodMintStrong = Color(dynamicProvider(light: "#059669", dark: "#40BC90"))
-    static let moodSage = Color(dynamicProvider(light: "#E2E8F0", dark: "#291E18"))
-    static let moodMist = Color(dynamicProvider(light: "#F1F5F9", dark: "#18110D"))
-    static let moodCream = Color(dynamicProvider(light: "#FAFAFA", dark: "#1C1410"))
+    static let accentOrange = Color(dynamicProvider(light: "#0096C7", dark: "#00B4D8"))
+    static let accentPink = Color(dynamicProvider(light: "#0077B6", dark: "#48CAE4"))
+    static let accentBlue = Color(dynamicProvider(light: "#0077B6", dark: "#00B4D8"))
+    static let accentGreen = Color(dynamicProvider(light: "#00B4D8", dark: "#48CAE4"))
+    static let accentPurple = Color(dynamicProvider(light: "#023E8A", dark: "#90E0EF"))
+    static let accentPurpleDeep = Color(dynamicProvider(light: "#03045E", dark: "#0077B6"))
+    static let moodMint = Color(dynamicProvider(light: "#48CAE4", dark: "#90E0EF"))
+    static let moodMintStrong = Color(dynamicProvider(light: "#0096C7", dark: "#00B4D8"))
+    static let moodSage = Color(dynamicProvider(light: "#ADE8F4", dark: "#023E8A"))
+    static let moodMist = Color(dynamicProvider(light: "#CAF0F8", dark: "#03045E"))
+    static let moodCream = Color(dynamicProvider(light: "#CAF0F8", dark: "#023E8A"))
     
     // Mood Colors
-    static let moodHappy = Color(dynamicProvider(light: "#F59E0B", dark: "#FFB940"))
-    static let moodCalm = Color(dynamicProvider(light: "#10B981", dark: "#56CD95"))
-    static let moodEnergetic = Color(dynamicProvider(light: "#EF4444", dark: "#FF6A5E"))
-    static let moodTired = Color(dynamicProvider(light: "#6366F1", dark: "#7CA5EE"))
-    static let moodStressed = Color(dynamicProvider(light: "#F97316", dark: "#FF7847"))
-    static let moodSad = Color(dynamicProvider(light: "#8B5CF6", dark: "#B582F7"))
+    static let moodHappy = Color(dynamicProvider(light: "#00B4D8", dark: "#48CAE4"))
+    static let moodCalm = Color(dynamicProvider(light: "#0077B6", dark: "#90E0EF"))
+    static let moodEnergetic = Color(dynamicProvider(light: "#0096C7", dark: "#00B4D8"))
+    static let moodTired = Color(dynamicProvider(light: "#023E8A", dark: "#48CAE4"))
+    static let moodStressed = Color(dynamicProvider(light: "#0077B6", dark: "#00B4D8"))
+    static let moodSad = Color(dynamicProvider(light: "#03045E", dark: "#023E8A"))
 
     // MARK: - Pure Monochrome Neumorphic Backgrounds & Surfaces (Black & White Only)
     static let background = Color(dynamicProvider(light: "#E3E3E3", dark: "#141414"))
@@ -102,7 +103,7 @@ struct VenusTheme {
     static let textTertiary = Color(dynamicProvider(light: "#8E8E8E", dark: "#707070"))
     static let textOnPrimary = Color.white
     
-    // MARK: - Gradients (Monochrome Black & White)
+    // MARK: - Gradients
     
     static var backgroundGradient: LinearGradient {
         LinearGradient(
@@ -131,9 +132,9 @@ struct VenusTheme {
     static var orangeTopGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(dynamicProvider(light: "#FFA270", dark: "#E67836")),
-                Color(dynamicProvider(light: "#FF6536", dark: "#CC5016")),
-                Color(dynamicProvider(light: "#E04818", dark: "#A63207"))
+                Color(dynamicProvider(light: "#48CAE4", dark: "#90E0EF")),
+                Color(dynamicProvider(light: "#0096C7", dark: "#00B4D8")),
+                Color(dynamicProvider(light: "#0077B6", dark: "#023E8A"))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -143,9 +144,9 @@ struct VenusTheme {
     static var salmonCreamGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(dynamicProvider(light: "#FFFFFF", dark: "#231610")),
-                Color(dynamicProvider(light: "#FFF5EE", dark: "#352018")),
-                Color(dynamicProvider(light: "#FDEAE0", dark: "#46281E"))
+                Color(dynamicProvider(light: "#CAF0F8", dark: "#023E8A")),
+                Color(dynamicProvider(light: "#ADE8F4", dark: "#03045E")),
+                Color(dynamicProvider(light: "#90E0EF", dark: "#023E8A"))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -167,9 +168,9 @@ struct VenusTheme {
     static var moodOrbGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(dynamicProvider(light: "#FFAE82", dark: "#FF8A54")),
-                Color(dynamicProvider(light: "#FF6536", dark: "#E2531D")),
-                Color(dynamicProvider(light: "#D94418", dark: "#AE3108"))
+                Color(dynamicProvider(light: "#48CAE4", dark: "#90E0EF")),
+                Color(dynamicProvider(light: "#0096C7", dark: "#00B4D8")),
+                Color(dynamicProvider(light: "#0077B6", dark: "#023E8A"))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -179,7 +180,7 @@ struct VenusTheme {
     static var homeWaveGradient: LinearGradient {
         LinearGradient(
             colors: [
-                accentOrange.opacity(0.12),
+                accentOrange.opacity(0.18),
                 primary.opacity(0.48),
                 primaryDark.opacity(0.88)
             ],
@@ -201,12 +202,12 @@ struct VenusTheme {
         )
     }
     
-    // High-contrast primary button gradient
+    // Primary action button gradient
     static var primaryGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(dynamicProvider(light: "#262626", dark: "#EDEDED")),
-                Color(dynamicProvider(light: "#121212", dark: "#D4D4D4"))
+                Color(dynamicProvider(light: "#0096C7", dark: "#00B4D8")),
+                Color(dynamicProvider(light: "#0077B6", dark: "#0077B6"))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -216,8 +217,8 @@ struct VenusTheme {
     static var proGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(dynamicProvider(light: "#333333", dark: "#CCCCCC")),
-                Color(dynamicProvider(light: "#1A1A1A", dark: "#AAAAAA"))
+                Color(dynamicProvider(light: "#0077B6", dark: "#00B4D8")),
+                Color(dynamicProvider(light: "#023E8A", dark: "#023E8A"))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing

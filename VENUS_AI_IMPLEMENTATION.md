@@ -68,7 +68,7 @@ Venus can now discuss:
 
 ### For Developers
 1. **API Key**: Update `AppConfig.openRouterAPIKey` with your OpenRouter API key
-2. **Model**: Configure `AppConfig.openRouterModel` (default: `inclusionai/ling-3.0-flash-fin`)
+2. **Model**: Configure `AppConfig.openRouterModel` (default: `openrouter/free`, or override via `OPENROUTER_MODEL` environment variable)
 3. **Customization**: Modify `VenusSystemPrompt.fullPrompt` to adjust personality
 4. **Activities**: Add new wellness activities in `WellnessActivityManager`
 5. **Emotions**: Extend `EmotionType` enum for additional emotional states

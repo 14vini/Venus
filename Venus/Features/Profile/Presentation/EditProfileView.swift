@@ -31,6 +31,7 @@ struct EditProfileView: View {
     @State private var selectedDesiredHobbies: Set<String> = []
     @State private var selectedImprovementAreas: Set<String> = []
     @State private var selectedEmotionalAreas: Set<String> = []
+    @State private var selectedCoreValues: Set<String> = []
     
     let allInterests = [
         "Tecnologia", "Natureza", "Artes", "Esportes", "Culinária", "Música", 
@@ -47,6 +48,7 @@ struct EditProfileView: View {
     
     let allImprovementAreas = ["foco e produtividade", "equilibrio de vida", "saude fisica", "sono", "relacionamentos", "comunicacao", "energia", "motivacao"]
     let allEmotionalAreas = ["estresse", "ansiedade", "sobrecarga", "tristeza", "desanimo", "apatia", "solidao", "inseguranca"]
+    let allCoreValues = CoreValueOption.allCases.map { $0.rawValue }
     
     var body: some View {
         Form {
@@ -59,6 +61,7 @@ struct EditProfileView: View {
                 
                 Picker("Tom da Venus", selection: $coachingTone) {
                     Text("Acolhedor").tag("Acolhedor")
+                    Text("Socrático (Espelho Lúcido)").tag("Socrático")
                     Text("Direto").tag("Direto")
                     Text("Motivador").tag("Motivador")
                     Text("Normal").tag("Normal")
@@ -68,6 +71,12 @@ struct EditProfileView: View {
                 Stepper(value: $dailyTimeBudgetMinutes, in: 5...120, step: 5) {
                     Text("Tempo diário: \(dailyTimeBudgetMinutes) minutos")
                         .font(.system(.subheadline, design: .rounded).weight(.medium))
+                }
+            }
+            
+            Section(header: Text("Autoconhecimento & Princípios")) {
+                DisclosureGroup("Valores Inegociáveis (\(selectedCoreValues.count) selecionados)") {
+                    checkboxList(options: allCoreValues, selected: $selectedCoreValues)
                 }
             }
             
@@ -152,6 +161,7 @@ struct EditProfileView: View {
         selectedDesiredHobbies = Set(userProfile.desiredHobbies)
         selectedImprovementAreas = Set(userProfile.improvementAreas)
         selectedEmotionalAreas = Set(userProfile.emotionalAreas)
+        selectedCoreValues = Set(userProfile.coreValues)
     }
     
     private func saveChanges() {
@@ -173,6 +183,7 @@ struct EditProfileView: View {
         userProfile.desiredHobbies = Array(selectedDesiredHobbies).sorted()
         userProfile.improvementAreas = Array(selectedImprovementAreas).sorted()
         userProfile.emotionalAreas = Array(selectedEmotionalAreas).sorted()
+        userProfile.coreValues = Array(selectedCoreValues).sorted()
     }
     
     private func defaultTime(hour: Int) -> Date {

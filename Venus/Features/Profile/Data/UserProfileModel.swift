@@ -23,6 +23,7 @@ class UserProfileModel {
     var contextNote: String = ""
     var gender: String = ""
     var isOnboardingComplete: Bool
+    var coreValues: [String] = []
     
     // Work Schedule (optional)
     var hasWork: Bool
@@ -48,6 +49,7 @@ class UserProfileModel {
         self.emotionalAreas = profile.emotionalAreas
         self.contextNote = profile.contextNote
         self.isOnboardingComplete = profile.isOnboardingComplete
+        self.coreValues = profile.coreValues
         
         self.hasWork = profile.workSchedule?.hasWork ?? false
         self.workStartTime = profile.workSchedule?.startTime
@@ -72,6 +74,7 @@ class UserProfileModel {
         profile.emotionalAreas = emotionalAreas
         profile.contextNote = contextNote
         profile.isOnboardingComplete = isOnboardingComplete
+        profile.coreValues = coreValues
         
         if hasWork, let start = workStartTime, let end = workEndTime {
             profile.workSchedule = WorkSchedule(hasWork: true, startTime: start, endTime: end)

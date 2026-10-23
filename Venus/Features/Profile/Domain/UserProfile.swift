@@ -19,6 +19,9 @@ class UserProfile: Sendable {
     var coachingTone: String = ""
     var dailyTimeBudgetMinutes: Int = 0
     
+    // Autoconhecimento & Princípios Inegociáveis
+    var coreValues: [String] = []
+    
     // Rotina
     var workSchedule: WorkSchedule? = nil
     var studySchedule: StudySchedule = StudySchedule()
@@ -42,6 +45,7 @@ class UserProfile: Sendable {
         primaryGoal = ""
         coachingTone = ""
         dailyTimeBudgetMinutes = 0
+        coreValues = []
         workSchedule = nil
         studySchedule = StudySchedule()
         currentHobbies = []

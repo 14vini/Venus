@@ -17,7 +17,6 @@ struct EmotionalGalaxyView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTimeRange: GalaxyTimeRange = .week
     @State private var selectedStar: GalaxyStar? = nil
-    @State private var showVenusWrap: Bool = false
     @State private var allHistoricalMoods: [Mood] = []
     @State private var isLoadingMoods: Bool = false
     
@@ -102,7 +101,7 @@ struct EmotionalGalaxyView: View {
                     )
                     .padding(.horizontal, 16)
                     
-                    // Bottom Controls & Story Launch Button
+                    // Bottom Controls & Constellation Summary
                     VStack(spacing: 12) {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
@@ -116,31 +115,6 @@ struct EmotionalGalaxyView: View {
                             }
                             
                             Spacer()
-                            
-                            // Launch Story Wrapped Button
-                            Button {
-                                showVenusWrap = true
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "sparkles")
-                                        .font(.system(size: 13, weight: .bold))
-                                    Text("Venus Wrap ✨")
-                                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                                }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(
-                                    LinearGradient(
-                                        colors: [VenusTheme.primary, VenusTheme.accentPurple],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    ),
-                                    in: Capsule()
-                                )
-                                .shadow(color: VenusTheme.primary.opacity(0.4), radius: 8, x: 0, y: 4)
-                            }
                         }
                         .padding(.horizontal, 20)
                         .padding(.top, 16)
@@ -163,15 +137,6 @@ struct EmotionalGalaxyView: View {
                             .foregroundColor(.white.opacity(0.7))
                     }
                 }
-            }
-            .fullScreenCover(isPresented: $showVenusWrap) {
-                VenusWrapStoryView(
-                    userName: userName,
-                    weekMoods: displayedMoods,
-                    weeklyTrend: weeklyTrend,
-                    readinessAssessment: readinessAssessment,
-                    onDismiss: { showVenusWrap = false }
-                )
             }
             .task {
                 await loadAllMoods()

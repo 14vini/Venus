@@ -20,7 +20,6 @@ final class HomeViewModel {
     var showMoodCheckIn: Bool = false
     var showUpgradePrompt: Bool = false
     var showEmotionalGalaxy: Bool = false
-    var showVenusWrap: Bool = false
     var showReadinessBreakdown: Bool = false
     var checkInPrefilledMood: MoodType? = nil
 

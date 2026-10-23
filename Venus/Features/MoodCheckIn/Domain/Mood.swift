@@ -159,36 +159,36 @@ enum MoodType: String, CaseIterable, Codable, Sendable {
     
     var colorHex: String {
         switch self {
-        case .calm: return "#10B981"
-        case .happy: return "#F59E0B"
-        case .energetic: return "#EF4444"
-        case .stressed: return "#F97316"
-        case .sad: return "#8B5CF6"
-        case .tired: return "#6366F1"
+        case .calm: return "#0077B6"
+        case .happy: return "#00B4D8"
+        case .energetic: return "#0096C7"
+        case .stressed: return "#023E8A"
+        case .sad: return "#03045E"
+        case .tired: return "#48CAE4"
         }
     }
 
     /// Orb gradient colors: [light highlight, mid, deep]
     var orbColors: (light: String, mid: String, deep: String) {
         switch self {
-        case .happy:    return ("D6FFB9", "9BF66F", "59D85A")
-        case .calm:     return ("B9EEFF", "6DCFF5", "3AAED8")
-        case .energetic:return ("FFFAB9", "FFE44A", "F5C800")
-        case .stressed: return ("FFD4B9", "FF9A6C", "E06030")
-        case .sad:      return ("C4D4FF", "7FA8F5", "4A72D8")
-        case .tired:    return ("E0D4FF", "B89AF5", "8A60D8")
+        case .happy:    return ("90E0EF", "00B4D8", "0077B6")
+        case .calm:     return ("ADE8F4", "48CAE4", "0096C7")
+        case .energetic:return ("CAF0F8", "00B4D8", "023E8A")
+        case .stressed: return ("48CAE4", "0077B6", "023E8A")
+        case .sad:      return ("90E0EF", "023E8A", "03045E")
+        case .tired:    return ("ADE8F4", "48CAE4", "023E8A")
         }
     }
 
     /// Face ink color
     var faceColorHex: String {
         switch self {
-        case .happy:    return "27603F"
-        case .calm:     return "1A5070"
-        case .energetic:return "7A5800"
-        case .stressed: return "7A2800"
-        case .sad:      return "1A3070"
-        case .tired:    return "3A1A70"
+        case .happy:    return "03045E"
+        case .calm:     return "023E8A"
+        case .energetic:return "03045E"
+        case .stressed: return "03045E"
+        case .sad:      return "03045E"
+        case .tired:    return "023E8A"
         }
     }
 }

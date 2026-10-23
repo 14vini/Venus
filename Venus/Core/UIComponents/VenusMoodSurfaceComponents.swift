@@ -215,17 +215,17 @@ struct VenusMoodOrb: View {
     @Environment(\.colorScheme) private var colorScheme
     
     private var highlightColor: Color {
-        guard let mood else { return Color(hex: "D6FFB9") }
+        guard let mood else { return Color(hex: "ADE8F4") }
         return Color(hex: mood.orbColors.light)
     }
     
     private var baseColor: Color {
-        guard let mood else { return Color(hex: "9BF66F") }
+        guard let mood else { return Color(hex: "00B4D8") }
         return Color(hex: mood.orbColors.mid)
     }
     
     private var deepColor: Color {
-        guard let mood else { return Color(hex: "59D85A") }
+        guard let mood else { return Color(hex: "0077B6") }
         return Color(hex: mood.orbColors.deep)
     }
     
@@ -233,7 +233,7 @@ struct VenusMoodOrb: View {
         if let mood {
             return Color(hex: mood.faceColorHex)
         }
-        return Color(hex: "27603F")
+        return Color(hex: "03045E")
     }
     
     private var effectiveState: VenusMascotState {

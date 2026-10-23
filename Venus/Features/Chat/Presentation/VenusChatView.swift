@@ -27,6 +27,44 @@ struct VenusChatView: View {
                     ScrollViewReader { proxy in
                         ScrollView(.vertical, showsIndicators: false) {
                             LazyVStack(spacing: 0) {
+                                // Banner do Radar de Contradições se detectado
+                                if let dissonance = viewModel.lastDiagnosis?.dissonance {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "bolt.shield.fill")
+                                            .foregroundColor(.yellow)
+                                            .font(.system(size: 13, weight: .bold))
+                                        
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(dissonance.type.badgeLabel)
+                                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                                .foregroundColor(VenusTheme.text)
+                                            
+                                            Text(dissonance.headline)
+                                                .font(.system(size: 10, weight: .medium, design: .rounded))
+                                                .foregroundColor(VenusTheme.textSecondary)
+                                                .lineLimit(1)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Button {
+                                            withAnimation(.spring(duration: 0.25)) {
+                                                viewModel.lastDiagnosis = nil
+                                            }
+                                        } label: {
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundColor(VenusTheme.textSecondary)
+                                        }
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                    .padding(.horizontal, 16)
+                                    .padding(.bottom, 8)
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                                }
+
                                 ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
                                     let isPrevSame = index > 0 && viewModel.messages[index - 1].isFromUser == message.isFromUser
                                     let isNextSame = index < viewModel.messages.count - 1 && viewModel.messages[index + 1].isFromUser == message.isFromUser
@@ -121,9 +159,8 @@ struct VenusChatView: View {
                                     .frame(width: 3)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(replyingTo.isFromUser ? "Respondendo a você" : "Respondendo à Venus")
-                                        .font(.caption2)
-                                        .bold()
+                                    Text(replyingTo.isFromUser ? "Você" : "Venus")
+                                        .font(.caption2.bold())
                                         .foregroundColor(VenusTheme.primary)
                                     
                                     Text(replyingTo.content)
@@ -137,36 +174,32 @@ struct VenusChatView: View {
                                 Button {
                                     viewModel.replyingToMessage = nil
                                 } label: {
-                                    Image(systemName: "xmark.circle.fill")
+                                    Image(systemName: "xmark")
+                                        .font(.caption2)
                                         .foregroundColor(VenusTheme.textSecondary)
-                                        .font(.system(size: 16))
                                 }
                             }
                             .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(VenusTheme.surface.opacity(0.8))
-                            .cornerRadius(8)
+                            .padding(.vertical, 8)
+                            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .padding(.horizontal, 16)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
                         
-                        // Input Field Card
-                        HStack(spacing: 8) {
-                            TextField("Como posso te apoiar hoje?", text: $inputText, axis: .vertical)
-                                .lineLimit(1...4)
+                        HStack(spacing: 12) {
+                            TextField("Converse com Venus...", text: $inputText, axis: .vertical)
+                                .lineLimit(1...5)
+                                .font(.system(.subheadline, design: .rounded))
+                                .foregroundColor(VenusTheme.text)
                                 .focused($isTextFieldFocused)
-                                .font(.body)
                             
-                            // Clear text button (inside TextField)
+                            // Clear text button (only shows when user has typed something)
                             if !inputText.isEmpty {
                                 Button {
-                                    withAnimation(.easeInOut(duration: 0.15)) {
-                                        inputText = ""
-                                    }
+                                    inputText = ""
                                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 17))
+                                        .font(.system(size: 16))
                                         .foregroundColor(VenusTheme.textSecondary)
                                 }
                                 .transition(.scale.combined(with: .opacity))
@@ -233,6 +266,31 @@ struct VenusChatView: View {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(VenusTheme.text)
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Section("Lentes de Autoconhecimento") {
+                            ForEach(SelfKnowledgeLens.allCases) { lens in
+                                Button {
+                                    viewModel.setSelfKnowledgeLens(lens)
+                                } label: {
+                                    Label(lens.title, systemImage: lens.iconName)
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: viewModel.activeLens.iconName)
+                                .font(.system(size: 11, weight: .bold))
+                            Text(viewModel.activeLens.shortTitle)
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        }
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(viewModel.activeLens.badgeColor.opacity(0.18), in: Capsule())
+                        .foregroundColor(viewModel.activeLens.badgeColor)
                     }
                 }
             }

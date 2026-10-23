@@ -17,8 +17,6 @@ struct HomeHeroMascotView: View {
     let onCheckInTap: () -> Void
     let onChatTap: () -> Void
     
-    @State private var quoteIndex: Int = 0
-    @State private var isBouncingQuote: Bool = false
     @Environment(\.colorScheme) private var colorScheme
     
     private var effectiveMood: MoodType {
@@ -34,48 +32,31 @@ struct HomeHeroMascotView: View {
         return .none
     }
     
-    private var phrases: [String] {
-        var list: [String] = []
-        
+    private var currentPhrase: String {
         if let aiGreeting = customAIGreeting, !aiGreeting.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            list.append(aiGreeting)
+            return aiGreeting
         }
         
         if !hasCheckedInToday {
             switch dayMoment {
             case .dawn:
-                list.append("Bom dia cedo, \(userName)! 🌅 Como você acordou?")
+                return "Bom dia cedo, \(userName)! 🌅 Como você acordou?"
             case .morning:
-                list.append("Bom dia, \(userName)! ☀️ Como você está começando o seu dia?")
+                return "Bom dia, \(userName)! ☀️ Como você está começando o seu dia?"
             case .afternoon:
-                list.append("Boa tarde, \(userName)! 🌤️ Como estão as coisas por aí?")
+                return "Boa tarde, \(userName)! 🌤️ Como estão as coisas por aí?"
             case .evening:
-                list.append("Boa noite, \(userName)! 🌇 Como foi o seu dia?")
+                return "Boa noite, \(userName)! 🌇 Como foi o seu dia?"
             case .night:
-                list.append("Já é noite, \(userName) 🌙 Que tal desacelerar e refletir um pouco?")
+                return "Já é noite, \(userName) 🌙 Que tal desacelerar e refletir um pouco?"
             }
-            list.append("Dedique 1 minutinho para você hoje. Seu ritual está pronto!")
         } else {
             if let mood = todayMood {
-                list.append("Seu check-in de hoje foi registrado como \(mood.rawValue) \(mood.emoji). Estou aqui para o que precisar!")
+                return "Seu check-in de hoje foi registrado como \(mood.rawValue) \(mood.emoji). Estou aqui para o que precisar!"
             } else {
-                list.append("Check-in de hoje concluído! Como posso te apoiar agora?")
+                return "Check-in de hoje concluído! Como posso te apoiar agora?"
             }
-            list.append("Se quiser desabafar ou refletir, é só me chamar no chat ✨")
         }
-        
-        if streakDays >= 3 {
-            list.append("🔥 Incrível! Você está em uma sequência de \(streakDays) dias de autoconhecimento.")
-        }
-        
-        list.append("Dica: Toque em mim duas vezes para um salto mortal ou faça cafuné! 💖")
-        
-        return list
-    }
-    
-    private var currentPhrase: String {
-        guard !phrases.isEmpty else { return "Olá, \(userName)!" }
-        return phrases[quoteIndex % phrases.count]
     }
 
     var body: some View {
@@ -100,7 +81,6 @@ struct HomeHeroMascotView: View {
                     .foregroundColor(VenusTheme.text)
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
-                    .contentTransition(.numericText())
                 
                 HStack(spacing: 10) {
                     if !hasCheckedInToday {
@@ -147,27 +127,11 @@ struct HomeHeroMascotView: View {
                     }
                     
                     Spacer(minLength: 0)
-                    
-                    // Tap to cycle hint
-                    Button(action: cycleQuote) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(VenusTheme.textSecondary.opacity(0.75))
-                            .padding(6)
-                    }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .neumorphicCard(cornerRadius: 22, style: .raised, depth: 6)
-        }
-    }
-    
-    private func cycleQuote() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-            quoteIndex += 1
         }
     }
 }

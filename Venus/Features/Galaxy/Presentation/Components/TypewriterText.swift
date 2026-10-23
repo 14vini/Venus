@@ -11,7 +11,7 @@ import UIKit
 /// Renders text character-by-character with a gentle handwriting/typewriter cadence and subtle glowing cursor.
 struct TypewriterText: View {
     let fullText: String
-    var speed: Double = 0.024
+    var speed: Double = 0.022
     var font: Font = .system(size: 18, weight: .medium, design: .serif)
     var textColor: Color = .white
     var cursorColor: Color = VenusTheme.primary
@@ -35,6 +35,7 @@ struct TypewriterText: View {
                 Rectangle()
                     .fill(cursorColor)
                     .frame(width: 2.5, height: 20)
+                    .shadow(color: cursorColor.opacity(0.8), radius: 3)
                     .opacity(cursorVisible ? 0.9 : 0.1)
                     .offset(y: -2)
                     .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: cursorVisible)
@@ -42,6 +43,9 @@ struct TypewriterText: View {
         }
         .onAppear {
             lightHaptic.prepare()
+            startTyping()
+        }
+        .onChange(of: fullText) { _, _ in
             startTyping()
         }
         .onDisappear {
@@ -73,8 +77,8 @@ struct TypewriterText: View {
                 
                 await MainActor.run {
                     self.displayedCount = i
-                    if i % 6 == 0 {
-                        self.lightHaptic.impactOccurred(intensity: 0.25)
+                    if i % 7 == 0 {
+                        self.lightHaptic.impactOccurred(intensity: 0.22)
                     }
                 }
             }

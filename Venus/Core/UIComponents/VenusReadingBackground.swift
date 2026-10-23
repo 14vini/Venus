@@ -29,31 +29,31 @@ enum DayMoment: Sendable {
 
     var accent: Color {
         switch self {
-        case .dawn:      return Color(hex: "FFD580")
-        case .morning:   return Color(hex: "FFB347")
-        case .afternoon: return Color(hex: "58B887")
-        case .evening:   return Color(hex: "F58B74")
-        case .night:     return Color(hex: "8D5CFF")
+        case .dawn:      return Color(hex: "48CAE4")
+        case .morning:   return Color(hex: "00B4D8")
+        case .afternoon: return Color(hex: "0096C7")
+        case .evening:   return Color(hex: "0077B6")
+        case .night:     return Color(hex: "023E8A")
         }
     }
 
     var secondaryAccent: Color {
         switch self {
-        case .dawn:      return Color(hex: "FFF0B0")
-        case .morning:   return Color(hex: "FFD580")
-        case .afternoon: return Color(hex: "9BF66F")
-        case .evening:   return Color(hex: "FFB347")
-        case .night:     return Color(hex: "5C8DFF")
+        case .dawn:      return Color(hex: "90E0EF")
+        case .morning:   return Color(hex: "48CAE4")
+        case .afternoon: return Color(hex: "00B4D8")
+        case .evening:   return Color(hex: "0096C7")
+        case .night:     return Color(hex: "0077B6")
         }
     }
 
     var tertiaryAccent: Color {
         switch self {
-        case .dawn:      return Color(hex: "B9EEFF")
-        case .morning:   return Color(hex: "D6FFB9")
-        case .afternoon: return Color(hex: "B9EEFF")
-        case .evening:   return Color(hex: "C4D4FF")
-        case .night:     return Color(hex: "E0D4FF")
+        case .dawn:      return Color(hex: "CAF0F8")
+        case .morning:   return Color(hex: "ADE8F4")
+        case .afternoon: return Color(hex: "90E0EF")
+        case .evening:   return Color(hex: "48CAE4")
+        case .night:     return Color(hex: "03045E")
         }
     }
 
@@ -115,7 +115,7 @@ struct VenusReadingBackground: View {
                 ZStack {
                     LinearGradient(
                         colors: [
-                            accent.opacity(colorScheme == .dark ? 0.12 : 0.5),
+                            accent.opacity(colorScheme == .dark ? 0.12 : 0.05),
                             secondaryAccent.opacity(colorScheme == .dark ? 0.08 : 0.10),
                             Color.clear,
                             Color.clear

@@ -16,19 +16,48 @@ public struct ReadinessPillarMetric: Identifiable, Equatable, Sendable {
     public let iconName: String
     public let isCompleted: Bool
     public let detail: String?
+    public let score: Double? // 0.0 ... 10.0
 
     public init(
         id: String = UUID().uuidString,
         title: String,
         iconName: String,
         isCompleted: Bool = true,
-        detail: String? = nil
+        detail: String? = nil,
+        score: Double? = nil
     ) {
         self.id = id
         self.title = title
         self.iconName = iconName
         self.isCompleted = isCompleted
         self.detail = detail
+        self.score = score
+    }
+
+    public var normalizedScore: Double {
+        if let score = score {
+            return max(0.0, min(10.0, score))
+        }
+        return isCompleted ? 8.5 : 4.5
+    }
+
+    public var progress: Double {
+        normalizedScore / 10.0
+    }
+
+    public var percentageInt: Int {
+        Int((progress * 100).rounded())
+    }
+
+    public var statusText: String {
+        let pct = percentageInt
+        if pct >= 80 {
+            return "Excelente"
+        } else if pct >= 60 {
+            return "Estável"
+        } else {
+            return "Atenção"
+        }
     }
 }
 
@@ -468,19 +497,22 @@ public struct ReadinessEnergyAssessment: Identifiable, Equatable, Sendable {
             title: "Foco",
             iconName: "scope",
             isCompleted: true,
-            detail: "Carga mental equilibrada"
+            detail: "Carga mental equilibrada",
+            score: 8.4
         ),
         bodyMetric: ReadinessPillarMetric(
             title: "Corpo",
             iconName: "atom",
             isCompleted: true,
-            detail: "Recuperação física estável"
+            detail: "Recuperação física estável",
+            score: 8.0
         ),
         sleepMetric: ReadinessPillarMetric(
             title: "Sono",
             iconName: "bed.double.fill",
             isCompleted: true,
-            detail: "Descanso restaurador"
+            detail: "Descanso restaurador",
+            score: 7.8
         ),
         breakdown: ReadinessBreakdown(
             subjectiveScore: 8.0,

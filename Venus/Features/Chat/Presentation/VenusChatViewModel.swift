@@ -24,12 +24,16 @@ final class VenusChatViewModel {
     var currentSession: ChatSession
     var currentEmotionalState: EmotionalState? = nil
     var currentlyStreamingMessageId: UUID? = nil
+    var activeLens: SelfKnowledgeLens = .socratic
+    var lastDiagnosis: SelfKnowledgeDiagnosis? = nil
+    var currentReadiness: ReadinessEnergyAssessment? = nil
     
     private let chatRepository: ChatRepositoryProtocol
     private let userProfileRepository: UserProfileRepositoryProtocol
     private let moodRepository: MoodRepositoryProtocol
     private let notificationService: NotificationServiceProtocol
     private let venusAI: VenusAIServiceProtocol
+    private let readinessEngine: ReadinessEngineProtocol
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "pt-BR"))
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
@@ -45,7 +49,8 @@ final class VenusChatViewModel {
         userProfileRepository: UserProfileRepositoryProtocol? = nil,
         moodRepository: MoodRepositoryProtocol? = nil,
         notificationService: NotificationServiceProtocol? = nil,
-        venusAI: VenusAIServiceProtocol? = nil
+        venusAI: VenusAIServiceProtocol? = nil,
+        readinessEngine: ReadinessEngineProtocol? = nil
     ) {
         self.openedFromMirror = openedFromMirror
         self.currentSession = session ?? ChatSession()
@@ -54,10 +59,16 @@ final class VenusChatViewModel {
         self.moodRepository = moodRepository ?? DependencyContainer.shared.makeMoodRepository()
         self.notificationService = notificationService ?? DependencyContainer.shared.makeNotificationService()
         self.venusAI = venusAI ?? DependencyContainer.shared.makeVenusAIService()
+        self.readinessEngine = readinessEngine ?? DependencyContainer.shared.makeReadinessEngine()
         
         if let session = session {
             self.messages = session.messages
         }
+    }
+    
+    func setSelfKnowledgeLens(_ lens: SelfKnowledgeLens) {
+        self.activeLens = lens
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
     
     func startAnimations() {
@@ -77,6 +88,14 @@ final class VenusChatViewModel {
         Task {
             do {
                 self.userProfile = try await userProfileRepository.load()
+                
+                if let tone = self.userProfile?.coachingTone.lowercased() {
+                    if tone.contains("socrático") || tone.contains("socratico") {
+                        self.activeLens = .socratic
+                    } else if tone.contains("direto") {
+                        self.activeLens = .contradictionRadar
+                    }
+                }
                 
                 // If it's a new empty session, generate welcome message
                 if messages.isEmpty {
@@ -99,55 +118,27 @@ final class VenusChatViewModel {
         let name = userProfile?.name.isEmpty == false ? userProfile!.name : "você"
         let welcomeText = "Olá, \(name)! Sou a Venus, seu refúgio e espelho de bem-estar. Como você está se sentindo hoje? Estou aqui para te ouvir com todo carinho. 💜"
         
-        await animateTypewriter(text: welcomeText, speed: 0.016)
+        let initialMessage = ChatMessage(
+            content: welcomeText,
+            isFromUser: false
+        )
+        
+        messages.append(initialMessage)
+        currentSession.addMessage(initialMessage)
+        await saveCurrentSession()
     }
     
     private func generateMirrorInitialMessage() async {
-        isVenusThinking = true
-        do {
-            let allMoods = try await moodRepository.getAllMoods()
-            let mirrorText = try await venusAI.generateMirrorResume(checkInHistory: allMoods, userProfile: userProfile)
-            
-            self.isVenusThinking = false
-            let cleanText = ThinkingStreamFilter.clean(mirrorText)
-            await animateTypewriter(text: cleanText, speed: 0.018)
-        } catch {
-            print("Erro ao gerar resumo do espelho: \(error)")
-            self.isVenusThinking = false
-            let friendlyError = (error as? VenusAIError)?.userFriendlyMessage ?? "Desculpe, tive uma instabilidade temporária ao carregar o resumo do Espelho. Logo isso será corrigido. Como posso te apoiar hoje? 💜"
-            await animateTypewriter(text: friendlyError, speed: 0.018)
-        }
-    }
-    
-    private func animateTypewriter(text: String, speed: Double = 0.018) async {
-        let messageId = UUID()
-        let initialMessage = ChatMessage(id: messageId, content: "", isFromUser: false)
+        let name = userProfile?.name.isEmpty == false ? userProfile!.name : "você"
+        let messageText = "Olá \(name), notei padrões interessantes na sua semana através do Espelho Comportamental. O que você gostaria de explorar hoje para transformar sentimentos em ação? 🪞"
         
-        self.currentlyStreamingMessageId = messageId
-        withAnimation(.easeOut(duration: 0.25)) {
-            self.messages.append(initialMessage)
-            self.currentSession.addMessage(initialMessage)
-        }
+        let initialMessage = ChatMessage(
+            content: messageText,
+            isFromUser: false
+        )
         
-        var current = ""
-        let chars = Array(text)
-        for (i, char) in chars.enumerated() {
-            current.append(char)
-            if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
-                self.messages[index].content = current
-                if let sessionIdx = self.currentSession.messages.firstIndex(where: { $0.id == messageId }) {
-                    self.currentSession.messages[sessionIdx].content = current
-                }
-            }
-            if i % 5 == 0 {
-                lightHaptic.impactOccurred(intensity: 0.15)
-            }
-            try? await Task.sleep(nanoseconds: UInt64(speed * 1_000_000_000))
-        }
-        
-        withAnimation(.easeOut(duration: 0.2)) {
-            self.currentlyStreamingMessageId = nil
-        }
+        messages.append(initialMessage)
+        currentSession.addMessage(initialMessage)
         await saveCurrentSession()
     }
     
@@ -183,12 +174,36 @@ final class VenusChatViewModel {
             
             do {
                 let allMoods = (try? await moodRepository.getAllMoods()) ?? []
+                let todayMood = allMoods.last?.type
+                let todayMoodItem = allMoods.last
+                let assessment = readinessEngine.evaluate(
+                    todayMood: todayMood,
+                    todayMoodItem: todayMoodItem,
+                    weekMoods: allMoods,
+                    hasRecentChat: true,
+                    biometrics: nil,
+                    chatImpact: nil,
+                    aiStateTitle: nil,
+                    aiStateSubtitle: nil
+                )
+                self.currentReadiness = assessment
+                
+                let diagnosis = SelfKnowledgeEngine.shared.diagnose(
+                    userMessage: trimmed,
+                    readiness: assessment,
+                    recentMoods: allMoods,
+                    userProfile: userProfile,
+                    currentLens: activeLens
+                )
+                self.lastDiagnosis = diagnosis
                 
                 let stream = venusAI.generateStreamResponse(
                     userMessage: trimmed,
                     conversationHistory: messages,
                     userProfile: userProfile,
-                    checkInHistory: allMoods
+                    checkInHistory: allMoods,
+                    readiness: assessment,
+                    activeLens: activeLens
                 )
                 
                 var streamReceivedAny = false
@@ -266,7 +281,9 @@ final class VenusChatViewModel {
                         userMessage: trimmed,
                         conversationHistory: messages,
                         userProfile: userProfile,
-                        checkInHistory: allMoods
+                        checkInHistory: allMoods,
+                        readiness: assessment,
+                        activeLens: activeLens
                     )
                     let cleanResponse = ThinkingStreamFilter.clean(rawResponse)
                     
@@ -298,6 +315,28 @@ final class VenusChatViewModel {
         }
     }
     
+    private func animateTypewriter(text: String, speed: Double) async {
+        let venusMessageId = UUID()
+        let initialMessage = ChatMessage(id: venusMessageId, content: "", isFromUser: false)
+        
+        withAnimation(.easeOut(duration: 0.25)) {
+            messages.append(initialMessage)
+            currentSession.addMessage(initialMessage)
+        }
+        
+        var currentText = ""
+        for char in text {
+            currentText.append(char)
+            if let index = messages.firstIndex(where: { $0.id == venusMessageId }) {
+                messages[index].content = currentText
+                if let sessionIndex = currentSession.messages.firstIndex(where: { $0.id == venusMessageId }) {
+                    currentSession.messages[sessionIndex].content = currentText
+                }
+            }
+            try? await Task.sleep(nanoseconds: UInt64(speed * 1_000_000_000))
+        }
+    }
+    
     func toggleReaction(for messageId: UUID) {
         guard let index = messages.firstIndex(where: { $0.id == messageId }) else { return }
         
@@ -316,6 +355,13 @@ final class VenusChatViewModel {
         
         Task {
             await saveCurrentSession()
+        }
+    }
+    
+    func scheduleReminderNotification(text: String) {
+        Task {
+            _ = await notificationService.scheduleReminder(text: text, inSeconds: 3600)
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         }
     }
     
@@ -386,13 +432,6 @@ final class VenusChatViewModel {
         
         try? AVAudioSession.sharedInstance().setActive(false)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-    }
-    
-    func scheduleReminderNotification(text: String) {
-        Task {
-            _ = await notificationService.scheduleReminder(text: text, inSeconds: 3600)
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        }
     }
     
     private func saveCurrentSession() async {

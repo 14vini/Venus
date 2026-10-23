@@ -36,7 +36,7 @@ Enquanto a maioria dos aplicativos de saúde foca em números frios e gráficos 
   * 🚀 **Peak Performance (85–100%):** Janela ideal para trabalho focado, decisões difíceis e esforço intenso.
   * ⚖️ **Foco Sustentável (65–84%):** Bom ritmo de execução com pausas estratégicas programadas.
   * 🛡️ **Modo Manutenção (40–64%):** Priorização do essencial e blindagem contra distrações.
-  * 🪫 **Modo Recuperação (<40%):** Foco em desaceleração, redução de carga e restauração de energia.
+  * 🪵 **Modo Recuperação (<40%):** Foco em desaceleração, redução de carga e restauração de energia.
 
 ---
 
@@ -80,14 +80,14 @@ flowchart LR
 ## 🛠️ Arquitetura & Tecnologias
 
 * **Linguagem & UI:** Swift 6 (`@Observable`, Strict Concurrency, Sendable) + SwiftUI moderno.
-* **Inteligência Artificial:** OpenRouter API (`inclusionai/ling-3.0-flash-fin` via `URLSession` nativo).
+* **Inteligência Artificial:** OpenRouter API (`openrouter/free` rota gratuita ou modelos customizados via `OPENROUTER_MODEL`).
 * **Persistência:** SwiftData & Repositórios Modulares (armazenamento 100% privado no dispositivo).
 * **Design System:** `VenusTheme` (Liquid Glass, materiais transparentes, suporte nativo Dark/Light).
 * **Arquitetura de Software:** Clean Architecture orientada a Features (Data, Domain, Presentation) com injeção de dependências desacoplada (`DependencyContainer`).
 
 ---
 
-## 🔒 Privacidade & Segurança
+## 🔐 Privacidade & Segurança
 
 * **Privacidade Local First:** Seus check-ins, notas e linha de base permanecem salvos no dispositivo do usuário.
 * **Confidencialidade Total:** Dados usados para personalizar a IA são transmitidos com segurança e nunca compartilhados com terceiros.

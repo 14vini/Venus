@@ -10,9 +10,11 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(UserProfile.self) private var userProfile
     @State private var showEditSheet = false
+    @State private var aboutYouText: String = "Analisando seus dados iniciais para desenhar seu reflexo emocional. Continue registrando seus check-ins com Venus."
     @Environment(\.colorScheme) private var colorScheme
     
     private let profileRepository = DependencyContainer.shared.makeUserProfileRepository()
+    private let patternEngineUseCase = DependencyContainer.shared.makePatternEngineUseCase()
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -35,6 +37,9 @@ struct ProfileView: View {
                     headerSection
                         .padding(.top, 16)
                     
+                    // Sobre Você Card
+                    aboutYouSection
+
                     // Routine Card
                     routineSection
                     
@@ -69,6 +74,9 @@ struct ProfileView: View {
                 EditProfileView(showSheet: $showEditSheet, onSave: saveProfileChanges)
             }
         }
+        .task {
+            await loadAboutYou()
+        }
     }
     
     private var headerSection: some View {
@@ -99,6 +107,23 @@ struct ProfileView: View {
                 
                 Spacer()
             }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .solidCardStyle(cornerRadius: 28)
+    }
+
+    private var aboutYouSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Sobre Você", systemImage: "sparkles")
+                .font(.system(.headline, design: .rounded).weight(.bold))
+                .foregroundColor(VenusTheme.text)
+            
+            Text(aboutYouText)
+                .font(.system(.body, design: .rounded).weight(.medium))
+                .foregroundColor(VenusTheme.text)
+                .lineSpacing(5)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -331,6 +356,21 @@ struct ProfileView: View {
                 try await profileRepository.save(profile: userProfile)
             } catch {
                 print("Error saving profile: \(error)")
+            }
+        }
+    }
+
+    private func loadAboutYou() async {
+        do {
+            if let snapshot = try await patternEngineUseCase.execute(),
+               !snapshot.weeklyTrend.summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                aboutYouText = snapshot.weeklyTrend.summary
+            } else if !userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                aboutYouText = userProfile.contextNote
+            }
+        } catch {
+            if !userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                aboutYouText = userProfile.contextNote
             }
         }
     }

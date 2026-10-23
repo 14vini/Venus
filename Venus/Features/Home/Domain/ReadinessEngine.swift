@@ -72,6 +72,9 @@ final class ReadinessEngine: ReadinessEngineProtocol, @unchecked Sendable {
         var biometricScore: Double? = nil
         var biometricWeight: Double = 0.0
         var ecgCapped = false
+        var computedHrvScore: Double? = nil
+        var computedSleepScore: Double? = nil
+        var computedRhrScore: Double? = nil
 
         if let bio = biometrics, bio.hasBiometricData {
             var bioPillarScores: [Double] = []
@@ -82,10 +85,12 @@ final class ReadinessEngine: ReadinessEngineProtocol, @unchecked Sendable {
                 let hrvScore = max(1.0, min(10.0, 7.5 + (ratio - 0.95) * 14.0))
                 bioPillarScores.append(hrvScore)
                 weights.append(2.2)
+                computedHrvScore = hrvScore
             } else if let rawHRV = bio.currentHRV {
                 let rawScore = max(3.0, min(9.0, 2.0 + 10.0 * (1 - exp(-rawHRV / 45.0))))
                 bioPillarScores.append(rawScore)
                 weights.append(1.0)
+                computedHrvScore = rawScore
             }
 
             // B. Sono (Duração + sono reparador REM/Profundo)
@@ -97,6 +102,7 @@ final class ReadinessEngine: ReadinessEngineProtocol, @unchecked Sendable {
                 }
                 bioPillarScores.append(adjustedSleep)
                 weights.append(1.8)
+                computedSleepScore = adjustedSleep
             }
 
             // C. RHR & Queda Noturna (Heart Rate Dip)
@@ -112,6 +118,7 @@ final class ReadinessEngine: ReadinessEngineProtocol, @unchecked Sendable {
                 }
                 bioPillarScores.append(rhrScore)
                 weights.append(1.2)
+                computedRhrScore = rhrScore
             }
 
             // D. Carga de Treino & Esforço Físico de Ontem
@@ -217,6 +224,50 @@ final class ReadinessEngine: ReadinessEngineProtocol, @unchecked Sendable {
             return finalScore >= 5.0
         }()
 
+        // Pillar Individual Numeric Scores (0.0 to 10.0)
+        let focusScoreValue: Double = {
+            var base = finalScore
+            if let clarity = todayMoodItem?.mentalClarity {
+                base = (base * 0.4) + (Double(clarity) * 2.0 * 0.6)
+            }
+            if let hrv = computedHrvScore {
+                base = (base * 0.5) + (hrv * 0.5)
+            }
+            if let chatFocus = chatImpact?.isFocusImpacted, chatApplied {
+                base = chatFocus ? max(2.5, base - 2.0) : min(9.8, base + 0.8)
+            }
+            return max(1.0, min(10.0, base))
+        }()
+
+        let bodyScoreValue: Double = {
+            if ecgCapped { return 3.5 }
+            var base = finalScore
+            if let rhrScore = computedRhrScore {
+                base = (base * 0.4) + (rhrScore * 0.6)
+            }
+            if let bodySignals = todayMoodItem?.bodySignals {
+                if bodySignals.contains("Tensão muscular") || bodySignals.contains("Cansaço físico") {
+                    base = max(2.5, base - 1.8)
+                }
+            }
+            return max(1.0, min(10.0, base))
+        }()
+
+        let sleepScoreValue: Double = {
+            if let bioSleep = computedSleepScore {
+                return max(1.0, min(10.0, bioSleep))
+            }
+            if let sleepQuality = todayMoodItem?.sleepQuality {
+                switch sleepQuality {
+                case .excellent: return 9.4
+                case .good: return 8.2
+                case .fair: return 6.0
+                case .poor: return 3.6
+                }
+            }
+            return max(1.0, min(10.0, finalScore * (isSleepOk ? 1.05 : 0.82)))
+        }()
+
         // 6. Micro-copy
         let resolvedTitle: String
         let resolvedSubtitle: String
@@ -291,19 +342,22 @@ final class ReadinessEngine: ReadinessEngineProtocol, @unchecked Sendable {
                 title: "Foco",
                 iconName: "scope",
                 isCompleted: isFocusOk,
-                detail: isFocusOk ? "Clareza mental ativa" : "Atenção dividida"
+                detail: isFocusOk ? "Clareza mental ativa" : "Atenção dividida",
+                score: focusScoreValue
             ),
             bodyMetric: ReadinessPillarMetric(
                 title: "Corpo",
                 iconName: "atom",
                 isCompleted: isBodyOk,
-                detail: ecgCapped ? "Observe seu ritmo — priorize descanso" : (isBodyOk ? "Recuperação física estável" : "Sinais de fadiga física")
+                detail: ecgCapped ? "Observe seu ritmo — priorize descanso" : (isBodyOk ? "Recuperação física estável" : "Sinais de fadiga física"),
+                score: bodyScoreValue
             ),
             sleepMetric: ReadinessPillarMetric(
                 title: "Sono",
                 iconName: "bed.double.fill",
                 isCompleted: isSleepOk,
-                detail: isSleepOk ? "Descanso restaurador" : "Sono irregular"
+                detail: isSleepOk ? "Descanso restaurador" : "Sono irregular",
+                score: sleepScoreValue
             ),
             biometricsUsed: biometrics?.hasBiometricData ?? false,
             chatContextUsed: chatApplied,

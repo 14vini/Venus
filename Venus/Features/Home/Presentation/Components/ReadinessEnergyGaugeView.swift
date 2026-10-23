@@ -25,10 +25,10 @@ public struct ReadinessEnergyGaugeView: View {
 
     @Environment(\.colorScheme) private var colorScheme
 
-    // Layout Constants
+    // Layout Constants (Grand Hero Arch Gauge)
     private let arcStartAngle: Double = 160.0
     private let arcSweepAngle: Double = 220.0
-    private let strokeWidth: CGFloat = 26.0
+    private let strokeWidth: CGFloat = 34.0
 
     public init(
         assessment: ReadinessEnergyAssessment = .sampleDefault,
@@ -42,7 +42,7 @@ public struct ReadinessEnergyGaugeView: View {
         Button {
             onDetailTap?()
         } label: {
-            VStack(spacing: 18) {
+            VStack(spacing: 16) {
                 gaugeCardSurface
             }
         }
@@ -81,13 +81,9 @@ private extension ReadinessEnergyGaugeView {
     }
 
     var gaugeCardSurface: some View {
-        VStack(spacing: 12) {
-            headerSection
-                .padding(.horizontal, 8)
-                .padding(.vertical)
-
+        VStack(spacing: 14) {
             archGaugeView
-                .padding(.top, -6)
+                .padding(.top, 4)
 
             dividerLine
                 .padding(.vertical, 4)
@@ -102,10 +98,9 @@ private extension ReadinessEnergyGaugeView {
         ZStack {
             GeometryReader { geo in
                 let width = geo.size.width
-                let height = geo.size.height
                 let centerX = width / 2.0
-                let centerY = height * 0.76
-                let radius = min(width * 0.38, 105.0)
+                let radius = min((width - strokeWidth - 16) / 2.0, 142.0)
+                let centerY = 12.0 + (strokeWidth / 2.0) + radius
 
                 // Background Arch Track
                 GaugeArcShape(startAngle: arcStartAngle, sweepAngle: arcSweepAngle)
@@ -123,8 +118,8 @@ private extension ReadinessEnergyGaugeView {
                         glowGradient,
                         style: StrokeStyle(lineWidth: strokeWidth * 0.95, lineCap: .round, lineJoin: .round)
                     )
-                    .blur(radius: isDark ? 8 : 4)
-                    .opacity(min(1.0, animatedProgress * 15.0) * (isDark ? 0.65 : 0.35))
+                    .blur(radius: isDark ? 10 : 5)
+                    .opacity(min(1.0, animatedProgress * 15.0) * (isDark ? 0.7 : 0.4))
                     .frame(width: radius * 2, height: radius * 2)
                     .position(x: centerX, y: centerY)
 
@@ -152,11 +147,12 @@ private extension ReadinessEnergyGaugeView {
                             sweepAngle: arcSweepAngle
                         )
                     )
-            }
-            .frame(height: 148)
 
-            gaugeScoreLabels
-                .offset(y: 12)
+                // Prominent Score & State Title Labels Centered in Arch Cavity
+                gaugeScoreLabels
+                    .position(x: centerX, y: centerY - (radius * 0.22))
+            }
+            .frame(height: 244)
         }
     }
 
@@ -164,15 +160,15 @@ private extension ReadinessEnergyGaugeView {
         ZStack {
             // Arrival Ripple Wave
             Circle()
-                .stroke((isDark ? neonMint : accentTeal).opacity(ringOpacity), lineWidth: 1.5)
-                .frame(width: 28, height: 28)
+                .stroke((isDark ? neonMint : accentTeal).opacity(ringOpacity), lineWidth: 2)
+                .frame(width: 40, height: 40)
                 .scaleEffect(ringScale)
 
             // Outer Glow Aura
             Circle()
                 .fill((isDark ? neonMint : accentTeal).opacity(isDark ? 0.55 : 0.35))
-                .frame(width: 28, height: 28)
-                .blur(radius: isPulsingGlow ? 6 : 4)
+                .frame(width: 38, height: 38)
+                .blur(radius: isPulsingGlow ? 7 : 4)
 
             // Core Orb
             Circle()
@@ -183,26 +179,26 @@ private extension ReadinessEnergyGaugeView {
                             : [Color.white, accentTeal, lightTeal],
                         center: .center,
                         startRadius: 1,
-                        endRadius: 9
+                        endRadius: 11
                     )
                 )
-                .frame(width: 17, height: 17)
-                .shadow(color: (isDark ? neonMint : accentTeal).opacity(0.8), radius: 6, x: 0, y: 0)
+                .frame(width: 23, height: 23)
+                .shadow(color: (isDark ? neonMint : accentTeal).opacity(0.85), radius: 8, x: 0, y: 0)
         }
     }
 
     var gaugeScoreLabels: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 3) {
             AnimatableScoreView(
                 score: animatedScore,
                 isInteger: isScoreInteger,
-                font: .system(size: 44, weight: .bold, design: .rounded),
+                font: .system(size: 66, weight: .bold, design: .rounded),
                 color: primaryGaugeColor
             )
-            .shadow(color: (isDark ? neonMint : accentTeal).opacity(isDark ? 0.25 : 0.1), radius: 8, x: 0, y: 2)
+            .shadow(color: (isDark ? neonMint : accentTeal).opacity(isDark ? 0.28 : 0.12), radius: 10, x: 0, y: 2)
 
             Text(assessment.stateTitle)
-                .font(.system(size: 19, weight: .semibold, design: .rounded))
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .foregroundColor(primaryGaugeColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
@@ -452,36 +448,30 @@ private struct ReadinessPillarColumn<Icon: View>: View {
     }
 }
 
-// MARK: - Icons
+private struct DottedVerticalDivider: View {
+    let isDark: Bool
+
+    var body: some View {
+        Rectangle()
+            .fill(isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
+            .frame(width: 1)
+    }
+}
+
+// MARK: - Specialized Custom Icons
 
 private struct ScopeRadarIcon: View {
     let isDark: Bool
 
-    private var strokeColor: Color {
-        isDark ? Color.white.opacity(0.85) : Color(hex: "134E4A")
-    }
-
     var body: some View {
         ZStack {
             Circle()
-                .stroke(strokeColor, lineWidth: 1.5)
+                .stroke(isDark ? Color.white.opacity(0.4) : Color.black.opacity(0.4), lineWidth: 1.5)
                 .frame(width: 18, height: 18)
 
             Circle()
-                .stroke(strokeColor, lineWidth: 1.2)
-                .frame(width: 10, height: 10)
-
-            Circle()
-                .fill(strokeColor)
-                .frame(width: 3.5, height: 3.5)
-
-            Rectangle()
-                .fill(strokeColor)
-                .frame(width: 1.2, height: 18)
-
-            Rectangle()
-                .fill(strokeColor)
-                .frame(width: 18, height: 1.2)
+                .fill(isDark ? Color(hex: "00F5D4") : Color(hex: "0D9488"))
+                .frame(width: 5, height: 5)
         }
     }
 }
@@ -489,78 +479,31 @@ private struct ScopeRadarIcon: View {
 private struct FourRingClusterIcon: View {
     let isDark: Bool
 
-    private var strokeColor: Color {
-        isDark ? Color.white.opacity(0.85) : Color(hex: "134E4A")
-    }
-
-    private let offsets: [CGPoint] = [
-        CGPoint(x: -5.0, y: 0.0),
-        CGPoint(x: 5.0, y: 0.0),
-        CGPoint(x: 0.0, y: -5.0),
-        CGPoint(x: 0.0, y: 5.0)
-    ]
-
     var body: some View {
-        ZStack {
-            ForEach(0..<offsets.count, id: \.self) { index in
-                Circle()
-                    .stroke(strokeColor, lineWidth: 1.4)
-                    .frame(width: 6.5, height: 6.5)
-                    .offset(x: offsets[index].x, y: offsets[index].y)
-            }
+        HStack(spacing: 3) {
+            Circle()
+                .stroke(isDark ? Color.white.opacity(0.4) : Color.black.opacity(0.4), lineWidth: 1.5)
+                .frame(width: 10, height: 10)
+            Circle()
+                .stroke(isDark ? Color(hex: "00F5D4") : Color(hex: "0D9488"), lineWidth: 1.5)
+                .frame(width: 10, height: 10)
         }
-        .frame(width: 20, height: 20)
     }
 }
 
 private struct BedSleepIcon: View {
     let isDark: Bool
 
-    private var tintColor: Color {
-        isDark ? Color.white.opacity(0.85) : Color(hex: "134E4A")
-    }
-
     var body: some View {
         Image(systemName: "bed.double.fill")
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundColor(tintColor)
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundColor(isDark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
     }
 }
 
-private struct DottedVerticalDivider: View {
-    let isDark: Bool
-
-    private var dotColor: Color {
-        isDark ? Color.white.opacity(0.2) : Color(hex: "0D9488").opacity(0.25)
-    }
-
-    var body: some View {
-        VStack(spacing: 3) {
-            ForEach(0..<6, id: \.self) { _ in
-                Circle()
-                    .fill(dotColor)
-                    .frame(width: 1.5, height: 1.5)
-            }
-        }
-    }
-}
-
-// MARK: - Previews
-
-#Preview("Dark Mode") {
-    ZStack {
-        Color.black.ignoresSafeArea()
-        ReadinessEnergyGaugeView(assessment: .sampleDefault)
-            .padding(20)
-    }
-    .preferredColorScheme(.dark)
-}
-
-#Preview("Light Mode") {
-    ZStack {
-        VenusTheme.backgroundSoft.ignoresSafeArea()
-        ReadinessEnergyGaugeView(assessment: .sampleDefault)
-            .padding(20)
-    }
-    .preferredColorScheme(.light)
+#Preview {
+    ReadinessEnergyGaugeView(assessment: .sampleDefault)
+        .preferredColorScheme(.dark)
+        .padding()
+        .background(Color.black)
 }

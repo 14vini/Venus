@@ -8,14 +8,12 @@
 import SwiftUI
 
 public struct ReadinessBreakdownSheet: View {
-    let assessment: ReadinessEnergyAssessment
-    var onActionSelected: ((ReadinessActionRecommendation.ActionCategory) -> Void)? = nil
-
+    @State private var viewModel: ReadinessBreakdownViewModel
+    @Namespace private var categoryAnimation
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
     private var isDark: Bool { colorScheme == .dark }
-    private var breakdown: ReadinessBreakdown? { assessment.breakdown }
     private var mintColor: Color { Color(hex: "00F5D4") }
     private var tealColor: Color { Color(hex: "0D9488") }
 
@@ -23,39 +21,41 @@ public struct ReadinessBreakdownSheet: View {
         assessment: ReadinessEnergyAssessment,
         onActionSelected: ((ReadinessActionRecommendation.ActionCategory) -> Void)? = nil
     ) {
-        self.assessment = assessment
-        self.onActionSelected = onActionSelected
+        _viewModel = State(initialValue: ReadinessBreakdownViewModel(
+            assessment: assessment,
+            onActionSelected: onActionSelected
+        ))
+    }
+
+    public init(viewModel: ReadinessBreakdownViewModel) {
+        _viewModel = State(initialValue: viewModel)
     }
 
     public var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    // Header Score Card
-                    headerScoreCard
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 20) {
+                    // 1. Open Hero Header Score
+                    heroScoreHeader
 
-                    // Action Recommendation
-                    if let rec = breakdown?.recommendation {
-                        recommendationCard(rec)
+                    // 2. Action Recommendation Banner (if available)
+                    if let rec = viewModel.recommendation {
+                        recommendationBanner(rec)
                     }
 
-                    // Three Pillars Section
-                    pillarsSection
+                    // 3. Animated Segmented Category Bar
+                    categorySelectorBar
 
-                    // Biometric Deep Dive
-                    biometricsSection
-
-                    // Subjective & Mental Context Section
-                    subjectiveSection
-
-                    // Circadian Energy Flow Section
-                    if let curve = breakdown?.intradayCurve {
-                        intradayCurveSection(curve)
-                    }
+                    // 4. Dynamic Category Content
+                    categoryContent
+                        .animation(.easeInOut(duration: 0.22), value: viewModel.selectedCategory)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
+                .padding(.bottom, 36)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity)
             .background(VenusTheme.background.ignoresSafeArea())
             .navigationTitle("Detalhamento da Bateria")
             .navigationBarTitleDisplayMode(.inline)
@@ -68,6 +68,9 @@ public struct ReadinessBreakdownSheet: View {
                     .foregroundColor(VenusTheme.primary)
                 }
             }
+            .onAppear {
+                viewModel.onAppear()
+            }
         }
     }
 }
@@ -75,305 +78,238 @@ public struct ReadinessBreakdownSheet: View {
 // MARK: - Subviews
 
 private extension ReadinessBreakdownSheet {
-    var headerScoreCard: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .stroke(isDark ? mintColor.opacity(0.2) : tealColor.opacity(0.15), lineWidth: 6)
-                        .frame(width: 68, height: 68)
+    var heroScoreHeader: some View {
+        HStack(spacing: 18) {
+            // Luminous Battery Ring (90px)
+            ZStack {
+                Circle()
+                    .stroke(isDark ? mintColor.opacity(0.16) : tealColor.opacity(0.12), lineWidth: 9)
+                    .frame(width: 88, height: 88)
 
-                    Circle()
-                        .trim(from: 0, to: assessment.percentage)
-                        .stroke(
-                            LinearGradient(
-                                colors: [isDark ? Color(hex: "1BE3B0") : tealColor, isDark ? mintColor : Color(hex: "0F766E")],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            style: StrokeStyle(lineWidth: 6, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-90))
-                        .frame(width: 68, height: 68)
+                Circle()
+                    .trim(from: 0, to: viewModel.animatedRingProgress)
+                    .stroke(
+                        LinearGradient(
+                            colors: [isDark ? Color(hex: "1BE3B0") : tealColor, isDark ? mintColor : Color(hex: "0F766E")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        style: StrokeStyle(lineWidth: 9, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 88, height: 88)
+                    .shadow(color: (isDark ? mintColor : tealColor).opacity(viewModel.isPulsingAura ? 0.38 : 0.12), radius: 8)
 
-                    Text("\(assessment.percentage100)")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                VStack(spacing: 0) {
+                    Text("\(viewModel.animatedScoreInt)")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundColor(isDark ? mintColor : tealColor)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text(assessment.level.title)
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundColor(VenusTheme.text)
-
-                        Text(assessment.level.emoji)
-                            .font(.system(size: 16))
-                    }
-
-                    Text(assessment.stateSubtitle.isEmpty ? "Prontidão equilibrada para o seu ritmo." : assessment.stateSubtitle)
-                        .font(.system(size: 13, weight: .regular, design: .rounded))
-                        .foregroundColor(VenusTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer()
-            }
-        }
-        .padding(18)
-        .neumorphicCard(cornerRadius: 24, style: .raised, depth: 8)
-    }
-
-    func recommendationCard(_ rec: ReadinessActionRecommendation) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 6) {
-                Image(systemName: rec.iconName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(VenusTheme.primary)
-
-                Text("Sugestão de Ação")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundColor(VenusTheme.primary)
-                    .textCase(.uppercase)
-            }
-
-            Text(rec.title)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundColor(VenusTheme.text)
-
-            Text(rec.subtitle)
-                .font(.system(size: 13, weight: .regular, design: .rounded))
-                .foregroundColor(VenusTheme.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Button {
-                dismiss()
-                onActionSelected?(rec.category)
-            } label: {
-                HStack {
-                    Text(rec.actionButtonTitle)
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 12, weight: .semibold))
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 10)
-                .background(
-                    Capsule()
-                        .fill(VenusTheme.primaryGradient)
-                )
-            }
-            .padding(.top, 4)
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .neumorphicCard(cornerRadius: 24, style: .bordered, depth: 8)
-    }
-
-    var pillarsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Pilares Principais")
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundColor(VenusTheme.textSecondary)
-                .textCase(.uppercase)
-
-            HStack(spacing: 12) {
-                pillarMiniCard(metric: assessment.focusMetric, icon: "scope")
-                pillarMiniCard(metric: assessment.bodyMetric, icon: "atom")
-                pillarMiniCard(metric: assessment.sleepMetric, icon: "bed.double.fill")
-            }
-        }
-    }
-
-    func pillarMiniCard(metric: ReadinessPillarMetric, icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(isDark ? mintColor : tealColor)
-
-                Spacer()
-
-                Image(systemName: metric.isCompleted ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(metric.isCompleted ? (isDark ? mintColor : tealColor) : VenusTheme.accentOrange)
-            }
-
-            Text(metric.title)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(VenusTheme.text)
-
-            Text(metric.detail ?? (metric.isCompleted ? "Estável" : "Atenção"))
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundColor(VenusTheme.textSecondary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
-        .neumorphicCard(cornerRadius: 20, style: .raised, depth: 6)
-    }
-
-    var biometricsSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("Sinais Fisiológicos & HealthKit")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundColor(VenusTheme.textSecondary)
-                    .textCase(.uppercase)
-
-                Spacer()
-
-                if assessment.biometricsUsed {
-                    Text("Conectado")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundColor(isDark ? mintColor : tealColor)
-                } else {
-                    Text("Modo Subjetivo")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .contentTransition(.numericText())
+                    
+                    Text("%")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundColor(VenusTheme.textTertiary)
                 }
             }
 
-            VStack(spacing: 10) {
-                // HRV
-                metricRow(
-                    icon: "heart.fill",
-                    title: "Variabilidade Cardíaca (HRV)",
-                    value: breakdown?.hrvCurrent != nil ? "\(Int(breakdown!.hrvCurrent!)) ms" : "Sem dados",
-                    subtitle: hrvSubtitleText
-                )
+            // Title & Subtitle
+            VStack(alignment: .leading, spacing: 4) {
+                Text(viewModel.stateTitle)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundColor(VenusTheme.text)
 
-                // Sleep
-                metricRow(
-                    icon: "bed.double.fill",
-                    title: "Sono & Repouso",
-                    value: breakdown?.sleepDurationHours != nil ? String(format: "%.1fh", breakdown!.sleepDurationHours!) : "Sem dados",
-                    subtitle: sleepSubtitleText
-                )
-
-                // RHR & Dip
-                metricRow(
-                    icon: "waveform.path.ecg",
-                    title: "FC Repouso & Queda Noturna",
-                    value: breakdown?.restingHR != nil ? "\(Int(breakdown!.restingHR!)) bpm" : "Sem dados",
-                    subtitle: rhrSubtitleText
-                )
-
-                // Yesterday strain
-                metricRow(
-                    icon: "flame.fill",
-                    title: "Carga Física de Ontem",
-                    value: breakdown?.yesterdayActiveEnergy != nil ? "\(Int(breakdown!.yesterdayActiveEnergy!)) kcal" : "Sem treinos",
-                    subtitle: strainSubtitleText
-                )
+                Text(viewModel.stateSubtitle)
+                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .foregroundColor(VenusTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(2)
             }
-            .padding(16)
-            .neumorphicCard(cornerRadius: 24, style: .raised, depth: 8)
+
+            Spacer()
+        }
+        .padding(.vertical, 2)
+    }
+
+    func recommendationBanner(_ rec: ReadinessActionRecommendation) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            Circle()
+                .fill(VenusTheme.primary.opacity(0.16))
+                .frame(width: 36, height: 36)
+                .overlay(
+                    Image(systemName: rec.iconName)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(VenusTheme.primary)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(rec.title)
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(VenusTheme.text)
+
+                Text(rec.subtitle)
+                    .font(.system(size: 12, weight: .regular, design: .rounded))
+                    .foregroundColor(VenusTheme.textSecondary)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            Button {
+                viewModel.handleActionRecommendationTap {
+                    dismiss()
+                }
+            } label: {
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundColor(VenusTheme.primary)
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(isDark ? Color(hex: "17191E") : Color(hex: "E4E4E4"))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(VenusTheme.primary.opacity(0.28), lineWidth: 1)
+                )
+        )
+    }
+
+    var categorySelectorBar: some View {
+        HStack(spacing: 4) {
+            ForEach(BreakdownCategory.allCases) { cat in
+                let isSelected = viewModel.selectedCategory == cat
+                
+                Button {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) {
+                        viewModel.selectCategory(cat)
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: cat.icon)
+                            .font(.system(size: 11, weight: .bold))
+                        
+                        Text(cat.rawValue)
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                    }
+                    .foregroundColor(isSelected ? (isDark ? Color.black : Color.white) : VenusTheme.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background {
+                        if isSelected {
+                            Capsule()
+                                .fill(isDark ? mintColor : tealColor)
+                                .matchedGeometryEffect(id: "CATEGORY_TAB", in: categoryAnimation)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(
+            Capsule()
+                .fill(isDark ? Color(hex: "14161B") : Color(hex: "DFE2E6"))
+        )
+    }
+
+    @ViewBuilder
+    var categoryContent: some View {
+        switch viewModel.selectedCategory {
+        case .overview:
+            overviewCategoryContent
+        case .heart:
+            heartCategoryContent
+        case .sleep:
+            sleepCategoryContent
+        case .body:
+            bodyCategoryContent
         }
     }
 
-    var subjectiveSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Mente & Contexto Emocional")
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundColor(VenusTheme.textSecondary)
-                .textCase(.uppercase)
+    var overviewCategoryContent: some View {
+        VStack(spacing: 18) {
+            // Concentric Tri-Pillar Balance
+            ReadinessPillarBalanceChart(
+                focusMetric: viewModel.focusMetric,
+                bodyMetric: viewModel.bodyMetric,
+                sleepMetric: viewModel.sleepMetric
+            )
 
-            VStack(spacing: 10) {
-                metricRow(
-                    icon: "face.smiling.fill",
-                    title: "Check-in do Dia",
-                    value: String(format: "%.1f / 10", breakdown?.subjectiveScore ?? 7.5),
-                    subtitle: "Sinal subjetivo ponderado a partir do seu ritual diário."
-                )
-
-                if let delta = breakdown?.chatDelta, abs(delta) > 0.1 {
-                    metricRow(
-                        icon: "sparkles",
-                        title: "Impacto das Conversas",
-                        value: String(format: "%+.1f pts", delta),
-                        subtitle: "Decaimento suave de meia-vida aplicado sobre reflexões recentes."
-                    )
-                }
+            // Circadian Energy Flow Section
+            if let curve = viewModel.intradayCurve {
+                intradayCurveSection(curve)
             }
-            .padding(16)
-            .neumorphicCard(cornerRadius: 24, style: .raised, depth: 8)
+
+            // Score Composition Math
+            if let bd = viewModel.breakdown {
+                scoreCompositionSection(bd)
+            }
         }
+    }
+
+    var heartCategoryContent: some View {
+        VStack(spacing: 18) {
+            // HRV Wave Spectrum
+            ReadinessHRVSpectrumView(
+                currentHRV: viewModel.breakdown?.hrvCurrent,
+                baselineAverage: viewModel.breakdown?.hrvBaselineAverage,
+                ratio: viewModel.breakdown?.hrvRatio
+            )
+
+            // Heart Rate Dip
+            ReadinessHeartRateDipView(
+                restingHR: viewModel.breakdown?.restingHR,
+                sleepingHR: viewModel.breakdown?.sleepingHR,
+                hrDipPercentage: viewModel.breakdown?.hrDipPercentage
+            )
+        }
+    }
+
+    var sleepCategoryContent: some View {
+        VStack(spacing: 18) {
+            // Clean Sleep Architecture Bar Chart
+            ReadinessSleepArchitectureView(
+                sleepDurationHours: viewModel.breakdown?.sleepDurationHours,
+                restorativeSleepHours: viewModel.breakdown?.restorativeSleepHours,
+                sleepRespiratoryRate: viewModel.breakdown?.sleepRespiratoryRate
+            )
+
+            // Night Dip
+            ReadinessHeartRateDipView(
+                restingHR: viewModel.breakdown?.restingHR,
+                sleepingHR: viewModel.breakdown?.sleepingHR,
+                hrDipPercentage: viewModel.breakdown?.hrDipPercentage
+            )
+        }
+    }
+
+    var bodyCategoryContent: some View {
+        VStack(spacing: 18) {
+            // Physical Strain Gauge
+            ReadinessStrainGaugeView(
+                yesterdayActiveEnergy: viewModel.breakdown?.yesterdayActiveEnergy,
+                yesterdayWorkoutMinutes: viewModel.breakdown?.yesterdayWorkoutDurationMinutes
+            )
+
+            // Concentric Tri-Pillar Body focus
+            ReadinessPillarBalanceChart(
+                focusMetric: viewModel.focusMetric,
+                bodyMetric: viewModel.bodyMetric,
+                sleepMetric: viewModel.sleepMetric
+            )
+        }
+    }
+
+    func scoreCompositionSection(_ bd: ReadinessBreakdown) -> some View {
+        ReadinessScoreCompositionView(
+            breakdown: bd,
+            totalScore: viewModel.assessment.score
+        )
     }
 
     func intradayCurveSection(_ curve: IntradayEnergyCurve) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Previsão Circadiana do Dia")
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundColor(VenusTheme.textSecondary)
-                .textCase(.uppercase)
-
-            IntradayEnergyCurveView(curve: curve, baseScore: assessment.score)
-        }
-    }
-
-    func metricRow(icon: String, title: String, value: String, subtitle: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(isDark ? mintColor : tealColor)
-                .frame(width: 32, height: 32)
-                .neumorphicCircle(style: .sunken, depth: 3)
-
-            VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    Text(title)
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundColor(VenusTheme.text)
-
-                    Spacer()
-
-                    Text(value)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundColor(isDark ? mintColor : tealColor)
-                }
-
-                Text(subtitle)
-                    .font(.system(size: 12, weight: .regular, design: .rounded))
-                    .foregroundColor(VenusTheme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .neumorphicCard(cornerRadius: 16, style: .sunken, depth: 4)
-    }
-
-    var hrvSubtitleText: String {
-        guard let ratio = breakdown?.hrvRatio, let base = breakdown?.hrvBaselineAverage else {
-            return "Aguardando 3+ dias de uso do relógio para estabelecer sua média basal."
-        }
-        let pct = Int((ratio - 1.0) * 100)
-        let sign = pct >= 0 ? "+" : ""
-        return "\(sign)\(pct)% em relação à sua média móvel de 7 dias (\(Int(base)) ms)."
-    }
-
-    var sleepSubtitleText: String {
-        guard let deepREM = breakdown?.restorativeSleepHours else {
-            return "Calculado a partir de duração total e proporção de sono profundo/REM."
-        }
-        return String(format: "Inclui %.1fh de sono reparador (Profundo + REM).", deepREM)
-    }
-
-    var rhrSubtitleText: String {
-        if let dip = breakdown?.hrDipPercentage {
-            return String(format: "Queda noturna de %.1f%% na frequência cardíaca durante o sono.", dip)
-        }
-        return "Batimentos cardíacos em repouso ao longo das últimas 24h."
-    }
-
-    var strainSubtitleText: String {
-        if let mins = breakdown?.yesterdayWorkoutDurationMinutes, mins > 0 {
-            return String(format: "%.0f minutos de treino registrados ontem.", mins)
-        }
-        return "Gasto de energia ativa capturado pelo Apple Watch."
+        IntradayEnergyCurveView(curve: curve, baseScore: viewModel.assessment.score)
     }
 }
 

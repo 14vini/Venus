@@ -14,12 +14,30 @@ protocol VenusAIServiceProtocol: Sendable {
         userProfile: UserProfile?,
         checkInHistory: [Mood]
     ) async throws -> String
+
+    func generateResponse(
+        userMessage: String,
+        conversationHistory: [ChatMessage],
+        userProfile: UserProfile?,
+        checkInHistory: [Mood],
+        readiness: ReadinessEnergyAssessment?,
+        activeLens: SelfKnowledgeLens
+    ) async throws -> String
     
     func generateStreamResponse(
         userMessage: String,
         conversationHistory: [ChatMessage],
         userProfile: UserProfile?,
         checkInHistory: [Mood]
+    ) -> AsyncThrowingStream<String, Error>
+
+    func generateStreamResponse(
+        userMessage: String,
+        conversationHistory: [ChatMessage],
+        userProfile: UserProfile?,
+        checkInHistory: [Mood],
+        readiness: ReadinessEnergyAssessment?,
+        activeLens: SelfKnowledgeLens
     ) -> AsyncThrowingStream<String, Error>
     
     func analyzeEmotionalState(message: String) async throws -> EmotionalState
@@ -58,6 +76,40 @@ protocol VenusAIServiceProtocol: Sendable {
         primaryState: String,
         userContext: String?
     ) async -> (stateTitle: String, stateSubtitle: String)
+}
+
+extension VenusAIServiceProtocol {
+    func generateResponse(
+        userMessage: String,
+        conversationHistory: [ChatMessage],
+        userProfile: UserProfile?,
+        checkInHistory: [Mood],
+        readiness: ReadinessEnergyAssessment?,
+        activeLens: SelfKnowledgeLens
+    ) async throws -> String {
+        try await generateResponse(
+            userMessage: userMessage,
+            conversationHistory: conversationHistory,
+            userProfile: userProfile,
+            checkInHistory: checkInHistory
+        )
+    }
+
+    func generateStreamResponse(
+        userMessage: String,
+        conversationHistory: [ChatMessage],
+        userProfile: UserProfile?,
+        checkInHistory: [Mood]
+    ) -> AsyncThrowingStream<String, Error> {
+        generateStreamResponse(
+            userMessage: userMessage,
+            conversationHistory: conversationHistory,
+            userProfile: userProfile,
+            checkInHistory: checkInHistory,
+            readiness: nil,
+            activeLens: .socratic
+        )
+    }
 }
 
 // Backward compatibility typealias

@@ -17,7 +17,7 @@ public enum VenusNeumorphicStyle: Sendable {
     case bordered    // Raised with distinct monochrome bevel edge
 }
 
-// MARK: - Neumorphic Card Modifier (Pure Black & White - Refined Opacities)
+// MARK: - Neumorphic Card Modifier
 
 struct NeumorphicCardModifier: ViewModifier {
     var cornerRadius: CGFloat = 26
@@ -31,14 +31,14 @@ struct NeumorphicCardModifier: ViewModifier {
         colorScheme == .dark
     }
 
-    // Top-left luminous highlight (Softened White glow)
+    // Top-left luminous highlight
     private var lightShadowColor: Color {
         isDark
             ? Color.white.opacity(0.09)
             : Color.white.opacity(0.80)
     }
 
-    // Bottom-right deep ambient drop shadow (Pure Deep Black)
+    // Bottom-right deep ambient drop shadow
     private var darkShadowColor: Color {
         isDark
             ? Color.black.opacity(0.98)
@@ -52,21 +52,21 @@ struct NeumorphicCardModifier: ViewModifier {
             : Color(hex: "9E9E9E").opacity(0.75)
     }
 
-    // Inner shadow dark tone (Pure Black)
+    // Inner shadow dark tone
     private var innerDarkShadowColor: Color {
         isDark
             ? Color.black.opacity(0.95)
             : Color.black.opacity(0.25)
     }
 
-    // Inner shadow light highlight tone (Softened White)
+    // Inner shadow light highlight tone
     private var innerLightHighlightColor: Color {
         isDark
             ? Color.white.opacity(0.12)
             : Color.white.opacity(0.82)
     }
 
-    // Monochrome tactile rim bevel (Softened subtle edge)
+    // Tactile rim bevel
     private var strokeGradient: LinearGradient {
         LinearGradient(
             colors: [
@@ -91,9 +91,9 @@ struct NeumorphicCardModifier: ViewModifier {
                         .overlay(
                             shape.stroke(strokeGradient, lineWidth: isDark ? 0.8 : 0.6)
                         )
-                        // Top-left light shadow (softened white highlight)
+                        // Top-left light shadow
                         .shadow(color: lightShadowColor, radius: depth * 1.4, x: -depth, y: -depth)
-                        // Bottom-right dark drop shadow (deep black)
+                        // Bottom-right dark drop shadow
                         .shadow(color: darkShadowColor, radius: depth * 1.5, x: depth, y: depth)
                         .shadow(color: softDarkShadowColor, radius: depth * 0.8, x: depth * 0.6, y: depth * 0.6)
                 )
@@ -176,7 +176,7 @@ struct NeumorphicCardModifier: ViewModifier {
     }
 }
 
-// MARK: - Circular Neumorphic Modifier (Pure Black & White - Refined Opacities)
+// MARK: - Circular Neumorphic Modifier
 
 struct NeumorphicCircleModifier: ViewModifier {
     var style: VenusNeumorphicStyle = .raised

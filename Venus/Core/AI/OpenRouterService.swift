@@ -27,10 +27,11 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
     
     // MARK: - Core API Communication
     
-    private func sendChatCompletion(
+    private func executeChatCompletion(
+        modelToUse: String,
         messages: [OpenRouterMessage],
-        temperature: Double = 0.7,
-        maxTokens: Int = 1000
+        temperature: Double,
+        maxTokens: Int
     ) async throws -> String {
         guard !apiKey.isEmpty else {
             throw VenusAIError.missingAPIKey
@@ -49,7 +50,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         request.timeoutInterval = 30
         
         let requestBody = OpenRouterChatRequest(
-            model: model,
+            model: modelToUse,
             messages: messages,
             temperature: temperature,
             max_tokens: maxTokens,
@@ -85,6 +86,34 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         
         return content
     }
+
+    private func sendChatCompletion(
+        messages: [OpenRouterMessage],
+        temperature: Double = 0.7,
+        maxTokens: Int = 1000
+    ) async throws -> String {
+        do {
+            return try await executeChatCompletion(
+                modelToUse: model,
+                messages: messages,
+                temperature: temperature,
+                maxTokens: maxTokens
+            )
+        } catch {
+            // Se o modelo primário (ex: respan/span-01-lite da Decisions API) não aceitar /chat/completions,
+            // aciona automaticamente o fallback gratuito para manter a experiência do usuário fluida
+            if model != AppConfig.fallbackChatModel {
+                print("⚠️ [OpenRouter] Falha com modelo '\(model)' (\(error.localizedDescription)). Tentando fallback para '\(AppConfig.fallbackChatModel)'...")
+                return try await executeChatCompletion(
+                    modelToUse: AppConfig.fallbackChatModel,
+                    messages: messages,
+                    temperature: temperature,
+                    maxTokens: maxTokens
+                )
+            }
+            throw error
+        }
+    }
     
     // MARK: - Streaming API Communication
     
@@ -93,6 +122,30 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         conversationHistory: [ChatMessage],
         userProfile: UserProfile?,
         checkInHistory: [Mood]
+    ) -> AsyncThrowingStream<String, Error> {
+        let lens: SelfKnowledgeLens
+        if userProfile?.coachingTone.lowercased().contains("socrático") == true || userProfile?.coachingTone.lowercased().contains("socratico") == true {
+            lens = .socratic
+        } else {
+            lens = .compassionate
+        }
+        return generateStreamResponse(
+            userMessage: userMessage,
+            conversationHistory: conversationHistory,
+            userProfile: userProfile,
+            checkInHistory: checkInHistory,
+            readiness: nil,
+            activeLens: lens
+        )
+    }
+
+    func generateStreamResponse(
+        userMessage: String,
+        conversationHistory: [ChatMessage],
+        userProfile: UserProfile?,
+        checkInHistory: [Mood],
+        readiness: ReadinessEnergyAssessment?,
+        activeLens: SelfKnowledgeLens
     ) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -106,15 +159,22 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                     return
                 }
                 
-                var request = URLRequest(url: url)
-                request.httpMethod = "POST"
-                request.setValue("Bearer \(self.apiKey)", forHTTPHeaderField: "Authorization")
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.setValue("https://venus.app", forHTTPHeaderField: "HTTP-Referer")
-                request.setValue("Venus Emotional Wellness", forHTTPHeaderField: "X-Title")
-                request.timeoutInterval = 60
-                
-                let systemPrompt = self.buildSystemPrompt(profile: userProfile, moods: checkInHistory)
+                let diagnosis = SelfKnowledgeEngine.shared.diagnose(
+                    userMessage: userMessage,
+                    readiness: readiness,
+                    recentMoods: checkInHistory,
+                    userProfile: userProfile,
+                    currentLens: activeLens
+                )
+
+                let systemPrompt = self.buildSystemPrompt(
+                    profile: userProfile,
+                    moods: checkInHistory,
+                    readiness: readiness,
+                    activeLens: activeLens,
+                    currentDiagnosis: diagnosis
+                )
+
                 var apiMessages: [OpenRouterMessage] = [
                     OpenRouterMessage(role: "system", content: systemPrompt)
                 ]
@@ -127,75 +187,117 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                 
                 apiMessages.append(OpenRouterMessage(role: "user", content: userMessage))
                 
-                let requestBody = OpenRouterChatRequest(
-                    model: self.model,
-                    messages: apiMessages,
-                    temperature: 0.7,
-                    max_tokens: 1000,
-                    stream: true
+                await self.streamWithFallback(
+                    url: url,
+                    apiMessages: apiMessages,
+                    preferredModel: self.model,
+                    continuation: continuation
                 )
+            }
+        }
+    }
+
+    private func streamWithFallback(
+        url: URL,
+        apiMessages: [OpenRouterMessage],
+        preferredModel: String,
+        continuation: AsyncThrowingStream<String, Error>.Continuation
+    ) async {
+        let modelsToTry = preferredModel == AppConfig.fallbackChatModel
+            ? [preferredModel]
+            : [preferredModel, AppConfig.fallbackChatModel]
+
+        for (index, currentModel) in modelsToTry.enumerated() {
+            let isLastAttempt = index == modelsToTry.count - 1
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("https://venus.app", forHTTPHeaderField: "HTTP-Referer")
+            request.setValue("Venus Emotional Wellness", forHTTPHeaderField: "X-Title")
+            request.timeoutInterval = 60
+            
+            let requestBody = OpenRouterChatRequest(
+                model: currentModel,
+                messages: apiMessages,
+                temperature: 0.7,
+                max_tokens: 1000,
+                stream: true
+            )
+            
+            do {
+                let encoder = JSONEncoder()
+                request.httpBody = try encoder.encode(requestBody)
                 
-                do {
-                    let encoder = JSONEncoder()
-                    request.httpBody = try encoder.encode(requestBody)
-                    
-                    let (asyncBytes, response) = try await self.session.bytes(for: request)
-                    
-                    guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 500
-                        var errorBody = ""
-                        for try await line in asyncBytes.lines {
-                            errorBody += line
-                        }
-                        print("❌ OpenRouter HTTP Error (\(statusCode)): \(errorBody)")
-                        let detailMessage: String
-                        if let data = errorBody.data(using: .utf8),
-                           let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                           let errorObj = errorJson["error"] as? [String: Any],
-                           let message = errorObj["message"] as? String {
-                            detailMessage = message
-                        } else {
-                            detailMessage = errorBody.isEmpty ? "HTTP \(statusCode)" : errorBody
-                        }
-                        continuation.finish(throwing: VenusAIError.apiError(statusCode: statusCode, message: detailMessage))
-                        return
-                    }
-                    
-                    let streamFilter = ThinkingStreamFilter()
-                    
+                let (asyncBytes, response) = try await session.bytes(for: request)
+                
+                guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                    let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 500
+                    var errorBody = ""
                     for try await line in asyncBytes.lines {
-                        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                        
-                        guard trimmed.hasPrefix("data: ") else { continue }
-                        let dataContent = String(trimmed.dropFirst(6))
-                        
-                        if dataContent == "[DONE]" {
-                            break
-                        }
-                        
-                        guard let data = dataContent.data(using: .utf8),
-                              let chunk = try? JSONDecoder().decode(OpenRouterStreamResponse.self, from: data),
-                              let choices = chunk.choices,
-                              let delta = choices.first?.delta,
-                              let content = delta.content else {
-                            continue
-                        }
-                        
-                        let safeText = streamFilter.process(chunk: content)
-                        if !safeText.isEmpty {
-                            continuation.yield(safeText)
-                        }
+                        errorBody += line
+                    }
+                    print("⚠️ OpenRouter HTTP \(statusCode) com '\(currentModel)': \(errorBody)")
+                    
+                    if !isLastAttempt {
+                        print("🔄 Fazendo fallback automático para '\(AppConfig.fallbackChatModel)'...")
+                        continue
                     }
                     
-                    let remaining = streamFilter.flush()
-                    if !remaining.isEmpty {
-                        continuation.yield(remaining)
+                    let detailMessage: String
+                    if let data = errorBody.data(using: .utf8),
+                       let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorObj = errorJson["error"] as? [String: Any],
+                       let message = errorObj["message"] as? String {
+                        detailMessage = message
+                    } else {
+                        detailMessage = errorBody.isEmpty ? "HTTP \(statusCode)" : errorBody
                     }
-                    
-                    continuation.finish()
-                } catch {
-                    continuation.finish(throwing: error)
+                    continuation.finish(throwing: VenusAIError.apiError(statusCode: statusCode, message: detailMessage))
+                    return
                 }
+                
+                let streamFilter = ThinkingStreamFilter()
+                
+                for try await line in asyncBytes.lines {
+                    let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                    
+                    guard trimmed.hasPrefix("data: ") else { continue }
+                    let dataContent = String(trimmed.dropFirst(6))
+                    
+                    if dataContent == "[DONE]" {
+                        break
+                    }
+                    
+                    guard let data = dataContent.data(using: .utf8),
+                          let chunk = try? JSONDecoder().decode(OpenRouterStreamResponse.self, from: data),
+                          let choices = chunk.choices,
+                          let delta = choices.first?.delta,
+                          let content = delta.content else {
+                        continue
+                    }
+                    
+                    let safeText = streamFilter.process(chunk: content)
+                    if !safeText.isEmpty {
+                        continuation.yield(safeText)
+                    }
+                }
+                
+                let remaining = streamFilter.flush()
+                if !remaining.isEmpty {
+                    continuation.yield(remaining)
+                }
+                
+                continuation.finish()
+                return
+            } catch {
+                if !isLastAttempt {
+                    print("⚠️ Erro no stream com '\(currentModel)': \(error.localizedDescription). Tentando fallback...")
+                    continue
+                }
+                continuation.finish(throwing: error)
+                return
             }
         }
     }
@@ -208,7 +310,38 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         userProfile: UserProfile?,
         checkInHistory: [Mood]
     ) async throws -> String {
-        let systemPrompt = buildSystemPrompt(profile: userProfile, moods: checkInHistory)
+        try await generateResponse(
+            userMessage: userMessage,
+            conversationHistory: conversationHistory,
+            userProfile: userProfile,
+            checkInHistory: checkInHistory,
+            readiness: nil,
+            activeLens: .socratic
+        )
+    }
+
+    func generateResponse(
+        userMessage: String,
+        conversationHistory: [ChatMessage],
+        userProfile: UserProfile?,
+        checkInHistory: [Mood],
+        readiness: ReadinessEnergyAssessment?,
+        activeLens: SelfKnowledgeLens
+    ) async throws -> String {
+        let diagnosis = SelfKnowledgeEngine.shared.diagnose(
+            userMessage: userMessage,
+            readiness: readiness,
+            recentMoods: checkInHistory,
+            userProfile: userProfile,
+            currentLens: activeLens
+        )
+        let systemPrompt = buildSystemPrompt(
+            profile: userProfile,
+            moods: checkInHistory,
+            readiness: readiness,
+            activeLens: activeLens,
+            currentDiagnosis: diagnosis
+        )
         var messages: [OpenRouterMessage] = [
             OpenRouterMessage(role: "system", content: systemPrompt)
         ]
@@ -227,17 +360,21 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
     
     // MARK: - Prompt Building
     
-    private func buildSystemPrompt(profile: UserProfile?, moods: [Mood]) -> String {
+    private func buildSystemPrompt(
+        profile: UserProfile?,
+        moods: [Mood],
+        readiness: ReadinessEnergyAssessment? = nil,
+        activeLens: SelfKnowledgeLens = .socratic,
+        currentDiagnosis: SelfKnowledgeDiagnosis? = nil
+    ) -> String {
         var prompt = """
-        Você é a Venus, uma companheira inteligente de bem-estar emocional e autoconhecimento.
+        Você é a Venus, uma inteligência refinada de bem-estar emocional, prontidão e autoconhecimento ("KillCritic").
         
         SUA IDENTIDADE:
-        - Seja calorosa, empática, acolhedora e profundamente compreensiva.
+        - Seja calorosa, empática, profunda e lúcida, mas SEM bajulação, sem passar a mão na cabeça e sem clichês de autoajuda.
         - Fale em português do Brasil de forma natural, humana e fluida.
-        - NUNCA use jargões técnicos, médicos ou diagnósticos clínicos.
+        - NUNCA use jargões técnicos, médicos ou diagnósticos clínicos formais.
         - Responda de forma concisa e direta (2 a 4 parágrafos no máximo), sem rodeios.
-        - Valide os sentimentos do usuário antes de propor qualquer reflexão ou ação.
-        - Faça perguntas suaves que ajudem o usuário a explorar o que está sentindo.
         - Se detectar risco de automutilação ou crise severa, oriente gentilmente a buscar apoio profissional e o CVV (188).
         - NUNCA inclua pensamentos internos ou tags como <thought> ou <thinking> na resposta.
         """
@@ -260,6 +397,9 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             }
             if !profile.coachingTone.isEmpty {
                 prompt += "- Tom preferido: \(profile.coachingTone)\n"
+            }
+            if !profile.coreValues.isEmpty {
+                prompt += "- Valores Inegociáveis Centrais: \(profile.coreValues.joined(separator: ", "))\n"
             }
             if !profile.interests.isEmpty {
                 prompt += "- Interesses: \(profile.interests.joined(separator: ", "))\n"
@@ -289,6 +429,15 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                 prompt += "\n"
             }
         }
+
+        // Injeção do Motor de Autoconhecimento (Radar de Contradições, Interrogatório Socrático, Sombra, Valores, etc.)
+        let diagnosis = currentDiagnosis ?? SelfKnowledgeDiagnosis(activeLens: activeLens)
+        prompt += SelfKnowledgeEngine.shared.buildPromptEnrichment(
+            diagnosis: diagnosis,
+            lens: activeLens,
+            readiness: readiness,
+            profile: profile
+        )
         
         return prompt
     }
@@ -398,640 +547,275 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         
         var patternAlert: PatternAlert? = nil
         if let alertTitle = decoded.alertTitle, let alertDetail = decoded.alertDetail, !alertTitle.isEmpty {
-            patternAlert = PatternAlert(title: alertTitle, detail: alertDetail)
+            patternAlert = PatternAlert(
+                title: alertTitle,
+                detail: alertDetail
+            )
         }
         
         return (weeklyTrend, weeklyInsights, patternAlert)
     }
     
-    // MARK: - Emotional State Analysis
+    func generateSuggestion(mood: MoodType, userContext: UserProfile) async throws -> String {
+        let prompt = """
+        O usuário registrou o humor: \(mood.rawValue) (\(mood.emoji)).
+        Nome: \(userContext.name)
+        Tom preferido: \(userContext.coachingTone.isEmpty ? "não informado" : userContext.coachingTone)
+        Gere uma micro-sugestão acolhedora e prática em 1 ou 2 frases curtas.
+        """
+        
+        let messages = [
+            OpenRouterMessage(role: "system", content: "Você é a Venus, uma amiga empática. Responda em português."),
+            OpenRouterMessage(role: "user", content: prompt)
+        ]
+        
+        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 150)
+        return cleanResponse(response)
+    }
     
-    func analyzeEmotionalState(message: String) async throws -> EmotionalState {
-        let localAnalysis = AppleNaturalLanguageService.shared.analyze(text: message)
-        if localAnalysis.isCrisisRisk {
-            return localAnalysis
+    func generateGreeting(userName: String, mood: MoodType?) async throws -> String {
+        let name = userName.isEmpty ? "você" : userName
+        let moodContext = mood != nil ? "O humor recente é \(mood!.rawValue)." : ""
+        let prompt = "Gere uma saudação acolhedora e breve para \(name). \(moodContext) Responda em uma única frase calorosa."
+        
+        let messages = [
+            OpenRouterMessage(role: "system", content: "Você é a Venus. Seja breve e acolhedora."),
+            OpenRouterMessage(role: "user", content: prompt)
+        ]
+        
+        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 100)
+        return cleanResponse(response)
+    }
+    
+    func generateNextOnboardingQuestion(
+        userName: String,
+        userProfile: UserProfile?,
+        conversationHistory: [(question: String, answer: String)],
+        questionIndex: Int
+    ) async throws -> AIOnboardingQuestionResponse {
+        var context = "Nome: \(userName)\n"
+        for (q, a) in conversationHistory {
+            context += "Pergunta: \(q)\nResposta do usuário: \(a)\n"
         }
         
         let prompt = """
-        Classifique o estado emocional desta mensagem e retorne EXCLUSIVAMENTE um objeto JSON:
+        Você é a Venus conduzindo o onboarding acolhedor.
+        Histórico:
+        \(context)
         
-        Mensagem: "\(message)"
-        
-        Formato de resposta:
+        Pergunta índice \(questionIndex)/4.
+        Responda APENAS em JSON no formato:
         {
-            "primary_emotion": "happy|sad|anxious|angry|neutral|excited|frustrated|lonely|stressed|grateful",
-            "intensity": 1-10,
-            "needs_support": true/false,
-            "keywords": ["palavra1", "palavra2"]
+            "empathyReaction": "Frase empática curta validando a resposta anterior...",
+            "nextQuestion": "Próxima pergunta profunda e acolhedora...",
+            "suggestedTone": "Acolhedor",
+            "hasEnoughContext": false
         }
         """
         
         let messages = [
-            OpenRouterMessage(role: "system", content: "You are an emotion classification model. Output only raw JSON. Never include thinking tags."),
+            OpenRouterMessage(role: "system", content: "Responda exclusivamente com JSON válido."),
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
-        do {
-            let response = try await sendChatCompletion(messages: messages, temperature: 0.2, maxTokens: 400)
-            return try parseEmotionalState(from: cleanJsonText(response), fallbackScore: localAnalysis.sentimentScore)
-        } catch {
-            return localAnalysis
+        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 400)
+        let clean = cleanJsonText(response)
+        
+        guard let data = clean.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode(AIOnboardingQuestionResponse.self, from: data) else {
+            return AIOnboardingQuestionResponse(
+                empathyReaction: "Entendo perfeitamente.",
+                nextQuestion: "O que mais você gostaria de compartilhar sobre sua rotina?",
+                suggestedTone: "Acolhedor",
+                hasEnoughContext: false
+            )
         }
+        
+        return decoded
+    }
+    
+    func generateOnboardingProfile(userProfile: UserProfile) async throws -> AIOnboardingProfileResponse {
+        let context = buildCombinedContextString(profile: userProfile, moods: [])
+        let prompt = """
+        Gere o perfil de autoconhecimento final do onboarding da Venus em JSON:
+        \(context)
+        
+        Formato:
+        {
+            "title": "Arquiteto da Própria Paz",
+            "badge": "Estrategista de Energia",
+            "subtitle": "Você busca clareza profunda e equilíbrio sustentável.",
+            "strengths": "Capacidade de auto-observação e disciplina",
+            "growthArea": "Permitir-se pausas sem culpa",
+            "statText": "92% de alinhamento com foco intencional"
+        }
+        """
+        
+        let messages = [
+            OpenRouterMessage(role: "system", content: "Responda exclusivamente com JSON válido."),
+            OpenRouterMessage(role: "user", content: prompt)
+        ]
+        
+        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 400)
+        let clean = cleanJsonText(response)
+        
+        guard let data = clean.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode(AIOnboardingProfileResponse.self, from: data) else {
+            return AIOnboardingProfileResponse(
+                title: "Explorador da Consciência",
+                badge: "Em Busca de Clareza",
+                subtitle: "Sua jornada de autoconhecimento está apenas começando.",
+                strengths: "Curiosidade e abertura interna",
+                growthArea: "Construção de pausas conscientes",
+                statText: "Pronto para calibrar seu ritmo"
+            )
+        }
+        
+        return decoded
+    }
+    
+    func analyzeEmotionalState(message: String) async throws -> EmotionalState {
+        // Usa o serviço offline de Apple Natural Language para ultra-baixa latência e privacidade
+        return AppleNaturalLanguageService.shared.analyze(text: message)
     }
     
     func generateWellnessSuggestion(emotionalState: EmotionalState) -> String {
         switch emotionalState.primaryEmotion {
         case .anxious:
-            return "Que tal tentarmos uma respiração 4-7-8? Inspire por 4, segure por 7, expire por 8. Isso pode ajudar a acalmar a ansiedade. 🌸"
+            return "Que tal fazer uma respiração em 4 tempos para desacelerar o ritmo cardíaco?"
         case .sad:
-            return "Às vezes é importante honrar nossos sentimentos. Que tal escrever três coisas pelas quais você é grato hoje? 💙"
+            return "Dê a si mesmo(a) permissão para apenas descansar e desacelerar hoje."
         case .stressed:
-            return "O estresse pode ser intenso. Tente fazer uma pausa de 5 minutos - respire fundo ou ouça uma música que te acalma. ✨"
-        case .lonely:
-            return "A solidão é difícil. Lembre-se que você não está sozinho. Que tal ligar para alguém querido ou dar uma caminhada? 🤗"
+            return "Faça uma pausa de 5 minutos longe de qualquer tela. Beba um copo d'água com calma."
         case .angry:
-            return "A raiva é válida. Que tal tentar contar até 10 devagar ou fazer alguns alongamentos para liberar essa energia? 🔥"
+            return "Solte os ombros, destranque a mandíbula e respire fundo pelo nariz."
         case .frustrated:
-            return "Frustração acontece. Às vezes ajuda dar um passo para trás e ver a situação de outro ângulo. Respire fundo. 💪"
-        case .excited:
-            return "Que energia maravilhosa! Aproveite esse momento positivo e talvez compartilhe essa alegria com alguém especial. ⭐"
-        case .grateful:
-            return "Gratidão é transformadora! Que tal anotar esse sentimento em um diário ou fazer algo gentil por você mesmo? 🙏"
+            return "Divida o que está te travando em um único passo minúsculo de 2 minutos."
+        case .lonely:
+            return "Estou aqui com você. Às vezes o silêncio compartilhado já é um começo."
+        case .grateful, .happy, .excited:
+            return "Guarde essa sensação boa na memória como um âncora de clareza para os dias difíceis."
         default:
-            return "Como você está se sentindo agora? Estou aqui para conversar sobre qualquer coisa que esteja em sua mente. 💜"
+            return "Respire fundo e observe como seu corpo está apoiado agora."
         }
     }
     
-    func generateSuggestion(mood: MoodType, userContext: UserProfile) async throws -> String {
-        let prompt = """
-        Você é a Venus, um assistente de bem-estar empático.
-        
-        Usuário: \(userContext.name)
-        Humor atual: \(mood.rawValue) (\(mood.emoji))
-        Foco atual: \(userContext.primaryGoal.isEmpty ? "não informado" : userContext.primaryGoal)
-        Tom preferido: \(userContext.coachingTone.isEmpty ? "não informado" : userContext.coachingTone)
-        
-        Com base no humor e perfil do usuário, sugira UMA atividade específica e personalizada.
-        Responda em formato curto em português.
-        """
-        
-        let messages = [
-            OpenRouterMessage(role: "system", content: "Você é a Venus, assistente empático de bem-estar. Responda em português sem tags de raciocínio."),
-            OpenRouterMessage(role: "user", content: prompt)
-        ]
-        
-        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 400)
-        return cleanResponse(response)
-    }
-    
-    func generateGreeting(userName: String, mood: MoodType?) async throws -> String {
-        let name = userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "você" : userName
-        var prompt = "Crie uma saudação acolhedora e personalizada para \(name) no app Venus, um companheiro de bem-estar."
-        if let mood = mood {
-            prompt += " O usuário registrou humor recente como '\(mood.rawValue)' hoje."
-        }
-        prompt += " A saudação deve ser carinhosa, inspiradora e curta (máximo 2 frases) em português do Brasil sem incluir pensamentos internos."
-        
-        let messages = [
-            OpenRouterMessage(role: "system", content: "Você é a Venus, assistente empático de bem-estar. Responda em português."),
-            OpenRouterMessage(role: "user", content: prompt)
-        ]
-        
-        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 200)
-        return cleanResponse(response)
-    }
-    
-    // MARK: - Dynamic Interactive Onboarding Question Generation
-    
-    func generateNextOnboardingQuestion(
-        userName: String,
-        userProfile: UserProfile? = nil,
-        conversationHistory: [(question: String, answer: String)],
-        questionIndex: Int
-    ) async throws -> AIOnboardingQuestionResponse {
-        let name = userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "amigo" : userName
-        
-        var historyText = ""
-        for (idx, item) in conversationHistory.enumerated() {
-            let cleanQ = sanitizeOnboardingText(item.question)
-            let cleanA = sanitizeOnboardingText(item.answer)
-            historyText += "Momento \(idx + 1):\n- Pergunta da Venus: \"\(cleanQ)\"\n- Resposta de \(name): \"\(cleanA)\"\n\n"
-        }
-        
-        var pronounDirective = "Use linguagem inclusiva e pronomes neutros."
-        if let gender = userProfile?.gender {
-            if gender == "Feminino" {
-                pronounDirective = "Use pronomes femininos (ela/dela, acolhida, atenta, pronta)."
-            } else if gender == "Masculino" {
-                pronounDirective = "Use pronomes masculinos (ele/dele, acolhido, atento, pronto)."
-            }
-        }
-        
-        let prompt = """
-        Você é a Venus, uma inteligência pessoal empática, perspicaz e instigante de autoconhecimento, prontidão, clareza mental e rotina do aplicativo Venus.
-        Você está em um diálogo fluido e reflexivo com \(name).
-        
-        HISTÓRICO DA CONVERSA ATÉ AGORA:
-        \(historyText)
-        
-        DIRETRIZ DE LINGUAGEM:
-        \(pronounDirective)
-        
-        SUA MISSÃO DE PERSONALIZAÇÃO PROFUNDA:
-        1. PROIBIDO repetir perguntas de questionário padrão ou seguir um roteiro engessado.
-        2. ANCORAGEM DIRETA: Puxe um fio direto, citando ou se conectando a detalhes específicos, palavras, sentimentos, ambientes, horários ou situações que \(name) acabou de relatar na última resposta.
-        3. VARIE OS ÂNGULOS DE REFLEXÃO: A cada nova pergunta, explore uma dimensão fascinante e ainda não explorada da mente e do funcionamento de \(name):
-           - O que drena ou recarrega sua bateria mental naquele contexto
-           - Como a mente dele reage sob pressão, prazos, expectativas ou interrupções
-           - O que impede ele de desligar à noite ou encontrar foco profundo
-           - A relação dele com o perfeccionismo, autocobrança, pausas ou momentos de lazer
-           - O que traz um estado de leveza, fluidez e presença genuína para ele
-        4. O app não é apenas sobre ansiedade: aborde rotina, clareza mental, energia, recuperação e funcionamento prático.
-        
-        REGRAS RIGOROSAS DE FORMATAÇÃO:
-        1. NUNCA use travessões (—, -, –), traços ou hífens no início ou meio das frases.
-        2. NUNCA use emojis de nenhum tipo (sem símbolos gráficos, sem estrelas, sem emoticons).
-        3. "empathyReaction": Reação empática curta (máximo 14 palavras) validando com sagacidade o que ele disse (sem travessão, sem emojis).
-        4. "nextQuestion": Pergunta aberta, inteligente, surpreendente e reflexiva (máximo 18 palavras) puxando o detalhe do usuário (sem travessão, sem emojis).
-        5. "hasEnoughContext": Defina true se as respostas anteriores já deram um mapa rico e completo de como \(name) funciona (ou após 3 ou mais respostas detalhadas); caso contrário, false.
-        6. "suggestedTone": "Gentil", "Direto", "Prático", "Curioso" ou "Motivacional".
-        
-        Responda EXCLUSIVAMENTE em JSON válido:
-        {
-            "empathyReaction": "Frase curta e sagaz de acolhimento conectada ao que ele disse",
-            "nextQuestion": "Pergunta instigante e única puxando o gancho do relato",
-            "hasEnoughContext": false,
-            "suggestedTone": "Curioso"
-        }
-        """
-        
-        let messages = [
-            OpenRouterMessage(role: "system", content: "Responda apenas com JSON válido em português. Sem travessões e sem emojis."),
-            OpenRouterMessage(role: "user", content: prompt)
-        ]
-        
-        do {
-            let response = try await sendChatCompletion(messages: messages, temperature: 0.85, maxTokens: 2500)
-            let cleanJson = cleanJsonText(response)
-            if let data = cleanJson.data(using: .utf8) {
-                let decoded = try JSONDecoder().decode(AIOnboardingQuestionResponse.self, from: data)
-                let cleanReaction = sanitizeOnboardingText(decoded.empathyReaction)
-                let cleanQuestion = sanitizeOnboardingText(decoded.nextQuestion)
-                let sanitizedResponse = AIOnboardingQuestionResponse(
-                    empathyReaction: cleanReaction,
-                    nextQuestion: cleanQuestion,
-                    suggestedTone: decoded.suggestedTone,
-                    hasEnoughContext: decoded.hasEnoughContext
-                )
-                print("✨ Pergunta de Onboarding gerada com sucesso pela IA: \(cleanQuestion)")
-                return sanitizedResponse
-            }
-        } catch {
-            print("⚠️ Falha ao gerar pergunta dinâmica de onboarding via IA: \(error)")
-        }
-        
-        // Dynamic Varied Fallback Pools (Sem travessão, sem emojis)
-        let fallbackOptions: [(reaction: String, question: String, tone: String, enough: Bool)] = [
-            ("Perceber seus momentos de dispersão é essencial para desenhar seu melhor ritmo.",
-             "Quando surgem várias demandas ao mesmo tempo, qual costuma ser sua primeira reação mental?",
-             "Curioso",
-             false),
-            ("Identificar o que rouba sua energia ajuda a proteger seus momentos mais valiosos.",
-             "O que hoje mais impede você de desacelerar de verdade quando o dia termina?",
-             "Gentil",
-             false),
-            ("Compreender sua relação com o descanso transforma como você produz e vive.",
-             "Se pudesse alinhar um único momento da sua rotina para fluir com mais leveza, qual seria?",
-             "Motivacional",
-             questionIndex >= 3),
-            ("Reconhecer suas necessidades diárias traz clareza para calibrar suas pausas.",
-             "Em que tipo de atividade você sente que sua mente entra em foco natural sem esforço?",
-             "Prático",
-             false),
-            ("Mapear seu funcionamento interno nos dá clareza total sobre o que você precisa.",
-             "O que você mais gostaria que a Venus te ajudasse a manter sob controle nos dias cheios?",
-             "Acolhedor",
-             true)
-        ]
-        
-        let selectedFallback = fallbackOptions[(questionIndex - 1 + fallbackOptions.count) % fallbackOptions.count]
-        return AIOnboardingQuestionResponse(
-            empathyReaction: selectedFallback.reaction,
-            nextQuestion: selectedFallback.question,
-            suggestedTone: selectedFallback.tone,
-            hasEnoughContext: selectedFallback.enough
-        )
-    }
-    
-    private func sanitizeOnboardingText(_ text: String) -> String {
-        var clean = text
-        // Remove dashes/hyphens used as bullets or dashes
-        clean = clean.replacingOccurrences(of: "—", with: "")
-        clean = clean.replacingOccurrences(of: "–", with: "")
-        clean = clean.replacingOccurrences(of: "- ", with: "")
-        clean = clean.replacingOccurrences(of: " -", with: "")
-        
-        // Filter out all emojis (Unicode scalars for emoji Presentation, Symbols, Pictographs)
-        let filteredScalars = clean.unicodeScalars.filter { scalar in
-            if scalar.properties.isEmoji && scalar.properties.isEmojiPresentation { return false }
-            if scalar.properties.isEmoji && scalar.value > 0x2380 { return false }
-            if scalar.value >= 0x1F600 && scalar.value <= 0x1F64F { return false } // Emoticons
-            if scalar.value >= 0x1F300 && scalar.value <= 0x1F5FF { return false } // Misc Symbols and Pictographs
-            if scalar.value >= 0x1F680 && scalar.value <= 0x1F6FF { return false } // Transport and Map
-            if scalar.value >= 0x1F700 && scalar.value <= 0x1F77F { return false } // Alchemical Symbols
-            if scalar.value >= 0x1F780 && scalar.value <= 0x1F7FF { return false } // Geometric Shapes
-            if scalar.value >= 0x1F800 && scalar.value <= 0x1F8FF { return false } // Supplemental Arrows
-            if scalar.value >= 0x1F900 && scalar.value <= 0x1F9FF { return false } // Supplemental Symbols
-            if scalar.value >= 0x1FA00 && scalar.value <= 0x1FA6F { return false } // Chess Symbols
-            if scalar.value >= 0x1FA70 && scalar.value <= 0x1FAFF { return false } // Symbols and Pictographs Extended-A
-            if scalar.value >= 0x2600 && scalar.value <= 0x26FF { return false } // Misc symbols
-            if scalar.value >= 0x2700 && scalar.value <= 0x27BF { return false } // Dingbats
-            return true
-        }
-        
-        clean = String(String.UnicodeScalarView(filteredScalars))
-        return clean.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-    
-    // MARK: - Onboarding Profile Generation
-    
-    func generateOnboardingProfile(userProfile: UserProfile) async throws -> AIOnboardingProfileResponse {
-        let profileContext = buildProfileContext(profile: userProfile)
-        
-        let prompt = """
-        Você é a Venus, a companheira de acolhimento e inteligência emocional do app Venus.
-        O usuário acabou de completar a apresentação inicial dele.
-        
-        Dados do usuário:
-        \(profileContext)
-        
-        Gere uma mensagem de boas-vindas calorosa, empática e acolhedora em formato JSON:
-        {
-            "title": "Frase carinhosa de boas-vindas com o nome do usuário",
-            "badge": "SEU ESPAÇO ESTÁ PRONTO",
-            "subtitle": "Frase personalizada de 1 a 2 linhas conectando o momento atual do usuário com o apoio que você vai oferecer",
-            "strengths": "2 a 3 pontos fortes e qualidades que você percebeu nele (separados por vírgula)",
-            "growthArea": "Como a Venus vai apoiar o bem-estar e o ritmo dele nos próximos dias",
-            "statText": "Uma frase curta, confortante e acolhedora lembrando que ele não precisa dar conta de tudo sozinho"
-        }
-        
-        Responda APENAS com o JSON válido, sem tags de raciocínio.
-        """
-        
-        let messages = [
-            OpenRouterMessage(role: "system", content: "Responda apenas com JSON válido em português."),
-            OpenRouterMessage(role: "user", content: prompt)
-        ]
-        
-        do {
-            let response = try await sendChatCompletion(messages: messages, temperature: 0.5, maxTokens: 1500)
-            let cleanJson = cleanJsonText(response)
-            if let data = cleanJson.data(using: .utf8) {
-                return try JSONDecoder().decode(AIOnboardingProfileResponse.self, from: data)
-            }
-        } catch {
-            print("⚠️ Falha ao gerar perfil de onboarding via IA: \(error)")
-        }
-        
-        let name = userProfile.name.isEmpty ? "Você" : userProfile.name
-        return AIOnboardingProfileResponse(
-            title: "Seja bem-vindo(a), \(name) 🤍",
-            badge: "SEU ESPAÇO ESTÁ PRONTO",
-            subtitle: "\(name), estou muito feliz em ter você aqui. Este é seu espaço seguro para respirar e encontrar leveza.",
-            strengths: "Sensibilidade, dedicação e busca sincera por equilíbrio.",
-            growthArea: "Te ajudar a desacelerar no fim do dia e lembrar você de não se cobrar tanto.",
-            statText: "Você não precisa dar conta de tudo sozinho(a). Vamos cuidar de um dia de cada vez."
-        )
-    }
-
     // MARK: - Biometrics & Readiness AI Methods
-
+    
     func analyzeChatReadinessImpact(messages: [ChatMessage]) async -> ChatReadinessImpact? {
-        let userMessages = messages.filter { $0.isFromUser }
-        guard userMessages.count >= 1 else { return nil }
-
-        let recentMessages = messages.suffix(8)
-        var conversationText = ""
-        for msg in recentMessages {
-            let sender = msg.isFromUser ? "Usuário" : "Venus"
-            let clean = ThinkingStreamFilter.clean(msg.content)
-            conversationText += "[\(sender)]: \(clean)\n"
-        }
-
+        let userTexts = messages.filter { $0.isFromUser }.suffix(3).map { $0.content }.joined(separator: " | ")
+        guard !userTexts.isEmpty else { return nil }
+        
         let prompt = """
-        Você é o motor de avaliação de prontidão emocional da Venus.
-        Avalie se a conversa recente indica um impacto RELEVANTE na energia, ansiedade ou prontidão diária do usuário.
-        
-        Conversa:
-        \(conversationText)
-        
-        Diretrizes:
-        - Se o usuário desabafou sobre pânico, crise aguda de ansiedade, exaustão extrema ou insônia grave: scoreDelta negativo (entre -1.0 e -2.0).
-        - Se o usuário relatou alívio, clareza, descompressão profunda ou ânimo: scoreDelta positivo (entre +0.5 e +1.2).
-        - Se for uma conversa neutra ou casual sem mudança emocional significativa: retorne scoreDelta = 0.0.
-        - Título do estado (customStateTitle): 1 a 3 palavras poéticas e humanas (ex: "Modo Respiro", "Mente Leve", "Pausa Necessária", "Pico Criativo"). NUNCA use termos médicos.
-        - Subtítulo (customStateSubtitle): 1 frase curta e acolhedora (máximo 8 palavras).
-        
-        Responda EXCLUSIVAMENTE com o objeto JSON válido:
+        Analise o impacto emocional e cognitivo dessas falas recentes do usuário: "\(userTexts)"
+        Responda APENAS em JSON:
         {
-            "hasSignificantImpact": true,
-            "scoreDelta": 0.0,
-            "isFocusImpacted": false,
+            "scoreDelta": -0.8,
+            "isFocusImpacted": true,
             "isBodyImpacted": false,
-            "isSleepImpacted": false,
-            "customStateTitle": "Título curto ou null",
-            "customStateSubtitle": "Frase curta ou null",
-            "detectedInsight": "Resumo em 4 palavras do impacto"
+            "isSleepImpacted": true,
+            "customStateTitle": "Sobrecarga Mental",
+            "customStateSubtitle": "Tensão acumulada",
+            "detectedInsight": "Ansiedade sobre prazos"
         }
         """
-
-        let apiMessages = [
+        
+        let messages = [
             OpenRouterMessage(role: "system", content: "You are an emotion & readiness analyzer. Output only valid JSON."),
             OpenRouterMessage(role: "user", content: prompt)
         ]
-
-        do {
-            let response = try await sendChatCompletion(messages: apiMessages, temperature: 0.2, maxTokens: 400)
-            let cleanJson = cleanJsonText(response)
-            guard let data = cleanJson.data(using: .utf8),
-                  let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                return nil
-            }
-
-            let hasImpact = json["hasSignificantImpact"] as? Bool ?? false
-            let delta = json["scoreDelta"] as? Double ?? 0.0
-
-            guard hasImpact || abs(delta) >= 0.4 else { return nil }
-
-            let focus = json["isFocusImpacted"] as? Bool
-            let body = json["isBodyImpacted"] as? Bool
-            let sleep = json["isSleepImpacted"] as? Bool
-            let title = json["customStateTitle"] as? String
-            let subtitle = json["customStateSubtitle"] as? String
-            let insight = json["detectedInsight"] as? String
-
-            return ChatReadinessImpact(
-                scoreDelta: delta,
-                isFocusImpacted: focus,
-                isBodyImpacted: body,
-                isSleepImpacted: sleep,
-                customStateTitle: title,
-                customStateSubtitle: subtitle,
-                detectedInsight: insight,
-                timestamp: Date()
-            )
-        } catch {
+        
+        guard let response = try? await sendChatCompletion(messages: messages, temperature: 0.3, maxTokens: 300) else {
             return nil
         }
+        
+        let clean = cleanJsonText(response)
+        guard let data = clean.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let scoreDelta = json["scoreDelta"] as? Double else {
+            return nil
+        }
+        
+        return ChatReadinessImpact(
+            scoreDelta: scoreDelta,
+            isFocusImpacted: json["isFocusImpacted"] as? Bool,
+            isBodyImpacted: json["isBodyImpacted"] as? Bool,
+            isSleepImpacted: json["isSleepImpacted"] as? Bool,
+            customStateTitle: json["customStateTitle"] as? String,
+            customStateSubtitle: json["customStateSubtitle"] as? String,
+            detectedInsight: json["detectedInsight"] as? String,
+            timestamp: Date()
+        )
     }
-
+    
     func generateReadinessMicroCopy(
         score: Double,
         primaryState: String,
         userContext: String?
     ) async -> (stateTitle: String, stateSubtitle: String) {
         let prompt = """
-        Você é a Venus, companheira de bem-estar emocional.
         Gere uma micro-fala para o gráfico de Prontidão (Readiness) do usuário com score \(String(format: "%.1f", score))/10.
-        Estado atual: \(primaryState).
-        Contexto do usuário: \(userContext ?? "Geral").
-        
-        REGRAS RIGOROSAS:
-        1. Título: EXATAMENTE 1 a 3 palavras poéticas, humanas e encorajadoras (ex: "Go For It", "Ritmo Fluido", "Modo Respiro", "Poupe Bateria", "Pico Criativo", "Mente Serena").
-        2. Subtítulo: EXATAMENTE 1 frase curta de 6 a 9 palavras no máximo (ex: "Bateria restaurada para criar.", "Dia de desacelerar e respirar.", "Foco afiado para a sua manhã.").
-        3. ZERO TERMOS TÉCNICOS: NUNCA mencione HRV, batimentos, porcentagens, relógio, notas numéricas ou dados biométricos.
-        
-        Responda APENAS em JSON:
-        {
-            "stateTitle": "Título curto",
-            "stateSubtitle": "Frase curta"
-        }
+        Estado primário: \(primaryState)
+        Responda em formato: TÍTULO | SUBTÍTULO (máximo 4 palavras cada).
         """
-
+        
         let messages = [
-            OpenRouterMessage(role: "system", content: "You are a concise UX writer for an emotional wellbeing app. Output only valid JSON in Portuguese."),
+            OpenRouterMessage(role: "system", content: "Seja breve e direto."),
             OpenRouterMessage(role: "user", content: prompt)
         ]
-
-        do {
-            let response = try await sendChatCompletion(messages: messages, temperature: 0.4, maxTokens: 250)
-            let cleanJson = cleanJsonText(response)
-            if let data = cleanJson.data(using: .utf8),
-               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let title = json["stateTitle"] as? String,
-               let sub = json["stateSubtitle"] as? String,
-               !title.isEmpty, !sub.isEmpty {
-                return (title.trimmingCharacters(in: .whitespacesAndNewlines), sub.trimmingCharacters(in: .whitespacesAndNewlines))
-            }
-        } catch {
-            print("Micro-copy fallback used: \(error)")
+        
+        guard let response = try? await sendChatCompletion(messages: messages, temperature: 0.5, maxTokens: 60) else {
+            return ("Prontidão Estável", "Ritmo equilibrado")
         }
-
-        if score >= 8.5 {
-            return ("Go For It", "Bateria alta para focar e criar.")
-        } else if score >= 7.0 {
-            return ("Ritmo Fluido", "Mente serena e clareza para o dia.")
-        } else if score >= 5.0 {
-            return ("Ritmo Leve", "Equilibre tarefas e faça pausas.")
-        } else if score >= 3.5 {
-            return ("Poupe Bateria", "Desacelere e priorize o essencial.")
-        } else {
-            return ("Modo Respiro", "Acolha seu corpo e descanse.")
+        
+        let parts = response.components(separatedBy: "|")
+        if parts.count >= 2 {
+            return (parts[0].trimmingCharacters(in: .whitespacesAndNewlines),
+                    parts[1].trimmingCharacters(in: .whitespacesAndNewlines))
         }
+        return (response.trimmingCharacters(in: .whitespacesAndNewlines), "Energia equilibrada")
     }
     
-    // MARK: - Context Helpers
+    // MARK: - Private Context Helpers
     
     private func buildCombinedContextString(profile: UserProfile?, moods: [Mood]) -> String {
-        var context = "--- CONTEXTO DO USUÁRIO ---\n"
-        context += buildProfileContext(profile: profile)
-        context += "\n"
-        context += buildCheckInHistoryContext(moods: moods)
-        context += "---------------------------\n\n"
-        return context
-    }
-    
-    private func buildProfileContext(profile: UserProfile?) -> String {
-        guard let profile = profile else { return "Perfil do usuário não preenchido.\n" }
-        
-        var context = "Perfil do Usuário:\n"
-        context += "- Nome: \(profile.name)\n"
-        if !profile.gender.isEmpty {
-            context += "- Identidade / Gênero: \(profile.gender)\n"
-            if profile.gender == "Feminino" {
-                context += "- Pronomes: Femininos (ela/dela, bem-vinda, acolhida)\n"
-            } else if profile.gender == "Masculino" {
-                context += "- Pronomes: Masculinos (ele/dele, bem-vindo, acolhido)\n"
-            } else {
-                context += "- Pronomes: Neutros e Inclusivos (você, seu espaço, sem flexão binária de gênero)\n"
+        var context = ""
+        if let p = profile {
+            context += "Usuário: \(p.name)\nObjetivo: \(p.primaryGoal)\n"
+            if !p.coreValues.isEmpty {
+                context += "Valores Centrais: \(p.coreValues.joined(separator: ", "))\n"
             }
         }
-        if !profile.primaryGoal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            context += "- Objetivo Principal: \(profile.primaryGoal)\n"
+        if !moods.isEmpty {
+            context += "Humores recentes: " + moods.suffix(5).map { "\($0.type.rawValue)" }.joined(separator: ", ") + "\n"
         }
-        if !profile.coachingTone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            context += "- Tom Desejado da Venus: \(profile.coachingTone)\n"
-        }
-        if profile.dailyTimeBudgetMinutes > 0 {
-            context += "- Disponibilidade Diária: \(profile.dailyTimeBudgetMinutes) minutos\n"
-        }
-        if !profile.interests.isEmpty {
-            context += "- Interesses: \(profile.interests.joined(separator: ", "))\n"
-        }
-        if !profile.improvementAreas.isEmpty {
-            context += "- Áreas de Foco/Melhoria: \(profile.improvementAreas.joined(separator: ", "))\n"
-        }
-        if !profile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            context += "- Relato Inicial do Usuário (Onboarding): \"\(profile.contextNote)\"\n"
-        }
-        return context
-    }
-    
-    private func buildCheckInHistoryContext(moods: [Mood]) -> String {
-        guard !moods.isEmpty else { return "Nenhum check-in registrado ainda.\n" }
-
-        var context = "Histórico de Check-ins Emocionais (mais recentes primeiro, máx 10, notas truncadas por privacidade):\n"
-        let sortedMoods = moods.sorted(by: { $0.timestamp > $1.timestamp })
-        
-        for mood in sortedMoods.prefix(10) {
-            let dateStr = formatDate(mood.timestamp)
-            context += "- \(dateStr): Sente-se \(mood.type.rawValue)"
-            if let intensity = mood.intensity {
-                context += " (Intensidade: \(intensity)/10)"
-            }
-            if let energy = mood.energyLevel {
-                context += ", Energia: \(energy.rawValue)"
-            }
-            if let control = mood.controlLevel {
-                context += ", Controle: \(control.rawValue)"
-            }
-            if let sleep = mood.sleepQuality {
-                context += ", Sono: \(sleep.rawValue)"
-            }
-            if !mood.triggers.isEmpty {
-                context += ", Gatilhos: [\(mood.triggers.joined(separator: ", "))]"
-            }
-            if let area = mood.affectedArea {
-                context += ", Área Afetada: \(area.rawValue)"
-            }
-            if !mood.bodySignals.isEmpty {
-                context += ", Sinais Físicos: [\(mood.bodySignals.joined(separator: ", "))]"
-            }
-            if let note = mood.note, !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                let safe = String(note.trimmingCharacters(in: .whitespacesAndNewlines).prefix(120))
-                context += ", Notas: \"\(safe)\""
-            }
-            context += "\n"
-        }
-        
         return context
     }
     
     private func buildChatContext(sessions: [ChatSession]) -> String {
-        guard !sessions.isEmpty else { return "Nenhuma conversa de chat registrada ainda.\n" }
-        
-        var context = "Conversas de Chat Recentes (máx 2 sessões x 6 msgs, truncadas):\n"
-        let sortedSessions = sessions.sorted(by: { $0.lastMessageAt > $1.lastMessageAt })
-        for session in sortedSessions.prefix(2) {
-            context += "- Sessão do dia \(formatDate(session.createdAt)):\n"
-            for message in session.messages.suffix(6) {
-                let sender = message.isFromUser ? "Usuário" : "Venus"
-                let raw = ThinkingStreamFilter.clean(message.content)
-                let content = String(raw.prefix(300))
-                context += "  [\(sender)]: \(content)\n"
-            }
-            context += "\n"
-        }
-        return context
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd/MM/yyyy HH:mm"
-        return formatter.string(from: date)
-    }
-    
-    private func cleanJsonText(_ text: String) -> String {
-        let withoutThinking = ThinkingStreamFilter.clean(text)
-        let clean = withoutThinking.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        if let jsonBlockStart = clean.range(of: "```json") {
-            let afterStart = clean[jsonBlockStart.upperBound...]
-            if let endRange = afterStart.range(of: "```") {
-                return String(afterStart[..<endRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-        }
-        
-        if let blockStart = clean.range(of: "```") {
-            let afterStart = clean[blockStart.upperBound...]
-            if let endRange = afterStart.range(of: "```") {
-                return String(afterStart[..<endRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-        }
-        
-        if let firstBrace = clean.firstIndex(of: "{"),
-           let lastBrace = clean.lastIndex(of: "}"),
-           firstBrace <= lastBrace {
-            return String(clean[firstBrace...lastBrace]).trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        
-        return clean
+        let insights = sessions.flatMap { $0.userInsights }.suffix(5)
+        guard !insights.isEmpty else { return "" }
+        return "Insights de conversas recentes: " + insights.joined(separator: "; ")
     }
     
     private func cleanResponse(_ response: String) -> String {
-        let withoutThinking = ThinkingStreamFilter.clean(response)
-        return withoutThinking
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "**", with: "")
-            .replacingOccurrences(of: "*", with: "")
+        response.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
-    private func parseEmotionalState(from jsonString: String, fallbackScore: Double = 0.0) throws -> EmotionalState {
-        guard let data = jsonString.data(using: .utf8),
-              let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return EmotionalState.neutral()
-        }
-        
-        let emotionString = json["primary_emotion"] as? String ?? "neutral"
-        let intensity = json["intensity"] as? Int ?? 5
-        let needsSupport = json["needs_support"] as? Bool ?? false
-        let keywords = json["keywords"] as? [String] ?? []
-        let emotion = EmotionType(rawValue: emotionString) ?? .neutral
-        
-        return EmotionalState(
-            primaryEmotion: emotion,
-            intensity: intensity,
-            needsSupport: needsSupport,
-            keywords: keywords,
-            sentimentScore: fallbackScore,
-            isCrisisRisk: false
-        )
+    private func cleanResponseText(_ response: String) -> String {
+        ThinkingStreamFilter.clean(response).trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
-    private func cleanResponseText(_ text: String) -> String {
-        var clean = ThinkingStreamFilter.clean(text)
-        
-        if clean.contains("\"response\":"),
-           let data = cleanJsonText(clean).data(using: .utf8),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let responseVal = json["response"] as? String {
-            clean = ThinkingStreamFilter.clean(responseVal)
+    private func cleanJsonText(_ response: String) -> String {
+        var clean = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.hasPrefix("```json") {
+            clean = String(clean.dropFirst(7))
+        } else if clean.hasPrefix("```") {
+            clean = String(clean.dropFirst(3))
         }
-        
-        if clean.hasPrefix("```") {
-            if let firstLineEnd = clean.firstIndex(of: "\n") {
-                clean = String(clean[firstLineEnd...]).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-            if clean.hasSuffix("```") {
-                clean = String(clean.dropLast(3)).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+        if clean.hasSuffix("```") {
+            clean = String(clean.dropLast(3))
         }
-        
         return clean.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
-
-// Backward compatibility typealiases
-typealias VenusAIService = OpenRouterService
-typealias GeminiService = OpenRouterService
-typealias GeminiServiceImpl = OpenRouterService

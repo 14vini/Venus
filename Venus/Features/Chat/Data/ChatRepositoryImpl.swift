@@ -21,6 +21,16 @@ final class ChatRepositoryImpl: ChatRepositoryProtocol {
         try data.write(to: fileURL)
     }
     
+    func saveSession(_ session: ChatSession) async throws {
+        var sessions = (try? await loadSessions()) ?? []
+        if let index = sessions.firstIndex(where: { $0.id == session.id }) {
+            sessions[index] = session
+        } else {
+            sessions.append(session)
+        }
+        try await saveSessions(sessions)
+    }
+    
     func loadSessions() async throws -> [ChatSession] {
         guard fileManager.fileExists(atPath: fileURL.path) else {
             return []
