@@ -73,6 +73,11 @@ struct VenusApp: App {
         do {
             if let savedProfile = try await profileRepository.load() {
                 userProfile = savedProfile
+                userProfile.isOnboardingComplete = true
+            } else {
+                userProfile.name = "Kauã"
+                userProfile.isOnboardingComplete = true
+                try? await profileRepository.save(profile: userProfile)
             }
         } catch {
             print("Error loading profile: \(error)")

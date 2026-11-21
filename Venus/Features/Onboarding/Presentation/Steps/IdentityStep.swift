@@ -27,7 +27,7 @@ struct IdentityStep: View {
         VStack(alignment: .leading, spacing: 24) {
             // Question Header
             Text("Como posso te chamar?")
-                .font(.system(size: 28, weight: .black, design: .rounded))
+                .font(.system(size: 28, weight: .light, design: .rounded))
                 .foregroundStyle(VenusTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(2)
@@ -35,9 +35,9 @@ struct IdentityStep: View {
             // Clean Borderless Name Input
             VStack(alignment: .leading, spacing: 8) {
                 TextField("Digite seu nome...", text: $inputName)
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(.system(size: 24, weight: .light, design: .rounded))
                     .foregroundColor(VenusTheme.text)
-                    .tint(VenusTheme.primary)
+                    .tint(OnboardingVisualPalette.lilac)
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
                     .textInputAutocapitalization(.words)
@@ -55,7 +55,7 @@ struct IdentityStep: View {
                     }
                 
                 Rectangle()
-                    .fill(isInputFocused ? VenusTheme.primary : VenusTheme.textSecondary.opacity(0.25))
+                    .fill(isInputFocused ? OnboardingVisualPalette.lilac : VenusTheme.textSecondary.opacity(0.25))
                     .frame(height: 1.5)
                     .animation(.easeInOut(duration: 0.2), value: isInputFocused)
             }
@@ -78,19 +78,25 @@ struct IdentityStep: View {
                             }
                         } label: {
                             Text(option)
-                                .font(.system(.subheadline, design: .rounded).weight(isSelected ? .bold : .medium))
+                                .font(.system(.subheadline, design: .rounded).weight(isSelected ? .semibold : .regular))
                                 .foregroundColor(isSelected ? .white : VenusTheme.text)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 10)
-                                .background(
-                                    isSelected ? VenusTheme.primaryGradient : LinearGradient(colors: [Color.white.opacity(0.12), Color.white.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                                    in: Capsule()
-                                )
-                                .overlay(
-                                    Capsule()
-                                        .stroke(isSelected ? Color.clear : Color.white.opacity(0.15), lineWidth: 1)
-                                )
-                                .shadow(color: isSelected ? VenusTheme.primary.opacity(0.25) : .clear, radius: 8, x: 0, y: 4)
+                                .background {
+                                    if isSelected {
+                                        Capsule(style: .continuous)
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [OnboardingVisualPalette.lilac, OnboardingVisualPalette.rose],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                    } else {
+                                        Capsule(style: .continuous)
+                                            .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
+                                    }
+                                }
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(option)

@@ -10,7 +10,9 @@ import SwiftUI
 struct EmotionalInsightsView: View {
     let emotionalState: EmotionalState?
     let onSuggestionTap: (String) -> Void
-    
+
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         if let state = emotionalState {
             VStack(spacing: 12) {
@@ -38,8 +40,11 @@ struct EmotionalInsightsView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .neumorphicCard(cornerRadius: 16, style: .raised, depth: 4)
+            .padding(.vertical, 14)
+            .glassEffect(
+                .regular.tint(VenusChatVisualStyle.panelTint(isDark: colorScheme == .dark)),
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
         }
     }
     

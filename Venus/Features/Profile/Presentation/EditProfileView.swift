@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct EditProfileView: View {
     @Binding var showSheet: Bool
@@ -52,13 +53,13 @@ struct EditProfileView: View {
     
     var body: some View {
         Form {
-            Section(header: Text("Informações Básicas")) {
+            Section(header: sectionHeader("INFORMAÇÕES BÁSICAS")) {
                 TextField("Nome", text: $name)
-                    .font(.system(.subheadline, design: .rounded).weight(.medium))
-                
+                    .font(.system(size: 15, design: .rounded).weight(.regular))
+
                 TextField("Meta Principal", text: $primaryGoal)
-                    .font(.system(.subheadline, design: .rounded).weight(.medium))
-                
+                    .font(.system(size: 15, design: .rounded).weight(.regular))
+
                 Picker("Tom da Venus", selection: $coachingTone) {
                     Text("Acolhedor").tag("Acolhedor")
                     Text("Socrático (Espelho Lúcido)").tag("Socrático")
@@ -66,59 +67,73 @@ struct EditProfileView: View {
                     Text("Motivador").tag("Motivador")
                     Text("Normal").tag("Normal")
                 }
-                .font(.system(.subheadline, design: .rounded))
-                
-                Stepper(value: $dailyTimeBudgetMinutes, in: 5...120, step: 5) {
-                    Text("Tempo diário: \(dailyTimeBudgetMinutes) minutos")
-                        .font(.system(.subheadline, design: .rounded).weight(.medium))
+                .font(.system(size: 15, design: .rounded).weight(.regular))
+
+                Stepper(value: venusHapticBinding($dailyTimeBudgetMinutes), in: 5...120, step: 5) {
+                    HStack(spacing: 2) {
+                        Text("Tempo diário:")
+                            .font(.system(size: 14, design: .rounded).weight(.regular))
+
+                        Text("\(dailyTimeBudgetMinutes) min")
+                            .font(.system(size: 14, design: .rounded).weight(.semibold))
+                    }
                 }
             }
-            
-            Section(header: Text("Autoconhecimento & Princípios")) {
+
+            Section(header: sectionHeader("AUTOCONHECIMENTO & PRINCÍPIOS")) {
                 DisclosureGroup("Valores Inegociáveis (\(selectedCoreValues.count) selecionados)") {
                     checkboxList(options: allCoreValues, selected: $selectedCoreValues)
                 }
+                .font(.system(size: 15, design: .rounded).weight(.regular))
             }
-            
-            Section(header: Text("Rotina de Trabalho")) {
-                Toggle("Tenho expediente de trabalho", isOn: $hasWork)
-                
+
+            Section(header: sectionHeader("ROTINA DE TRABALHO")) {
+                Toggle("Tenho expediente de trabalho", isOn: venusHapticBinding($hasWork))
+                    .font(.system(size: 15, design: .rounded).weight(.regular))
+
                 if hasWork {
                     DatePicker("Início", selection: $workStartTime, displayedComponents: .hourAndMinute)
                     DatePicker("Término", selection: $workEndTime, displayedComponents: .hourAndMinute)
                 }
             }
-            
-            Section(header: Text("Rotina de Estudos")) {
-                Toggle("Estudo ativamente", isOn: $studies)
-                
+
+            Section(header: sectionHeader("ROTINA DE ESTUDOS")) {
+                Toggle("Estudo ativamente", isOn: venusHapticBinding($studies))
+                    .font(.system(size: 15, design: .rounded).weight(.regular))
+
                 if studies {
                     DatePicker("Início", selection: $studyStartTime, displayedComponents: .hourAndMinute)
                     DatePicker("Término", selection: $studyEndTime, displayedComponents: .hourAndMinute)
                 }
             }
-            
-            Section(header: Text("Áreas de Foco")) {
+
+            Section(header: sectionHeader("ÁREAS DE FOCO")) {
                 DisclosureGroup("Melhorias desejadas") {
                     checkboxList(options: allImprovementAreas, selected: $selectedImprovementAreas)
                 }
+                .font(.system(size: 15, design: .rounded).weight(.regular))
+
                 DisclosureGroup("Prioridades emocionais") {
                     checkboxList(options: allEmotionalAreas, selected: $selectedEmotionalAreas)
                 }
+                .font(.system(size: 15, design: .rounded).weight(.regular))
             }
-            
-            Section(header: Text("Interesses e Hobbies")) {
+
+            Section(header: sectionHeader("INTERESSES E HOBBIES")) {
                 DisclosureGroup("Interesses") {
                     checkboxList(options: allInterests, selected: $selectedInterests)
                 }
-                
+                .font(.system(size: 15, design: .rounded).weight(.regular))
+
                 DisclosureGroup("Hobbies Atuais") {
                     checkboxList(options: allHobbies, selected: $selectedCurrentHobbies)
                 }
-                
+                .font(.system(size: 15, design: .rounded).weight(.regular))
+
                 DisclosureGroup("Hobbies Desejados") {
                     checkboxList(options: allHobbies.filter { !selectedCurrentHobbies.contains($0) }, selected: $selectedDesiredHobbies)
                 }
+                .font(.system(size: 15, design: .rounded).weight(.regular))
             }
         }
         .navigationTitle("Editar Perfil")
@@ -126,17 +141,19 @@ struct EditProfileView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancelar") {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     showSheet = false
                 }
             }
-            
+
             ToolbarItem(placement: .confirmationAction) {
                 Button("Salvar") {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     saveChanges()
                     onSave()
                     showSheet = false
                 }
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
             }
         }
         .onAppear(perform: loadCurrentProfileValues)
@@ -190,10 +207,18 @@ struct EditProfileView: View {
         Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date()) ?? Date()
     }
     
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 10, design: .rounded).weight(.semibold))
+            .kerning(1.2)
+            .foregroundStyle(VenusTheme.textSecondary)
+    }
+
     @ViewBuilder
     private func checkboxList(options: [String], selected: Binding<Set<String>>) -> some View {
         ForEach(options, id: \.self) { option in
             Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 if selected.wrappedValue.contains(option) {
                     selected.wrappedValue.remove(option)
                 } else {
@@ -202,12 +227,13 @@ struct EditProfileView: View {
             } label: {
                 HStack {
                     Text(option)
-                        .foregroundColor(VenusTheme.text)
+                        .font(.system(size: 15, design: .rounded).weight(.regular))
+                        .foregroundStyle(VenusTheme.text)
                     Spacer()
                     if selected.wrappedValue.contains(option) {
                         Image(systemName: "checkmark")
-                            .foregroundColor(VenusTheme.primary)
-                            .fontWeight(.bold)
+                            .foregroundStyle(VenusTheme.primary)
+                            .font(.system(size: 13, weight: .semibold))
                     }
                 }
             }

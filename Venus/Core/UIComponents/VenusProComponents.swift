@@ -11,6 +11,8 @@ struct VenusProBadge: View {
     var title: String = "Venus Pro"
     var compact: Bool = false
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         HStack(spacing: compact ? 6 : 8) {
             Image(systemName: "crown.fill")
@@ -23,13 +25,9 @@ struct VenusProBadge: View {
         .foregroundColor(VenusTheme.accentPurpleDeep)
         .padding(.horizontal, compact ? 10 : 12)
         .padding(.vertical, compact ? 7 : 8)
-        .background(
-            Capsule()
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Capsule()
-                        .fill(VenusTheme.proGradient.opacity(0.16))
-                )
+        .glassEffect(
+            .regular.tint(VenusTheme.accentPurple.opacity(colorScheme == .dark ? 0.16 : 0.10)),
+            in: Capsule(style: .continuous)
         )
     }
 }
@@ -37,26 +35,13 @@ struct VenusProBadge: View {
 private struct VenusProGlassCardStyle: ViewModifier {
     let cornerRadius: CGFloat
 
+    @Environment(\.colorScheme) private var colorScheme
+
     func body(content: Content) -> some View {
         content
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(.ultraThinMaterial)
-
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    VenusTheme.accentPurple.opacity(0.14),
-                                    VenusTheme.accentPurpleDeep.opacity(0.07),
-                                    Color.white.opacity(0.06)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                }
+            .glassEffect(
+                .regular.tint(VenusTheme.accentPurple.opacity(colorScheme == .dark ? 0.12 : 0.07)),
+                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             )
     }
 }

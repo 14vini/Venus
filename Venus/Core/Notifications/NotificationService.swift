@@ -21,11 +21,15 @@ final class NotificationService: NotificationServiceProtocol {
     private let center = UNUserNotificationCenter.current()
 
     func requestAuthorization() async -> Bool {
+        #if targetEnvironment(simulator)
+        return false
+        #else
         do {
             return try await center.requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
             return false
         }
+        #endif
     }
 
     func scheduleReminder(text: String, inSeconds timeInterval: TimeInterval = 3600) async -> Bool {

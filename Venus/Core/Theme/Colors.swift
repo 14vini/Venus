@@ -269,7 +269,25 @@ struct VenusTheme {
     })
     
     static let darkGreen = accentGreen
-    
+
+    // MARK: - Soft gradient (nova direção visual — fundo azul → lilás → rosa)
+    // Tokens aditivos: o restante da paleta permanece intacto (sem quebrar VenusTheme).
+    static let softBlue = Color(dynamicProvider(light: "#DCE9FF", dark: "#1B2342"))
+    static let softLilac = Color(dynamicProvider(light: "#E9DEFF", dark: "#2A2047"))
+    static let softPink = Color(dynamicProvider(light: "#FFE1EE", dark: "#3A243A"))
+
+    /// Gradiente do botão central de check-in (azul → lilás), ecoando a referência visual.
+    static var checkInGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(dynamicProvider(light: "#5B6FE8", dark: "#7C8DF5")),
+                Color(dynamicProvider(light: "#8A5BE0", dark: "#A77DF0"))
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
     // Helper to create dynamic UIColor
     private static func dynamicProvider(light: String, dark: String) -> UIColor {
         return UIColor { traitCollection in

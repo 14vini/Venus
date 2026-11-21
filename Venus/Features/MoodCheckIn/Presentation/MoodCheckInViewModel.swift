@@ -201,7 +201,7 @@ final class MoodCheckInViewModel {
         }
     }
     
-    /// Check-in rápido de 10s: salva só humor + energia, resto nil.
+    /// Check-in rápido de 10s: salva humor + energia e os campos preenchidos.
     func saveQuickCheckIn() {
         guard let mood = selectedMood else { return }
         savedSuccess = false
@@ -212,14 +212,14 @@ final class MoodCheckInViewModel {
                 _ = try await saveMoodUseCase.execute(
                     type: mood,
                     intensity: Int(selectedIntensity),
-                    triggers: [],
-                    affectedArea: nil,
+                    triggers: selectedTags.sorted(),
+                    affectedArea: selectedAffectedArea,
                     energyLevel: energy,
-                    availableTime: nil,
-                    controlLevel: nil,
+                    availableTime: selectedAvailableTime,
+                    controlLevel: selectedControlLevel,
                     mentalClarity: Int(selectedMentalClarity),
-                    sleepQuality: nil,
-                    bodySignals: [],
+                    sleepQuality: selectedSleepQuality,
+                    bodySignals: normalizedBodySignals(),
                     note: sanitizedNote()
                 )
                 self.isSaving = false

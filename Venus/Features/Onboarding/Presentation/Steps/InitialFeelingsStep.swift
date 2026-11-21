@@ -22,7 +22,7 @@ struct InitialFeelingsStep: View {
         VStack(alignment: .leading, spacing: 20) {
             // Question Header (sem subtítulo)
             Text("Como costuma ser sua rotina e o que mais tem ocupado sua mente ultimamente, \(displayName)?")
-                .font(.system(size: 26, weight: .black, design: .rounded))
+                .font(.system(size: 26, weight: .light, design: .rounded))
                 .foregroundStyle(VenusTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(2)
@@ -41,7 +41,7 @@ struct InitialFeelingsStep: View {
                 TextEditor(text: $textInput)
                     .font(.system(size: 19, weight: .medium, design: .rounded))
                     .foregroundColor(VenusTheme.text)
-                    .tint(VenusTheme.accentBlue)
+                    .tint(OnboardingVisualPalette.lilac)
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
                     .frame(minHeight: 180, maxHeight: 300)

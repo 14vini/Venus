@@ -28,28 +28,9 @@ struct VenusGlassPill: View {
         .foregroundColor(tint)
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .background(
-            Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .opacity(colorScheme == .dark ? 0.72 : 0.92)
-                .overlay(
-                    Capsule(style: .continuous)
-                        .fill(tint.opacity(colorScheme == .dark ? 0.10 : 0.06))
-                        .blendMode(.overlay)
-                )
-                .overlay(
-                    Capsule(style: .continuous)
-                        .fill(LinearGradient(
-                            colors: [
-                                Color.white.opacity(colorScheme == .dark ? 0.14 : 0.22),
-                                Color.clear,
-                                Color.white.opacity(colorScheme == .dark ? 0.06 : 0.10)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                        .blendMode(.overlay)
-                )
+        .glassEffect(
+            .regular.tint(tint.opacity(colorScheme == .dark ? 0.14 : 0.08)),
+            in: Capsule(style: .continuous)
         )
     }
 }

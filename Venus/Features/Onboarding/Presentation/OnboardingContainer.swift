@@ -27,7 +27,6 @@ struct OnboardingContainer: View {
     private let venusAI: VenusAIServiceProtocol = DependencyContainer.shared.makeVenusAIService()
     private let healthKitService: HealthKitServiceProtocol = DependencyContainer.shared.makeHealthKitService()
     
-    @Environment(\.colorScheme) private var colorScheme
     @State private var bottomControlsHeight: CGFloat = 0
     
     init(userProfile: UserProfile, initialStep: Int = 0) {
@@ -119,7 +118,7 @@ struct OnboardingContainer: View {
                 currentStep = 1
             }
         })
-        .transition(.opacity)
+        .transition(stepTransition)
         .zIndex(1)
     }
 
@@ -128,7 +127,7 @@ struct OnboardingContainer: View {
             Spacer(minLength: 0)
             ZStack(alignment: .top) {
                 contentView
-                    .safeAreaPadding(.top, 70)
+                    .safeAreaPadding(.top, 98)
                     .safeAreaPadding(.bottom, max(110, bottomControlsHeight + 16))
 
                 topHUDView
@@ -153,13 +152,18 @@ struct OnboardingContainer: View {
                     currentStepView
                         .id(currentStep)
                         .transition(stepTransition)
-                        .safeAreaPadding(.top, 40)
+                        .safeAreaPadding(.top, 132)
                         .safeAreaPadding(.bottom, max(120, bottomControlsHeight + 20))
                 }
                 
                 bottomControlsView
                     .safeAreaPadding(.bottom, 12)
                     .frame(maxWidth: .infinity)
+            }
+            .overlay(alignment: .top) {
+                OnboardingJourneyHeader(currentStep: currentStep)
+                    .padding(.horizontal, 28)
+                    .padding(.top, 8)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .frame(maxWidth: 500)
@@ -168,9 +172,16 @@ struct OnboardingContainer: View {
     }
 
     private var topHUDView: some View {
-        HStack {
-            topBackButton
-            Spacer()
+        VStack(spacing: 6) {
+            GlassEffectContainer(spacing: 8) {
+                HStack {
+                    topBackButton
+                    Spacer()
+                }
+            }
+
+            OnboardingJourneyHeader(currentStep: currentStep)
+                .padding(.horizontal, 4)
         }
         .padding(.horizontal, 24)
     }
@@ -201,7 +212,7 @@ struct OnboardingContainer: View {
                             .frame(height: 1)
                             .id("top")
 
-                        if currentStep >= 1 && currentStep <= 3 {
+                        if currentStep >= 1 && currentStep <= 4 {
                             OnboardingMascotCompanionView(
                                 currentStep: currentStep,
                                 userProfile: $userProfile
@@ -256,54 +267,21 @@ struct OnboardingContainer: View {
     }
 
     private var nextButton: some View {
-        Button {
+        let isBusy = isRequestingHealth || isLoadingAIProfile
+
+        return Button {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             goToNextStep()
         } label: {
-            HStack(spacing: 8) {
-                if isRequestingHealth || isLoadingAIProfile {
-                    ProgressView()
-                        .tint(.white)
-                    Text(isRequestingHealth ? "Conectando..." : "Preparando seu espaço...")
-                        .font(.system(.headline, design: .rounded).weight(.bold))
-                } else {
-                    Text(nextButtonTitle)
-                        .font(.system(.headline, design: .rounded).weight(.black))
-                    Image(systemName: nextButtonIcon)
-                        .font(.system(size: 14, weight: .black))
-                }
-            }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .background(
-                (canProceed ? palette.buttonGradient : palette.disabledGradient),
-                in: Capsule(style: .continuous)
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .fill(LinearGradient(
-                        colors: [
-                            Color.white.opacity(colorScheme == .dark ? 0.16 : 0.22),
-                            Color.clear,
-                            Color.white.opacity(colorScheme == .dark ? 0.08 : 0.12)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-                    .blendMode(.overlay)
-            )
-            .shadow(
-                color: canProceed ? palette.accent.opacity(colorScheme == .dark ? 0.24 : 0.28) : .clear,
-                radius: 16,
-                x: 0,
-                y: 10
+            OnboardingJourneyCTALabel(
+                title: nextButtonTitle,
+                systemImage: nextButtonIcon,
+                isLoading: isBusy
             )
         }
-        .buttonStyle(.plain)
         .buttonStyle(OnboardingPressableButtonStyle())
-        .disabled(!canProceed || isRequestingHealth || isLoadingAIProfile)
-        .opacity(canProceed ? 1 : 0.70)
+        .disabled(!canProceed || isBusy)
+        .opacity(canProceed ? 1 : 0.62)
         .accessibilityLabel(nextButtonTitle)
     }
     
@@ -480,12 +458,15 @@ struct OnboardingContainer: View {
     private func advanceToHealthStep() {
         compileAnswersToProfile()
         preloadAIProfile()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
             currentStep = 4
         }
     }
-    
+
     private func advanceToRevealStep() {
+        // Conclusão da coleta: confirmação tátil suave.
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
             currentStep = 5
         }
@@ -521,6 +502,7 @@ struct OnboardingContainer: View {
     
     private func finishOnboarding() {
         compileAnswersToProfile()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         userProfile.isOnboardingComplete = true
         Task {
             let repo = DependencyContainer.shared.makeUserProfileRepository()

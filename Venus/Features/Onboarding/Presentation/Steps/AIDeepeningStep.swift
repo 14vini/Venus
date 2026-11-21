@@ -45,7 +45,7 @@ struct AIDeepeningStep: View {
             // Empathy Reaction from Venus (limpo, sem emojis, sem travessao)
             if let reaction = aiQuestion?.empathyReaction, !reaction.isEmpty {
                 Text(reaction)
-                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                    .font(.system(.subheadline, design: .rounded).weight(.regular))
                     .foregroundColor(VenusTheme.text)
                     .lineSpacing(2)
                     .padding(.horizontal, 14)
@@ -54,11 +54,11 @@ struct AIDeepeningStep: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
             
-            // Dynamic Question with Typewriter & Blinking Cursor (Sem texto de pensando)
+            // Pergunta dinâmica com máquina de escrever e cursor (sem texto de processo)
             HStack(alignment: .top, spacing: 2) {
                 if !displayedQuestion.isEmpty {
                     Text(displayedQuestion)
-                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .font(.system(size: 26, weight: .light, design: .rounded))
                         .foregroundStyle(VenusTheme.text)
                         .fixedSize(horizontal: false, vertical: true)
                         .lineSpacing(2)

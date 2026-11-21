@@ -10,24 +10,25 @@ import SwiftUI
 struct MyDayView: View {
     @State private var viewModel: MyDayViewModel
     @Environment(\.dismiss) private var dismiss
-    
+
+    @State private var contentAppeared = false
+
     init(viewModel: MyDayViewModel? = nil) {
         _viewModel = State(initialValue: viewModel ?? MyDayViewModel())
     }
-    
+
     var body: some View {
         NavigationStack {
             ZStack {
                 VenusReadingBackground(dayMoment: .current, isAnimated: true)
-                
+
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 20) {
-                        
-                        // Venus Daily Focus Banner
                         dailyFocusBanner
-                        
+                            .opacity(contentAppeared ? 1 : 0)
+                            .offset(y: contentAppeared ? 0 : 14)
+
                         if let plan = viewModel.currentPlan, !plan.blocks.isEmpty {
-                            // Top 3 Priorities
                             if !viewModel.topPriorities.isEmpty {
                                 MyDayPrioritiesView(
                                     priorities: viewModel.topPriorities,
@@ -35,26 +36,13 @@ struct MyDayView: View {
                                         viewModel.completeBlock(id: blockId)
                                     }
                                 )
+                                .opacity(contentAppeared ? 1 : 0)
+                                .offset(y: contentAppeared ? 0 : 16)
                             }
-                            
-                            // Timeline Section Header & Progress
-                            HStack {
-                                Label("Linha do Tempo", systemImage: "clock.fill")
-                                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                                    .foregroundColor(VenusTheme.text)
-                                
-                                Spacer()
-                                
-                                Text("\(viewModel.completedCount) de \(viewModel.totalCount) feitos")
-                                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                                    .foregroundColor(VenusTheme.primary)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 4)
-                                    .background(VenusTheme.primary.opacity(0.12), in: Capsule())
-                            }
-                            .padding(.top, 6)
-                            
-                            // Timeline of Blocks
+
+                            timelineHeader
+                                .opacity(contentAppeared ? 1 : 0)
+
                             VStack(spacing: 12) {
                                 ForEach(viewModel.timelineBlocks) { block in
                                     PlannedBlockCardView(
@@ -79,8 +67,7 @@ struct MyDayView: View {
                                         }
                                     )
                                 }
-                                
-                                // Manual Add Block button in timeline
+
                                 Button {
                                     viewModel.startCreatingBlock()
                                 } label: {
@@ -92,25 +79,26 @@ struct MyDayView: View {
                                     }
                                     .foregroundColor(VenusTheme.primary)
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                                    .background(VenusTheme.cardSurface)
-                                    .cornerRadius(14)
+                                    .padding(.vertical, 13)
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 14)
-                                            .strokeBorder(VenusTheme.primary.opacity(0.3), style: StrokeStyle(lineWidth: 1.2, dash: [5]))
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .strokeBorder(
+                                                VenusTheme.primary.opacity(0.35),
+                                                style: StrokeStyle(lineWidth: 1.2, dash: [5])
+                                            )
                                     )
+                                    .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                                 }
                                 .buttonStyle(.plain)
                                 .padding(.top, 4)
                             }
-                            
-                            // Reorganize Button
+
                             reorganizeButton
                                 .padding(.top, 8)
                                 .padding(.bottom, 60)
-                            
+                                .opacity(contentAppeared ? 1 : 0)
+                                .offset(y: contentAppeared ? 0 : 12)
                         } else {
-                            // Empty State
                             MyDayEmptyStateView(
                                 onPlanWithVenus: {
                                     viewModel.openPlanChat()
@@ -121,10 +109,13 @@ struct MyDayView: View {
                             )
                             .padding(.top, 10)
                             .padding(.bottom, 60)
+                            .opacity(contentAppeared ? 1 : 0)
+                            .offset(y: contentAppeared ? 0 : 18)
                         }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.86).delay(0.05), value: contentAppeared)
                 }
             }
             .navigationTitle("Meu dia")
@@ -139,19 +130,17 @@ struct MyDayView: View {
                             .foregroundStyle(VenusTheme.text)
                     }
                 }
-                
+
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 14) {
-                        // Button to add block manually
+                    HStack(spacing: 10) {
                         Button {
                             viewModel.startCreatingBlock()
                         } label: {
                             Image(systemName: "plus")
                                 .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(VenusTheme.text)
                         }
-                        
-                        // Button to chat with Venus
+                        .buttonStyle(.glass)
+
                         Button {
                             viewModel.openPlanChat()
                         } label: {
@@ -159,6 +148,7 @@ struct MyDayView: View {
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(VenusTheme.primary)
                         }
+                        .buttonStyle(.glass)
                     }
                 }
             }
@@ -180,22 +170,25 @@ struct MyDayView: View {
             }
             .onAppear {
                 viewModel.onAppear()
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.86)) {
+                    contentAppeared = true
+                }
             }
         }
     }
-    
+
     // MARK: - Subviews
-    
+
     private var dailyFocusBanner: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("FOCO DO DIA")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .foregroundColor(VenusTheme.primary)
-                    .tracking(1.2)
-                
+                    .tracking(1.3)
+
                 Spacer()
-                
+
                 if let score = viewModel.readinessAssessment?.score {
                     HStack(spacing: 4) {
                         Image(systemName: "bolt.fill")
@@ -204,27 +197,41 @@ struct MyDayView: View {
                             .font(.system(size: 12, weight: .bold, design: .rounded))
                     }
                     .foregroundColor(VenusTheme.primary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(VenusTheme.primary.opacity(0.12), in: Capsule())
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .glassEffect(.regular, in: Capsule(style: .continuous))
                 }
             }
-            
+
             Text(viewModel.focusQuote)
-                .font(.system(size: 15, weight: .medium, design: .serif))
+                .font(.system(size: 16, weight: .light, design: .rounded))
                 .foregroundColor(VenusTheme.text)
-                .lineSpacing(3)
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(16)
+        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(VenusTheme.cardSurface)
-        .cornerRadius(18)
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
-        )
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
-    
+
+    private var timelineHeader: some View {
+        HStack {
+            Label("Linha do Tempo", systemImage: "clock.fill")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundColor(VenusTheme.text)
+
+            Spacer()
+
+            Text("\(viewModel.completedCount) de \(viewModel.totalCount) feitos")
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundColor(VenusTheme.primary)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 5)
+                .glassEffect(.regular, in: Capsule(style: .continuous))
+        }
+        .padding(.top, 6)
+    }
+
     private var reorganizeButton: some View {
         Button {
             viewModel.openReorganizeChat()
@@ -237,13 +244,8 @@ struct MyDayView: View {
             }
             .foregroundColor(VenusTheme.text)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 13)
-            .background(VenusTheme.surface)
-            .cornerRadius(14)
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-            )
+            .padding(.vertical, 14)
+            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
     }

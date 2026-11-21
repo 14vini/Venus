@@ -11,11 +11,9 @@ struct OnboardingMascotCompanionView: View {
     let currentStep: Int
     @Binding var userProfile: UserProfile
     var isTextFocused: Bool = false
-    
-    @Environment(\.colorScheme) private var colorScheme
-    
+
     // MARK: - Computed Mascot State & Mood
-    
+
     private var effectiveMood: MoodType {
         switch currentStep {
         case 1:
@@ -32,24 +30,23 @@ struct OnboardingMascotCompanionView: View {
             return .happy
         }
     }
-    
+
     private var effectiveState: VenusMascotState {
         switch currentStep {
         case 1:
             return userProfile.name.isEmpty ? .welcoming : .celebrating
         case 2:
             return userProfile.contextNote.isEmpty ? .curious : .empathetic
-        case 3:
-            return .thinking
-        case 4:
-            return .thinking
+        // A Venus escuta nos passos 3/4 — sem texto de processo na UI.
+        case 3, 4:
+            return .listening
         case 5:
             return .celebrating
         default:
             return .welcoming
         }
     }
-    
+
     private var speechText: String {
         switch currentStep {
         case 1:
@@ -58,23 +55,23 @@ struct OnboardingMascotCompanionView: View {
                 return "Que alegria te conhecer, \(name). É um prazer ter você aqui."
             }
             return "Olá, como você prefere que eu te chame?"
-            
+
         case 2:
             if !userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return "Entender seu ritmo diário nos dá a base perfeita para calibrar seus dias."
+                return "Entender seu ritmo nos dá a base perfeita para calibrar seus dias."
             }
             let name = userProfile.name.isEmpty ? "" : ", \(userProfile.name)"
             return "Como costuma ser seu ritmo e nível de energia\(name)?"
-            
+
         case 3:
-            return "Sintonizando com o que você me contou para entender como você funciona."
-            
+            return "Vamos conhecer um pouco mais da sua mente, uma pergunta de cada vez."
+
         case 4:
-            return "Analisando seus padrões de energia, foco e descanso."
-            
+            return "Cada resposta sua ajuda a desenhar o seu ritmo."
+
         case 5:
-            return "Mapeando o que é mais importante para potencializar sua rotina."
-            
+            return "Olhe só o quanto você já avançou."
+
         default:
             return "Estou pronta para começar."
         }
@@ -82,33 +79,32 @@ struct OnboardingMascotCompanionView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
-            // Interactive 2.5D Mascot
+            // Venus em código — ANTIGA, sem USDZ.
             VenusMoodOrb(
                 mood: effectiveMood,
                 state: effectiveState,
                 size: 80,
                 showFace: true,
                 showHands: true,
-                showShadow: true,
+                showShadow: false,
                 isInteractive: true
             )
             .frame(width: 80, height: 80)
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.22 : 0.06), radius: 8, x: 0, y: 3)
-            
-            // Reactive Speech Bubble
-            VStack(alignment: .leading, spacing: 4) {
+
+            // Balão de fala em vidro líquido real.
+            VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 5) {
                     Image(systemName: "sparkle")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(VenusTheme.primary)
+                        .foregroundStyle(OnboardingVisualPalette.lilac)
                     Text("Venus")
-                        .font(.system(size: 11, weight: .black, design: .rounded))
-                        .foregroundColor(VenusTheme.primary)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(VenusTheme.text)
                 }
-                
+
                 Text(speechText)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(VenusTheme.text)
+                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .foregroundStyle(VenusTheme.text)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
                     .contentTransition(.opacity)
@@ -117,27 +113,7 @@ struct OnboardingMascotCompanionView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .opacity(colorScheme == .dark ? 0.85 : 0.95)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(colorScheme == .dark ? 0.18 : 0.28),
-                                        Color.clear,
-                                        Color.white.opacity(colorScheme == .dark ? 0.06 : 0.12)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-            )
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.15 : 0.05), radius: 6, x: 0, y: 2)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 6)

@@ -10,12 +10,12 @@ import SwiftUI
 struct UserInsightsView: View {
     let session: ChatSession
     @Environment(\.dismiss) private var dismiss
-    
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         ZStack {
-            VenusTheme.backgroundGradient
-                .ignoresSafeArea()
-            
+            VenusChatBackground()
+
             VStack(spacing: 0) {
                 HStack {
                     Button("Fechar") { dismiss() }
@@ -38,8 +38,7 @@ struct UserInsightsView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Informações da Sessão")
-                                .font(.title2)
-                                .fontWeight(.bold)
+                                .font(.system(size: 20, weight: .light, design: .rounded))
                                 .foregroundColor(VenusTheme.text)
                             
                             VStack(alignment: .leading, spacing: 8) {
@@ -65,13 +64,15 @@ struct UserInsightsView: View {
                             .foregroundColor(VenusTheme.textSecondary)
                         }
                         .padding(20)
-                        .neumorphicCard(cornerRadius: 20, style: .raised, depth: 5)
+                        .glassEffect(
+                            .regular.tint(VenusChatVisualStyle.panelTint(isDark: colorScheme == .dark)),
+                            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        )
                         
                         if !session.userInsights.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("Temas Identificados")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
+                                    .font(.system(size: 20, weight: .light, design: .rounded))
                                     .foregroundColor(VenusTheme.text)
                                 
                                 LazyVStack(spacing: 8) {
@@ -92,13 +93,15 @@ struct UserInsightsView: View {
                                 }
                             }
                             .padding(20)
-                            .neumorphicCard(cornerRadius: 20, style: .raised, depth: 5)
+                            .glassEffect(
+                            .regular.tint(VenusChatVisualStyle.panelTint(isDark: colorScheme == .dark)),
+                            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        )
                         }
                         
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Resumo da Conversa")
-                                .font(.title2)
-                                .fontWeight(.bold)
+                                .font(.system(size: 20, weight: .light, design: .rounded))
                                 .foregroundColor(VenusTheme.text)
                             
                             Text(generateSummary())
@@ -107,7 +110,10 @@ struct UserInsightsView: View {
                                 .lineLimit(nil)
                         }
                         .padding(20)
-                        .neumorphicCard(cornerRadius: 20, style: .raised, depth: 5)
+                        .glassEffect(
+                            .regular.tint(VenusChatVisualStyle.panelTint(isDark: colorScheme == .dark)),
+                            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        )
                     }
                     .padding()
                 }

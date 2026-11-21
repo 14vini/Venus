@@ -7,56 +7,50 @@
 
 import SwiftUI
 
+/// Indicador de que a Venus está preparando uma resposta: apenas o mascot em
+/// pose `.thinking` com uma aura pulsante sutil. Sem texto, sem pontos, sem
+/// qualquer linguagem de processo.
 struct VenusThinkingView: View {
-    @State private var animateDots = false
     @Environment(\.colorScheme) private var colorScheme
-    
+    @State private var isPulsing = false
+
     var body: some View {
         HStack {
-            HStack(spacing: 8) {
-                HStack(spacing: 4.5) {
-                    ForEach(0..<3) { index in
-                        Circle()
-                            .fill(VenusTheme.primary)
-                            .frame(width: 7, height: 7)
-                            .scaleEffect(animateDots ? 1.2 : 0.7)
-                            .opacity(animateDots ? 1.0 : 0.35)
-                            .animation(
-                                .easeInOut(duration: 0.55)
-                                .repeatForever(autoreverses: true)
-                                .delay(Double(index) * 0.18),
-                                value: animateDots
-                            )
-                    }
-                }
-                
-                Text("Venus está refletindo...")
-                    .font(.system(.footnote, design: .rounded).weight(.medium))
-                    .foregroundColor(VenusTheme.textSecondary)
+            ZStack {
+                Circle()
+                    .fill(VenusChatVisualStyle.aura.opacity(colorScheme == .dark ? 0.16 : 0.26))
+                    .frame(width: 58, height: 58)
+                    .blur(radius: 13)
+                    .scaleEffect(isPulsing ? 1.14 : 0.92)
+                    .opacity(isPulsing ? 0.85 : 0.40)
+                    .accessibilityHidden(true)
+
+                VenusMoodOrb(
+                    state: .thinking,
+                    size: 42,
+                    showHands: false,
+                    showShadow: false,
+                    isInteractive: false
+                )
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 11)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(VenusTheme.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(VenusTheme.primary.opacity(colorScheme == .dark ? 0.2 : 0.1), lineWidth: 1)
-                    )
-            )
-            
+            .frame(width: 58, height: 58)
+            .accessibilityLabel("Venus")
+            .onAppear {
+                guard !isPulsing else { return }
+                withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+                    isPulsing = true
+                }
+            }
+
             Spacer(minLength: 40)
         }
-        .padding(.horizontal, 16)
-        .onAppear {
-            animateDots = true
-        }
+        .padding(.horizontal, 20)
     }
 }
 
 #Preview {
     ZStack {
-        VenusTheme.backgroundGradient.ignoresSafeArea()
+        VenusChatBackground()
         VenusThinkingView()
             .padding(20)
     }

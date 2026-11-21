@@ -137,8 +137,13 @@ final class MyDayViewModel {
         
         plan.blocks[index].status = status
         self.currentPlan = plan
-        haptic.impactOccurred()
-        
+
+        if status == .completed {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        } else {
+            haptic.impactOccurred()
+        }
+
         Task {
             try? await dailyPlanRepository.updateBlockStatus(planId: plan.id, blockId: id, status: status)
             if let refreshed = try? await dailyPlanRepository.getPlan(for: Date()) {

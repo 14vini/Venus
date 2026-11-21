@@ -11,7 +11,9 @@ struct ChatPlanningProposalCard: View {
     let proposal: AIPlanningResponse
     let isConfirmed: Bool
     let onConfirm: () -> Void
-    
+
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Header
@@ -21,7 +23,7 @@ struct ChatPlanningProposalCard: View {
                     .font(.system(size: 14, weight: .bold))
                 
                 Text(isConfirmed ? "Plano Diário Ativo" : "Proposta de Rotina")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundColor(VenusTheme.text)
                 
                 Spacer()
@@ -41,7 +43,7 @@ struct ChatPlanningProposalCard: View {
             // Reasoning summary
             if let reasoning = proposal.reasoningSummary, !reasoning.isEmpty {
                 Text(reasoning)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.system(size: 12, weight: .light, design: .rounded))
                     .foregroundColor(VenusTheme.textSecondary)
                     .lineLimit(2)
             }
@@ -67,10 +69,10 @@ struct ChatPlanningProposalCard: View {
                             .font(.system(size: 11, weight: .medium, design: .monospaced))
                             .foregroundColor(VenusTheme.textSecondary)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(VenusTheme.surface.opacity(0.7))
-                    .cornerRadius(8)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(VenusTheme.surface.opacity(0.35))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
                 
                 if proposal.proposedBlocks.count > 5 {
@@ -94,29 +96,21 @@ struct ChatPlanningProposalCard: View {
                             .font(.system(size: 13, weight: .semibold, design: .rounded))
                         Spacer()
                     }
-                    .foregroundColor(.white)
-                    .padding(.vertical, 9)
-                    .background(
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [VenusTheme.primary, VenusTheme.accentPurple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
+                    .foregroundColor(VenusTheme.text)
+                    .padding(.vertical, 10)
+                    .glassEffect(
+                        .regular.tint(VenusChatVisualStyle.panelTint(isDark: colorScheme == .dark)),
+                        in: Capsule(style: .continuous)
                     )
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 4)
             }
         }
-        .padding(12)
-        .background(VenusTheme.cardSurface)
-        .cornerRadius(14)
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(isConfirmed ? Color.green.opacity(0.3) : VenusTheme.primary.opacity(0.25), lineWidth: 1)
+        .padding(16)
+        .glassEffect(
+            .regular.tint(VenusChatVisualStyle.panelTint(isDark: colorScheme == .dark)),
+            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
         )
         .frame(maxWidth: UIScreen.main.bounds.width * 0.85)
     }

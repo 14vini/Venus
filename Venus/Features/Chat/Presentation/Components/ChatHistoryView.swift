@@ -49,9 +49,8 @@ struct ChatHistoryView: View {
     
     var body: some View {
         ZStack {
-            VenusTheme.backgroundGradient
-                .ignoresSafeArea()
-            
+            VenusChatBackground()
+
             VStack(spacing: 0) {
                 HStack {
                     Button("Fechar") { dismiss() }
@@ -102,7 +101,9 @@ struct ChatSessionCard: View {
     let onTap: () -> Void
     let onDelete: () -> Void
     let onShowInsights: () -> Void
-    
+
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         Button(action: onTap) {
             HStack {
@@ -137,9 +138,11 @@ struct ChatSessionCard: View {
                     .buttonStyle(PlainButtonStyle())
                 }
             }
-            .padding()
-            .background(VenusTheme.surface)
-            .cornerRadius(16)
+            .padding(16)
+            .glassEffect(
+                .regular.tint(VenusChatVisualStyle.panelTint(isDark: colorScheme == .dark)),
+                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+            )
         }
         .buttonStyle(PlainButtonStyle())
     }

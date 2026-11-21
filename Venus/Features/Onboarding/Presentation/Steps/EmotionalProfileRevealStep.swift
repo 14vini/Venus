@@ -104,7 +104,7 @@ struct EmotionalProfileRevealStep: View {
                     size: 110,
                     showFace: true,
                     showHands: true,
-                    showShadow: true,
+                    showShadow: false,
                     isInteractive: true
                 )
                 .frame(width: 110, height: 110)
@@ -113,7 +113,7 @@ struct EmotionalProfileRevealStep: View {
                     Image(systemName: "sparkles")
                         .font(.system(size: 12, weight: .bold))
                     Text(result.badge)
-                        .font(.system(.caption, design: .rounded).weight(.black))
+                        .font(.system(.caption, design: .rounded).weight(.semibold))
                 }
                 .foregroundStyle(result.color)
                 .padding(.horizontal, 14)
@@ -121,15 +121,14 @@ struct EmotionalProfileRevealStep: View {
                 .glassEffect(.regular, in: Capsule())
                 
                 Text(result.title)
-                    .font(.system(size: 24, weight: .black, design: .rounded))
+                    .font(.system(size: 24, weight: .light, design: .rounded))
                     .foregroundStyle(VenusTheme.text)
                     .multilineTextAlignment(.center)
             }
             .padding(.top, 8)
             
-            // Warm Diagnosis Card
-            VenusCard(cornerRadius: 28, padding: 20) {
-                VStack(alignment: .leading, spacing: 16) {
+            // Warm Diagnosis Card — vidro líquido real, sem sombra pesada.
+            VStack(alignment: .leading, spacing: 16) {
                     Text(result.subtitle)
                         .font(.system(.subheadline, design: .rounded).weight(.medium))
                         .foregroundStyle(VenusTheme.text)
@@ -189,8 +188,9 @@ struct EmotionalProfileRevealStep: View {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .fill(result.color.opacity(0.10))
                     )
-                }
             }
+            .padding(20)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
             .opacity(cardAppeared ? 1 : 0)
             .scaleEffect(cardAppeared ? 1 : 0.96)
             .animation(.spring(response: 0.6, dampingFraction: 0.8), value: cardAppeared)

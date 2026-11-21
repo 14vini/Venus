@@ -36,6 +36,7 @@ final class HomeViewModel {
     var patternSnapshot: PatternInsightsSnapshot?
     var readinessAssessment: ReadinessEnergyAssessment = .sampleDefault
     var readinessHistory: [Double] = []
+    var isHomeLoading: Bool = false
     var isLoadingInsights: Bool = false
     var insightsErrorMessage: String?
     var aiGreeting: String? = nil
@@ -66,8 +67,12 @@ final class HomeViewModel {
     private var biometricObserverTask: Task<Void, Never>?
     private var biometricDebounceTask: Task<Void, Never>?
     private var microCopyTask: Task<Void, Never>?
+    private var chatImpactTask: Task<Void, Never>?
+    private var greetingTask: Task<Void, Never>?
     private var insightsRequestID = UUID()
     private var microCopyRequestID = UUID()
+    private var chatImpactRequestID = UUID()
+    private var greetingRequestID = UUID()
     private var lastGreetingDate: Date?
     private let notificationService: NotificationServiceProtocol
 
@@ -98,9 +103,14 @@ final class HomeViewModel {
 
         startBiometricObservation()
 
-        Task {
+        // Autorização de HealthKit não bloqueia a leitura local que monta a tela.
+        Task { [weak self] in
+            guard let self = self else { return }
             _ = try? await self.healthKitService.requestAuthorization()
-            await refreshMoodStatus()
+        }
+        Task { [weak self] in
+            guard let self = self else { return }
+            await self.refreshMoodStatus()
         }
     }
 
@@ -143,16 +153,15 @@ final class HomeViewModel {
         todayMoodType = mood
         showMoodCheckIn = false
 
-        Task {
-            await refreshMoodStatus(force: true)
-            await fetchAIGreeting(force: true)
+        Task { [weak self] in
+            guard let self = self else { return }
+            await self.refreshMoodStatus(force: true)
+            self.fetchAIGreeting(force: true)
         }
     }
 
     func retryInsights() {
-        Task {
-            await refreshPatternInsights()
-        }
+        refreshPatternInsights()
     }
 
     func handleCheckInAction() {
@@ -230,64 +239,100 @@ final class HomeViewModel {
         }
         lastRefreshAt = Date()
 
+        isHomeLoading = true
+        defer { isHomeLoading = false }
+
         do {
             let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: today) ?? today
-            let weekMoods = try await moodRepository.getMoods(from: sevenDaysAgo, to: Date())
-            self.weekMoods = weekMoods
-            let todayMood = weekMoods.first { calendar.isDate($0.timestamp, inSameDayAs: today) }
 
-            self.hasCheckedInToday = (todayMood != nil)
-            self.todayMoodType = todayMood?.type
-            self.checkInStreakDays = calculateStreak(from: weekMoods)
+            // Leituras locais independentes em paralelo: a tela não espera a IA.
+            async let fetchedMoods = moodRepository.getMoods(from: sevenDaysAgo, to: Date())
+            async let fetchedPlan = try? dailyPlanRepository.getPlan(for: Date())
+            async let fetchedSessions = chatRepository.loadSessions()
 
-            // Update Daily Plan for today
-            self.todayPlan = try? await dailyPlanRepository.getPlan(for: Date())
+            let weekMoods = try await fetchedMoods
+            let plan = await fetchedPlan
+            let sessions = try await fetchedSessions
 
-            // Update Check-in allowance
+            // O allowance depende da contagem de check-ins de hoje, que vem dos moods.
             let todayCount = weekMoods.filter { calendar.isDate($0.timestamp, inSameDayAs: today) }.count
             let allowance = await checkInAllowanceUseCase.execute(usedToday: todayCount)
-            self.checkInAllowance = allowance
-            self.checkInsUsedToday = allowance.usedToday
 
-            // Analyze Chat Impact (se houver nova conversa recente)
-            let sessions = try await chatRepository.loadSessions()
+            let todayMood = weekMoods.first { calendar.isDate($0.timestamp, inSameDayAs: today) }
             let todaySessions = sessions.filter { calendar.isDate($0.lastMessageAt, inSameDayAs: today) }
             let hasChatToday = !todaySessions.isEmpty
 
-            if let latestSession = todaySessions.first {
-                let msgCount = latestSession.messages.count
-                if lastAnalyzedChatSessionId != latestSession.id || lastAnalyzedMessageCount != msgCount {
-                    lastAnalyzedChatSessionId = latestSession.id
-                    lastAnalyzedMessageCount = msgCount
+            // Publica todo o estado local de uma vez, antes de qualquer chamada de IA.
+            self.weekMoods = weekMoods
+            self.hasCheckedInToday = (todayMood != nil)
+            self.todayMoodType = todayMood?.type
+            self.checkInStreakDays = calculateStreak(from: weekMoods)
+            self.todayPlan = plan
+            self.checkInAllowance = allowance
+            self.checkInsUsedToday = allowance.usedToday
 
-                    if let analysis = await venusAI.analyzeChatReadinessImpact(messages: latestSession.messages) {
-                        if analysis.scoreDelta != 0.0 || analysis.customStateTitle != nil {
-                            self.latestChatImpact = analysis
-                        }
-                    }
-                }
-            } else {
-                if let existing = self.latestChatImpact, existing.isExpired {
-                    self.latestChatImpact = nil
-                }
+            if let existing = latestChatImpact, existing.isExpired {
+                latestChatImpact = nil
             }
 
-            // Recalculate with all components (Biometrics + Check-in + Chat Impact)
             recalculateReadiness(todayMoodItem: todayMood, hasChatToday: hasChatToday)
             updateReadinessHistory()
             scheduleProactiveReminders()
-            
-            // Asynchronously generate personalized AI micro-copy for the score
-            triggerAIMicroCopyUpdate()
 
-            await refreshPatternInsights()
-            await fetchAIGreeting()
+            withAnimation(.easeInOut(duration: 0.25)) {
+                isHomeLoading = false
+            }
+
+            // IA em background: complementa a tela quando chega, sem bloqueá-la.
+            triggerAIMicroCopyUpdate()
+            refreshPatternInsights()
+            fetchAIGreeting()
+            if let latestSession = todaySessions.first {
+                scheduleChatImpactAnalysis(session: latestSession)
+            }
         } catch {
             insightsTask?.cancel()
             insightsTask = nil
             isLoadingInsights = false
             insightsErrorMessage = "Não foi possível atualizar seu status agora."
             print("Error checking mood: \(error)")
+        }
+    }
+
+    private func recalculateReadinessWithCurrentData(hasChatToday: Bool = false) {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let todayMoodItem = weekMoods.first { calendar.isDate($0.timestamp, inSameDayAs: today) }
+        recalculateReadiness(todayMoodItem: todayMoodItem, hasChatToday: hasChatToday)
+    }
+
+    // MARK: - IA em background
+
+    private func scheduleChatImpactAnalysis(session: ChatSession) {
+        let sessionID = session.id
+        let messages = session.messages
+        let messageCount = messages.count
+
+        guard lastAnalyzedChatSessionId != sessionID || lastAnalyzedMessageCount != messageCount else { return }
+        lastAnalyzedChatSessionId = sessionID
+        lastAnalyzedMessageCount = messageCount
+
+        chatImpactTask?.cancel()
+        let requestID = UUID()
+        chatImpactRequestID = requestID
+
+        chatImpactTask = Task { [weak self] in
+            guard let self = self else { return }
+            guard let analysis = await self.venusAI.analyzeChatReadinessImpact(messages: messages) else { return }
+            guard !Task.isCancelled, self.chatImpactRequestID == requestID else { return }
+            guard !analysis.isExpired else { return }
+            guard analysis.scoreDelta != 0.0 || analysis.customStateTitle != nil else { return }
+
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.latestChatImpact = analysis
+            }
+            self.recalculateReadinessWithCurrentData(hasChatToday: true)
+            self.triggerAIMicroCopyUpdate()
         }
     }
 
@@ -375,55 +420,62 @@ final class HomeViewModel {
         return streak
     }
 
-    private func refreshPatternInsights() async {
+    private func refreshPatternInsights() {
         insightsTask?.cancel()
         let requestID = UUID()
         insightsRequestID = requestID
         isLoadingInsights = true
         insightsErrorMessage = nil
 
-        let task = Task { [weak self] () -> PatternInsightsSnapshot? in
-            guard let self = self else { return nil }
-            return try? await self.patternEngineUseCase.execute()
-        }
-        insightsTask = Task {
-            _ = await task.result
-        }
+        insightsTask = Task { [weak self] in
+            guard let self = self else { return }
+            let snapshot = try? await self.patternEngineUseCase.execute()
+            guard !Task.isCancelled, self.insightsRequestID == requestID else { return }
 
-        let snapshot = await task.value
-        guard !Task.isCancelled, self.insightsRequestID == requestID else { return }
-
-        self.patternSnapshot = snapshot
-        if let trend = snapshot?.weeklyTrend {
-            self.weeklyTrend = trend
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.patternSnapshot = snapshot
+                if let trend = snapshot?.weeklyTrend {
+                    self.weeklyTrend = trend
+                }
+                self.isLoadingInsights = false
+            }
         }
-        self.isLoadingInsights = false
     }
 
-    private func fetchAIGreeting(force: Bool = false) async {
+    private func fetchAIGreeting(force: Bool = false) {
         let calendar = Calendar.current
         let now = Date()
-        
+
         if !force, let lastDate = lastGreetingDate,
            calendar.isDate(lastDate, inSameDayAs: now) &&
            calendar.component(.hour, from: lastDate) == calendar.component(.hour, from: now) {
             return
         }
-        
+
         let userName = userProfile?.name ?? "Amigo"
-        
-        do {
-            let greeting = try await venusAI.generateGreeting(
-                userName: userName,
-                mood: todayMoodType
-            )
-            
-            if !greeting.isEmpty {
-                self.aiGreeting = greeting
-                self.lastGreetingDate = now
+        let mood = todayMoodType
+
+        greetingTask?.cancel()
+        let requestID = UUID()
+        greetingRequestID = requestID
+
+        greetingTask = Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                let greeting = try await self.venusAI.generateGreeting(
+                    userName: userName,
+                    mood: mood
+                )
+                guard !Task.isCancelled, self.greetingRequestID == requestID else { return }
+                guard !greeting.isEmpty else { return }
+
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    self.aiGreeting = greeting
+                    self.lastGreetingDate = now
+                }
+            } catch {
+                print("Error generating greeting: \(error)")
             }
-        } catch {
-            print("Error generating greeting: \(error)")
         }
     }
 }

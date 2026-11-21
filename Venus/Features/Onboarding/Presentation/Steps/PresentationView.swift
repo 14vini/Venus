@@ -17,74 +17,70 @@ struct PresentationView: View {
 
     var body: some View {
         ZStack {
-            // Ambient glowing blobs
-            ZStack {
-                Circle()
-                    .fill(VenusTheme.primary.opacity(0.18))
-                    .frame(width: 320, height: 320)
-                    .blur(radius: 72)
-                    .offset(x: -80, y: -220)
-
-                Circle()
-                    .fill(VenusTheme.accentBlue.opacity(0.12))
-                    .frame(width: 260, height: 260)
-                    .blur(radius: 60)
-                    .offset(x: 130, y: 180)
-            }
-
             VStack(spacing: 0) {
-                Spacer()
+                OnboardingJourneyHeader(currentStep: 0)
+                    .padding(.horizontal, 28)
+                    .padding(.top, 8)
+                    .opacity(appear ? 1 : 0)
+                    .offset(y: appear ? 0 : -10)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.82).delay(0.05), value: appear)
 
-                // Interactive Hero Mascot
+                Spacer(minLength: 12)
+
+                // Hero: Venus em código, com entrada suave.
                 VenusMoodOrb(
                     mood: mascotMood,
                     state: mascotState,
-                    size: 154,
+                    size: 148,
                     showFace: true,
                     showHands: true,
-                    showShadow: true,
+                    showShadow: false,
                     isInteractive: true
                 )
-                .frame(width: 154, height: 154)
+                .frame(width: 148, height: 148)
                 .opacity(orbAppear ? 1 : 0)
-                .scaleEffect(orbAppear ? 1 : 0.78)
+                .scaleEffect(orbAppear ? 1 : 0.82)
                 .animation(.spring(response: 0.7, dampingFraction: 0.68), value: orbAppear)
 
-                // Title block (sem subtitulo)
-                Text("Venus")
-                    .font(.system(size: 44, weight: .black, design: .rounded))
-                    .foregroundColor(VenusTheme.text)
+                VStack(spacing: 6) {
+                    Text("Dia 1")
+                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .foregroundStyle(VenusTheme.text)
+
+                    Text("SUA JORNADA COMEÇA")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(OnboardingVisualPalette.lilac)
+                        .tracking(1.6)
+                }
+                .opacity(appear ? 1 : 0)
+                .offset(y: appear ? 0 : 12)
+                .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.18), value: appear)
+                .padding(.top, 12)
+
+                Text("Venus foi feita para caminhar com você.\nUm passo de cada vez, no seu ritmo.")
+                    .font(.system(size: 15, weight: .regular, design: .rounded))
+                    .foregroundStyle(VenusTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+                    .padding(.horizontal, 40)
+                    .padding(.top, 16)
                     .opacity(appear ? 1 : 0)
-                    .offset(y: appear ? 0 : 14)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.18), value: appear)
-                    .padding(.top, 20)
+                    .animation(.easeInOut(duration: 0.5).delay(0.28), value: appear)
 
-                Spacer()
+                Spacer(minLength: 16)
 
-                // Bottom Action Button
                 Button {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     onNext()
                 } label: {
-                    HStack(spacing: 8) {
-                        Text("Começar")
-                            .font(.system(.headline, design: .rounded).weight(.black))
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 14, weight: .black))
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(VenusTheme.primaryGradient, in: Capsule())
-                    .shadow(color: VenusTheme.primary.opacity(0.30), radius: 16, x: 0, y: 8)
+                    OnboardingJourneyCTALabel(title: "Começar", systemImage: "arrow.right")
                 }
-                .buttonStyle(.plain)
                 .buttonStyle(OnboardingPressableButtonStyle())
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
                 .opacity(appear ? 1 : 0)
-                .offset(y: appear ? 0 : 30)
-                .animation(.spring(response: 0.6, dampingFraction: 0.78).delay(0.28), value: appear)
+                .offset(y: appear ? 0 : 24)
+                .animation(.spring(response: 0.6, dampingFraction: 0.78).delay(0.3), value: appear)
             }
         }
         .onAppear {

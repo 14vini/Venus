@@ -15,11 +15,12 @@ struct ChatMessageView: View {
     let onReact: () -> Void
     let onReply: () -> Void
     var onScheduleReminder: ((String) -> Void)? = nil
-    var onConfirmPlan: (() -> Void)? = nil
+    var onShowPlan: (() -> Void)? = nil
     
     @State private var dragOffset: CGFloat = 0
     @State private var isHeartPopping = false
     @State private var cursorBlink = true
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         HStack(spacing: 0) {
@@ -45,95 +46,87 @@ struct ChatMessageView: View {
                     if let replyContent = message.replyToContent {
                         HStack(spacing: 6) {
                             Rectangle()
-                                .fill(message.isFromUser ? Color.white.opacity(0.6) : VenusTheme.primary)
+                                .fill(VenusTheme.primary)
                                 .frame(width: 2.5)
                             
                             Text(replyContent)
-                                .font(.caption2)
+                                .font(.system(size: 11, weight: .light, design: .rounded))
                                 .italic()
-                                .foregroundColor(message.isFromUser ? Color.white.opacity(0.85) : VenusTheme.textSecondary)
+                                .foregroundColor(VenusTheme.textSecondary)
                                 .lineLimit(1)
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(message.isFromUser ? Color.white.opacity(0.12) : VenusTheme.surface.opacity(0.6))
-                        .cornerRadius(6)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 5)
+                        .background(VenusTheme.surface.opacity(0.35))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         .padding(.top, 2)
                     }
                     
-                    // Main Message Text Bubble
+                    // Main Message Text Bubble — balão em Liquid Glass real
                     HStack(alignment: .bottom, spacing: 3) {
-                        if message.content.isEmpty && !message.isFromUser && isStreaming {
-                            HStack(spacing: 4) {
-                                Circle().fill(VenusTheme.primary).frame(width: 5, height: 5)
-                                Circle().fill(VenusTheme.primary.opacity(0.6)).frame(width: 5, height: 5)
-                                Circle().fill(VenusTheme.primary.opacity(0.3)).frame(width: 5, height: 5)
-                            }
-                            .padding(.vertical, 6)
-                        } else {
-                            Text(message.content)
-                                .font(message.isFromUser ? .system(size: 15, weight: .regular, design: .rounded) : .system(size: 16, weight: .regular, design: .serif))
-                                .lineSpacing(message.isFromUser ? 3 : 5)
-                                .foregroundColor(message.isFromUser ? .white : VenusTheme.text)
-                        }
-                        
+                        Text(message.content)
+                            .font(message.isFromUser
+                                  ? .system(size: 15, weight: .regular, design: .rounded)
+                                  : .system(size: 16, weight: .light, design: .rounded))
+                            .lineSpacing(message.isFromUser ? 4 : 6)
+                            .foregroundColor(VenusTheme.text)
+                            .contentTransition(.opacity)
+
                         if !message.isFromUser && isStreaming && !message.content.isEmpty {
                             Rectangle()
                                 .fill(VenusTheme.primary)
-                                .frame(width: 2.2, height: 18)
+                                .frame(width: 2, height: 17)
                                 .offset(y: -2)
-                                .opacity(cursorBlink ? 0.95 : 0.15)
-                                .shadow(color: VenusTheme.primary.opacity(0.5), radius: 3)
+                                .opacity(cursorBlink ? 0.85 : 0.15)
                                 .animation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true), value: cursorBlink)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(
-                        Group {
-                            if message.isFromUser {
-                                LinearGradient(
-                                    colors: [
-                                        VenusTheme.primary,
-                                        VenusTheme.accentPurple
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            } else {
-                                VenusTheme.surface
-                            }
-                        }
+                    .padding(.horizontal, 17)
+                    .padding(.vertical, 13)
+                    .glassEffect(
+                        .regular.tint(VenusChatVisualStyle.bubbleTint(
+                            isFromUser: message.isFromUser,
+                            isDark: colorScheme == .dark
+                        )),
+                        in: ChatBubbleCornerShape(
+                            isFromUser: message.isFromUser,
+                            isPrevSame: isPrevSame,
+                            isNextSame: isNextSame
+                        )
                     )
-                    .clipShape(ChatBubbleCornerShape(
-                        isFromUser: message.isFromUser,
-                        isPrevSame: isPrevSame,
-                        isNextSame: isNextSame
-                    ))
-                    .overlay(
-                        Group {
-                            if !message.isFromUser {
-                                ChatBubbleCornerShape(
-                                    isFromUser: false,
-                                    isPrevSame: isPrevSame,
-                                    isNextSame: isNextSame
-                                )
-                                .stroke(VenusTheme.primary.opacity(isStreaming ? 0.35 : 0.12), lineWidth: 1)
-                            }
-                        }
-                    )
-                    .shadow(color: isStreaming && !message.isFromUser ? VenusTheme.primary.opacity(0.18) : Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
                     .frame(maxWidth: UIScreen.main.bounds.width * 0.82, alignment: message.isFromUser ? .trailing : .leading)
                     
-                    // Optional Planning Proposal Card
+                    // A proposta de rotina vive no acesso secundário; aqui fica só
+                    // um convite discreto, para não competir com a conversa.
                     if let proposal = message.planningProposal, !proposal.proposedBlocks.isEmpty, !message.isFromUser {
-                        ChatPlanningProposalCard(
-                            proposal: proposal,
-                            isConfirmed: message.isPlanningConfirmed == true,
-                            onConfirm: {
-                                onConfirmPlan?()
+                        Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            onShowPlan?()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "calendar.badge.clock")
+                                    .font(.system(size: 11, weight: .semibold))
+
+                                Text(message.isPlanningConfirmed == true
+                                     ? "Plano ativo · ver detalhes"
+                                     : "Ver proposta de rotina")
+                                    .font(.system(size: 12, weight: .light, design: .rounded))
+
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 10, weight: .semibold))
                             }
-                        )
+                            .foregroundStyle(VenusTheme.primary)
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 7)
+                            .glassEffect(
+                                .regular.tint(VenusChatVisualStyle.bubbleTint(
+                                    isFromUser: false,
+                                    isDark: colorScheme == .dark
+                                )),
+                                in: Capsule(style: .continuous)
+                            )
+                        }
+                        .buttonStyle(.plain)
                         .padding(.top, 4)
                         .padding(.horizontal, 4)
                     }
@@ -150,18 +143,15 @@ struct ChatMessageView: View {
                                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                                     .lineLimit(1)
                             }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [VenusTheme.accentPurple, VenusTheme.primary],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
+                            .foregroundColor(VenusTheme.text)
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 7)
+                            .glassEffect(
+                                .regular.tint(VenusChatVisualStyle.bubbleTint(
+                                    isFromUser: true,
+                                    isDark: colorScheme == .dark
+                                )),
+                                in: Capsule(style: .continuous)
                             )
                         }
                         .buttonStyle(.plain)
@@ -174,10 +164,8 @@ struct ChatMessageView: View {
                         if let reaction = message.reaction {
                             Text(reaction)
                                 .font(.system(size: 13))
-                                .padding(4)
-                                .background(VenusTheme.cardSurface)
-                                .clipShape(Circle())
-                                .shadow(color: Color.black.opacity(0.12), radius: 2, x: 0, y: 1)
+                                .padding(6)
+                                .glassEffect(.regular, in: Circle())
                                 .scaleEffect(isHeartPopping ? 1.3 : 1.0)
                                 .offset(x: message.isFromUser ? -8 : 8, y: 14)
                                 .onTapGesture {
@@ -239,10 +227,12 @@ struct ChatMessageView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, isPrevSame ? 2 : 10)
+        .padding(.top, isPrevSame ? 4 : 16)
         .transition(
             .asymmetric(
-                insertion: .opacity.combined(with: .offset(y: 8)),
+                insertion: .scale(scale: 0.94, anchor: message.isFromUser ? .trailing : .leading)
+                    .combined(with: .opacity)
+                    .combined(with: .offset(y: 8)),
                 removal: .opacity
             )
         )

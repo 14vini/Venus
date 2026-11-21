@@ -10,27 +10,26 @@ import SwiftUI
 struct MyDayEmptyStateView: View {
     let onPlanWithVenus: () -> Void
     let onManualCreate: () -> Void
-    
+
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         VStack(spacing: 20) {
             ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                VenusTheme.primary.opacity(0.25),
-                                VenusTheme.accentPurple.opacity(0.08),
-                                Color.clear
-                            ],
-                            center: .center,
-                            startRadius: 10,
-                            endRadius: 70
-                        )
-                    )
-                    .frame(width: 140, height: 140)
-                
-                Image(systemName: "sparkles.square.filled.on.square")
-                    .font(.system(size: 46))
+                RadialGradient(
+                    colors: [
+                        VenusTheme.primary.opacity(colorScheme == .dark ? 0.22 : 0.28),
+                        VenusTheme.accentPurple.opacity(0.08),
+                        Color.clear
+                    ],
+                    center: .center,
+                    startRadius: 10,
+                    endRadius: 80
+                )
+                .frame(width: 150, height: 150)
+
+                Image(systemName: "sparkles")
+                    .font(.system(size: 42, weight: .light))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [VenusTheme.primary, VenusTheme.accentPurple],
@@ -39,22 +38,21 @@ struct MyDayEmptyStateView: View {
                         )
                     )
             }
-            .padding(.top, 16)
-            
+
             VStack(spacing: 8) {
-                Text("Nenhum plano para hoje")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                Text("Sua jornada começa aqui")
+                    .font(.system(size: 22, weight: .light, design: .rounded))
                     .foregroundColor(VenusTheme.text)
-                
-                Text("Você pode pedir para a Venus montar sua rotina ou criá-la manualmente.")
+
+                Text("Cada passo importa. Monte sua rotina com a Venus ou crie do seu jeito.")
                     .font(.system(size: 15, weight: .regular, design: .rounded))
                     .foregroundColor(VenusTheme.textSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                    .lineSpacing(3)
+                    .padding(.horizontal, 20)
             }
-            
+
             VStack(spacing: 12) {
-                // Button 1: Plan with Venus
                 Button {
                     onPlanWithVenus()
                 } label: {
@@ -66,22 +64,14 @@ struct MyDayEmptyStateView: View {
                     }
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                    .frame(height: 50)
                     .background(
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [VenusTheme.primary, VenusTheme.accentPurple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .shadow(color: VenusTheme.primary.opacity(0.35), radius: 10, x: 0, y: 5)
+                        Capsule(style: .continuous)
+                            .fill(colorScheme == .dark ? Color(hex: "3B3442") : Color(hex: "241E2B"))
                     )
                 }
                 .buttonStyle(.plain)
-                
-                // Button 2: Manual creation
+
                 Button {
                     onManualCreate()
                 } label: {
@@ -89,32 +79,20 @@ struct MyDayEmptyStateView: View {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 15, weight: .semibold))
                         Text("Criar rotina na mão")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
                     }
                     .foregroundColor(VenusTheme.text)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 13)
-                    .background(
-                        Capsule()
-                            .fill(VenusTheme.surface)
-                            .overlay(
-                                Capsule()
-                                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                            )
-                    )
+                    .frame(height: 50)
+                    .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 10)
+            .padding(.horizontal, 8)
+            .padding(.top, 8)
         }
         .padding(24)
         .frame(maxWidth: .infinity)
-        .background(VenusTheme.cardSurface)
-        .cornerRadius(24)
-        .overlay(
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
-        )
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
     }
 }

@@ -269,24 +269,9 @@ struct LiquidGlassModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .opacity(opacity)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.16),
-                                        Color.white.opacity(0.02)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .blendMode(.overlay)
-                    )
+            .glassEffect(
+                .regular.tint(Color.white.opacity(opacity)),
+                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             )
     }
 }

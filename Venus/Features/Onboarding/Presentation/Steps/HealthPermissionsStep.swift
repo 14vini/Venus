@@ -17,7 +17,7 @@ struct HealthPermissionsStep: View {
         VStack(alignment: .leading, spacing: 20) {
             // Header (sem subtítulo)
             Text("Sincronização de Saúde & Prontidão")
-                .font(.system(size: 26, weight: .black, design: .rounded))
+                .font(.system(size: 26, weight: .light, design: .rounded))
                 .foregroundStyle(VenusTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(2)
@@ -84,7 +84,7 @@ struct HealthPermissionsStep: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(.subheadline, design: .rounded).weight(.bold))
+                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
                     .foregroundStyle(VenusTheme.text)
                 
                 Text(detail)
@@ -95,14 +95,7 @@ struct HealthPermissionsStep: View {
             Spacer()
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.white.opacity(0.04))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
-        )
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
 

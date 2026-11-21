@@ -38,6 +38,7 @@ struct HomeScreen: View {
             guard isPresented else { return }
             inlineCheckInViewModel.startNewCheckIn(prefilledMood: viewModel.checkInPrefilledMood)
         }
+        .toolbarBackground(.hidden, for: .tabBar)
     }
 }
 

@@ -28,3 +28,9 @@ fastlane/screenshots/
 
 Config.xcconfig
 *.xcconfig.local
+
+# Generated temporary outputs
+output/
+
+# Local agent config
+.opencode/

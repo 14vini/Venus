@@ -55,11 +55,10 @@ struct VenusInterestChipSimple: View {
                         .overlay(selectedHighlightOverlay)
                 } else {
                     chipContent
-                        .background(unselectedBackground)
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
         .accessibilityLabel(title)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
@@ -106,30 +105,6 @@ struct VenusInterestChipSimple: View {
                 Capsule(style: .continuous)
                     .fill(Color.black.opacity(colorScheme == .dark ? 0.18 : 0))
                     .blendMode(.multiply)
-            )
-    }
-
-    private var unselectedBackground: some View {
-        Capsule(style: .continuous)
-            .fill(.ultraThinMaterial)
-            .opacity(colorScheme == .dark ? 0.62 : 0.94)
-            .overlay(
-                Capsule(style: .continuous)
-                    .fill(tint.opacity(colorScheme == .dark ? 0.10 : 0.05))
-                    .blendMode(.overlay)
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .fill(LinearGradient(
-                        colors: [
-                            Color.white.opacity(colorScheme == .dark ? 0.12 : 0.22),
-                            Color.clear,
-                            Color.white.opacity(colorScheme == .dark ? 0.06 : 0.10)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-                    .blendMode(.overlay)
             )
     }
 

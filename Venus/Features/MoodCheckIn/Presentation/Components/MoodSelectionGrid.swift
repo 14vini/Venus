@@ -32,15 +32,17 @@ struct MoodShortcutOption: Identifiable, Hashable {
     ]
 }
 
+// MARK: - Energia
+
 struct EnergySelectionGrid: View {
     let selectedEnergy: MoodEnergyLevel?
-    var tint: Color = VenusTheme.primary
+    var tint: Color = VenusJourneyPalette.lilac
     let onSelect: (MoodEnergyLevel) -> Void
 
     var body: some View {
         VStack(spacing: 12) {
             ForEach(MoodEnergyLevel.allCases, id: \.self) { energy in
-                OnboardingSelectionRow(
+                VenusJourneySelectionRow(
                     title: energy.displayName,
                     detail: energy.supportCopy,
                     systemImage: energy.sfSymbolName,
@@ -55,14 +57,16 @@ struct EnergySelectionGrid: View {
     private func tintForEnergy(_ energy: MoodEnergyLevel) -> Color {
         switch energy {
         case .low:
-            return VenusTheme.validationError
+            return VenusJourneyPalette.rose
         case .medium:
-            return VenusTheme.accentBlue
+            return VenusJourneyPalette.sky
         case .high:
-            return VenusTheme.accentGreen
+            return VenusJourneyPalette.lilac
         }
     }
 }
+
+// MARK: - Humor
 
 struct MoodSelectionGrid: View {
     let selectedMood: MoodType?
@@ -103,6 +107,7 @@ struct MoodShortcutStrip: View {
             LazyVGrid(columns: columns, spacing: 10) {
                 ForEach(options) { option in
                     Button {
+                        UISelectionFeedbackGenerator().selectionChanged()
                         onSelect(option.mood)
                     } label: {
                         HStack(spacing: 8) {
@@ -115,16 +120,9 @@ struct MoodShortcutStrip: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 11)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(option.tint.opacity(0.10))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(option.tint.opacity(0.24), lineWidth: 1)
-                        )
+                        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(VenusJourneyPressableStyle())
                 }
             }
         }
@@ -137,54 +135,49 @@ struct MoodOptionCard: View {
     let onTap: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
+        Button(action: {
+            UISelectionFeedbackGenerator().selectionChanged()
+            onTap()
+        }) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(mood.emoji)
                     .font(.system(size: 28))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Text(mood.rawValue)
-                    .font(.system(size: 13, weight: .black, design: .rounded))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundColor(VenusTheme.text)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if isSelected {
                     Label("Selecionado", systemImage: "checkmark.circle.fill")
                         .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundColor(VenusTheme.moodMintStrong)
+                        .foregroundColor(VenusJourneyPalette.lilac)
                 } else {
                     Text("Toque para continuar")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundColor(VenusTheme.textSecondary)
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 104, alignment: .leading)
             .padding(14)
             .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(
-                        isSelected
-                        ? LinearGradient(
-                            colors: [
-                                Color(hex: mood.colorHex).opacity(0.24),
-                                VenusTheme.cardSurfaceStrong
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                        : LinearGradient(
-                            colors: [VenusTheme.cardSurface, VenusTheme.cardSurfaceStrong.opacity(0.72)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+                isSelected
+                    ? LinearGradient(
+                        colors: [VenusJourneyPalette.lilac.opacity(0.22), VenusJourneyPalette.rose.opacity(0.12)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
+                    : LinearGradient(
+                        colors: [Color.clear, Color.clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(isSelected ? Color(hex: mood.colorHex).opacity(0.45) : VenusTheme.cardBorder, lineWidth: 1)
-            )
+            .glassEffect(isSelected ? .clear : .regular.interactive(), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(VenusJourneyPressableStyle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Humor \(mood.rawValue)")
         .accessibilityValue(isSelected ? "Selecionado" : "Não selecionado")
