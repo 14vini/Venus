@@ -182,6 +182,64 @@ struct VenusGroundShadowView: View {
     }
 }
 
+// MARK: - Venus Spectral Form
+
+/// A soft, scalloped silhouette that gives Venus a recognizable ghost-like body
+/// without relying on a hard outline.
+private struct VenusGhostBodyShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let width = rect.width
+        let height = rect.height
+        var path = Path()
+
+        path.move(to: CGPoint(x: width * 0.5, y: height * 0.035))
+
+        // Rounded, friendly head.
+        path.addCurve(
+            to: CGPoint(x: width * 0.12, y: height * 0.42),
+            control1: CGPoint(x: width * 0.28, y: height * 0.02),
+            control2: CGPoint(x: width * 0.12, y: height * 0.19)
+        )
+
+        // Floating sides and a gentle, wavy ghost tail.
+        path.addLine(to: CGPoint(x: width * 0.12, y: height * 0.70))
+        path.addCurve(
+            to: CGPoint(x: width * 0.23, y: height * 0.93),
+            control1: CGPoint(x: width * 0.11, y: height * 0.85),
+            control2: CGPoint(x: width * 0.16, y: height * 0.98)
+        )
+        path.addCurve(
+            to: CGPoint(x: width * 0.42, y: height * 0.86),
+            control1: CGPoint(x: width * 0.31, y: height * 0.98),
+            control2: CGPoint(x: width * 0.34, y: height * 0.80)
+        )
+        path.addCurve(
+            to: CGPoint(x: width * 0.60, y: height * 0.91),
+            control1: CGPoint(x: width * 0.49, y: height * 0.92),
+            control2: CGPoint(x: width * 0.54, y: height * 0.98)
+        )
+        path.addCurve(
+            to: CGPoint(x: width * 0.78, y: height * 0.86),
+            control1: CGPoint(x: width * 0.67, y: height * 0.99),
+            control2: CGPoint(x: width * 0.72, y: height * 0.81)
+        )
+        path.addCurve(
+            to: CGPoint(x: width * 0.88, y: height * 0.70),
+            control1: CGPoint(x: width * 0.86, y: height * 0.84),
+            control2: CGPoint(x: width * 0.89, y: height * 0.78)
+        )
+        path.addLine(to: CGPoint(x: width * 0.88, y: height * 0.42))
+        path.addCurve(
+            to: CGPoint(x: width * 0.5, y: height * 0.035),
+            control1: CGPoint(x: width * 0.88, y: height * 0.19),
+            control2: CGPoint(x: width * 0.72, y: height * 0.02)
+        )
+        path.closeSubpath()
+
+        return path
+    }
+}
+
 // MARK: - Venus Mood Orb (2.5D Game Character)
 
 struct VenusMoodOrb: View {
@@ -284,27 +342,130 @@ struct VenusMoodOrb: View {
         max(0, -dragOffset.height - jumpOffset)
     }
 
+    /// A diffuse colour field, rather than a ring or stroke, keeps the avatar
+    /// luminous even over busy screens while preserving its glassy transparency.
+    private var spectralAura: some View {
+        let auraOpacity = colorScheme == .dark ? 0.62 : 0.46
+
+        return ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color.white.opacity(colorScheme == .dark ? 0.18 : 0.26),
+                            highlightColor.opacity(auraOpacity),
+                            baseColor.opacity(auraOpacity * 0.42),
+                            Color.clear
+                        ],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: size * 0.65
+                    )
+                )
+                .frame(width: size * 1.34, height: size * 1.34)
+                .blur(radius: max(8, size * 0.07))
+
+            VenusGhostBodyShape()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            highlightColor.opacity(0.62),
+                            baseColor.opacity(0.40),
+                            deepColor.opacity(0.16)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: size * 0.88, height: size * 0.94)
+                .scaleEffect(1.08)
+                .blur(radius: max(6, size * 0.075))
+                .opacity(colorScheme == .dark ? 0.72 : 0.50)
+        }
+        .scaleEffect(animate ? 1.05 : 0.96)
+    }
+
+    /// Venus's new translucent ghost form. Its colour comes from layered fills
+    /// and light, never from a drawn contour.
+    private var spectralGhostBody: some View {
+        let bodyOpacity = colorScheme == .dark ? 0.80 : 0.70
+
+        return ZStack {
+            VenusGhostBodyShape()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.72),
+                            highlightColor.opacity(bodyOpacity),
+                            baseColor.opacity(bodyOpacity * 0.80),
+                            deepColor.opacity(bodyOpacity * 0.60)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            VenusGhostBodyShape()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color.white.opacity(colorScheme == .dark ? 0.48 : 0.64),
+                            highlightColor.opacity(0.28),
+                            Color.clear
+                        ],
+                        center: .init(x: 0.32, y: 0.22),
+                        startRadius: 0,
+                        endRadius: size * 0.48
+                    )
+                )
+
+            // Broad, soft reflection: it feels like light passing through the
+            // spirit instead of a shiny object with a visible rim.
+            Ellipse()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.62),
+                            Color.white.opacity(0.16),
+                            Color.clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: size * 0.42, height: size * 0.22)
+                .offset(x: -size * 0.10, y: -size * 0.19)
+                .blur(radius: max(1.5, size * 0.018))
+
+            VenusGhostBodyShape()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.clear,
+                            Color.white.opacity(0.10),
+                            highlightColor.opacity(0.20)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .blendMode(.plusLighter)
+        }
+        .frame(width: size * 0.82, height: size * 0.88)
+        .compositingGroup()
+        .mask(VenusGhostBodyShape())
+        .shadow(color: baseColor.opacity(colorScheme == .dark ? 0.40 : 0.27), radius: max(7, size * 0.07), x: 0, y: max(3, size * 0.03))
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
                 // Particles Layer (Hearts, Stars, Puffs, Confetti)
                 MascotParticleEmitterView(particles: activeParticles)
                 
-                // Outer Ambient Aura with Listening Resonance
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                baseColor.opacity(effectiveState == .listening ? (listeningWavePulse ? 0.55 : 0.35) : 0.30),
-                                baseColor.opacity(0)
-                            ],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: size * (effectiveState == .listening ? 0.68 : 0.5)
-                        )
-                    )
-                    .blur(radius: 12)
-                    .scaleEffect(animate ? (effectiveState == .listening ? (listeningWavePulse ? 1.22 : 1.12) : 1.08) : 0.94)
+                // Continuous gradient aura — deliberately no hard border.
+                spectralAura
+                    .scaleEffect(effectiveState == .listening && listeningWavePulse ? 1.12 : 1.0)
                 
                 // Cosmetics (Behind / Wings)
                 if cosmetic == .astralWings {
@@ -340,98 +501,8 @@ struct VenusMoodOrb: View {
                     }
                 }
                 
-                // Main Volumetric Character Body (3D Jelly / Celestial Spirit)
-                ZStack {
-                    // Base sphere with rich color depth
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    highlightColor,
-                                    baseColor,
-                                    deepColor
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                    
-                    // Internal radiant core glow (soul light)
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    Color.white.opacity(0.42),
-                                    highlightColor.opacity(0.22),
-                                    Color.clear
-                                ],
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: size * 0.30
-                            )
-                        )
-                    
-                    // Bottom subsurface reflection (bounce light)
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    highlightColor.opacity(0.35),
-                                    Color.clear
-                                ],
-                                center: .bottom,
-                                startRadius: 0,
-                                endRadius: size * 0.35
-                            )
-                        )
-                    
-                    // Top-down glassy dome highlight (glossy candy/glass effect with 3D parallax)
-                    Ellipse()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.55),
-                                    Color.white.opacity(0.10),
-                                    Color.clear
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .frame(width: size * 0.54, height: size * 0.28)
-                        .offset(
-                            x: -size * 0.05 + (dragOffset.width * 0.04) + (gazeOffset.width * 0.03),
-                            y: -size * 0.22 + (dragOffset.height * 0.04) + (gazeOffset.height * 0.03)
-                        )
-                        .blur(radius: max(1.0, size * 0.015))
-                    
-                    // Specular star glint on upper dome
-                    Circle()
-                        .fill(Color.white.opacity(0.85))
-                        .frame(width: max(4, size * 0.035), height: max(4, size * 0.035))
-                        .offset(
-                            x: -size * 0.20 + (dragOffset.width * 0.02) + (gazeOffset.width * 0.02),
-                            y: -size * 0.24 + (dragOffset.height * 0.02) + (gazeOffset.height * 0.02)
-                        )
-                        .blur(radius: 0.5)
-                    
-                    // Fresnel Rim Lighting Stroke
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.65),
-                                    highlightColor.opacity(0.40),
-                                    Color.white.opacity(0.20)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: max(1.2, size * 0.014)
-                        )
-                }
-                .frame(width: size * 0.76, height: size * 0.76)
-                .shadow(color: baseColor.opacity(0.40), radius: max(8, size * 0.08), x: 0, y: max(4, size * 0.04))
+                // Translucent ghost body.
+                spectralGhostBody
                 .overlay(
                     Group {
                         if showFace {
@@ -442,6 +513,7 @@ struct VenusMoodOrb: View {
                                 size: size * 0.76,
                                 gazeOffset: gazeOffset
                             )
+                            .offset(y: -size * 0.055)
                         }
                     }
                 )

@@ -19,7 +19,9 @@ class DependencyContainer {
         do {
             let schema = Schema([
                 UserProfileModel.self,
-                MoodModel.self
+                MoodModel.self,
+                DailyPlanModel.self,
+                PlannedBlockModel.self
             ])
             let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
             self.modelContainer = try ModelContainer(for: schema, configurations: [modelConfiguration])
@@ -45,6 +47,12 @@ class DependencyContainer {
     
     func makeMoodCheckInViewModel() -> MoodCheckInViewModel {
         return MoodCheckInViewModel(saveMoodUseCase: makeSaveMoodUseCase())
+    }
+    
+    // MARK: - Daily Planning
+    
+    func makeDailyPlanRepository() -> DailyPlanRepositoryProtocol {
+        return DailyPlanRepositoryImpl(modelContainer: modelContainer)
     }
     
     // MARK: - Premium / Subscription

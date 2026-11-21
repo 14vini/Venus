@@ -21,7 +21,9 @@ final class HomeViewModel {
     var showUpgradePrompt: Bool = false
     var showEmotionalGalaxy: Bool = false
     var showReadinessBreakdown: Bool = false
+    var showMyDay: Bool = false
     var checkInPrefilledMood: MoodType? = nil
+    var todayPlan: DailyPlan? = nil
 
     var hasCheckedInToday: Bool = false
     var todayMoodType: MoodType?
@@ -55,6 +57,7 @@ final class HomeViewModel {
     private let checkInAllowanceUseCase: CheckInAllowanceUseCaseProtocol
     private let moodRepository: MoodRepositoryProtocol
     private let chatRepository: ChatRepositoryProtocol
+    private let dailyPlanRepository: DailyPlanRepositoryProtocol
     private let venusAI: VenusAIServiceProtocol
     private let healthKitService: HealthKitServiceProtocol
     private let readinessEngine: ReadinessEngineProtocol
@@ -78,6 +81,7 @@ final class HomeViewModel {
         checkInAllowanceUseCase: CheckInAllowanceUseCaseProtocol? = nil,
         moodRepository: MoodRepositoryProtocol? = nil,
         chatRepository: ChatRepositoryProtocol? = nil,
+        dailyPlanRepository: DailyPlanRepositoryProtocol? = nil,
         venusAI: VenusAIServiceProtocol? = nil,
         healthKitService: HealthKitServiceProtocol? = nil,
         readinessEngine: ReadinessEngineProtocol? = nil
@@ -86,6 +90,7 @@ final class HomeViewModel {
         self.checkInAllowanceUseCase = checkInAllowanceUseCase ?? DependencyContainer.shared.makeCheckInAllowanceUseCase()
         self.moodRepository = moodRepository ?? DependencyContainer.shared.makeMoodRepository()
         self.chatRepository = chatRepository ?? DependencyContainer.shared.makeChatRepository()
+        self.dailyPlanRepository = dailyPlanRepository ?? DependencyContainer.shared.makeDailyPlanRepository()
         self.venusAI = venusAI ?? DependencyContainer.shared.makeVenusAIService()
         self.healthKitService = healthKitService ?? DependencyContainer.shared.makeHealthKitService()
         self.readinessEngine = readinessEngine ?? DependencyContainer.shared.makeReadinessEngine()
@@ -200,6 +205,19 @@ final class HomeViewModel {
         }
     }
 
+    private func updateReadinessHistory() {
+        // Sparkline 7d a partir de weekMoods (normalizado 0-10 via BehaviorMoodScorer)
+        let scores = weekMoods.suffix(14).map { mood -> Double in
+            let raw = BehaviorMoodScorer.score(for: mood)
+            return max(1.0, min(10.0, 6.2 + raw * 2.4))
+        }
+        self.readinessHistory = Array(scores)
+    }
+
+    private func scheduleProactiveReminders() {
+        // Proactive schedule
+    }
+
     // MARK: - Private Methods
 
     private func refreshMoodStatus(force: Bool = false) async {
@@ -221,6 +239,9 @@ final class HomeViewModel {
             self.hasCheckedInToday = (todayMood != nil)
             self.todayMoodType = todayMood?.type
             self.checkInStreakDays = calculateStreak(from: weekMoods)
+
+            // Update Daily Plan for today
+            self.todayPlan = try? await dailyPlanRepository.getPlan(for: Date())
 
             // Update Check-in allowance
             let todayCount = weekMoods.filter { calendar.isDate($0.timestamp, inSameDayAs: today) }.count
@@ -325,19 +346,6 @@ final class HomeViewModel {
         }
     }
 
-    private func updateReadinessHistory() {
-        // Sparkline 7d a partir de weekMoods (normalizado 0-10 via BehaviorMoodScorer)
-        let scores = weekMoods.suffix(14).map { mood -> Double in
-            let raw = BehaviorMoodScorer.score(for: mood)
-            return max(1.0, min(10.0, 6.2 + raw * 2.4))
-        }
-        self.readinessHistory = Array(scores)
-    }
-
-    private func scheduleProactiveReminders() {
-        // Proactive schedule
-    }
-
     private func calculateStreak(from moods: [Mood]) -> Int {
         guard !moods.isEmpty else { return 0 }
         
@@ -346,7 +354,6 @@ final class HomeViewModel {
         var streak = 0
         var checkDate = today
         
-        // Group timestamps by start of day
         let uniqueDays = Set(moods.map { calendar.startOfDay(for: $0.timestamp) })
         
         // If not checked in today, check if yesterday was checked in to keep streak alive

@@ -27,6 +27,7 @@ final class VenusChatViewModel {
     var activeLens: SelfKnowledgeLens = .socratic
     var lastDiagnosis: SelfKnowledgeDiagnosis? = nil
     var currentReadiness: ReadinessEnergyAssessment? = nil
+    var todayPlan: DailyPlan? = nil
     
     private let chatRepository: ChatRepositoryProtocol
     private let userProfileRepository: UserProfileRepositoryProtocol
@@ -34,25 +35,33 @@ final class VenusChatViewModel {
     private let notificationService: NotificationServiceProtocol
     private let venusAI: VenusAIServiceProtocol
     private let readinessEngine: ReadinessEngineProtocol
+    private let dailyPlanRepository: DailyPlanRepositoryProtocol
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "pt-BR"))
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private let audioEngine = AVAudioEngine()
     private var userProfile: UserProfile?
     private let openedFromMirror: Bool
+    private let openedForPlanning: Bool
+    private let initialPlanningPrompt: String?
     private let lightHaptic = UIImpactFeedbackGenerator(style: .soft)
     
     init(
         openedFromMirror: Bool = false,
+        openedForPlanning: Bool = false,
+        initialPlanningPrompt: String? = nil,
         session: ChatSession? = nil,
         chatRepository: ChatRepositoryProtocol? = nil,
         userProfileRepository: UserProfileRepositoryProtocol? = nil,
         moodRepository: MoodRepositoryProtocol? = nil,
         notificationService: NotificationServiceProtocol? = nil,
         venusAI: VenusAIServiceProtocol? = nil,
-        readinessEngine: ReadinessEngineProtocol? = nil
+        readinessEngine: ReadinessEngineProtocol? = nil,
+        dailyPlanRepository: DailyPlanRepositoryProtocol? = nil
     ) {
         self.openedFromMirror = openedFromMirror
+        self.openedForPlanning = openedForPlanning
+        self.initialPlanningPrompt = initialPlanningPrompt
         self.currentSession = session ?? ChatSession()
         self.chatRepository = chatRepository ?? DependencyContainer.shared.makeChatRepository()
         self.userProfileRepository = userProfileRepository ?? DependencyContainer.shared.makeUserProfileRepository()
@@ -60,6 +69,7 @@ final class VenusChatViewModel {
         self.notificationService = notificationService ?? DependencyContainer.shared.makeNotificationService()
         self.venusAI = venusAI ?? DependencyContainer.shared.makeVenusAIService()
         self.readinessEngine = readinessEngine ?? DependencyContainer.shared.makeReadinessEngine()
+        self.dailyPlanRepository = dailyPlanRepository ?? DependencyContainer.shared.makeDailyPlanRepository()
         
         if let session = session {
             self.messages = session.messages
@@ -88,6 +98,7 @@ final class VenusChatViewModel {
         Task {
             do {
                 self.userProfile = try await userProfileRepository.load()
+                self.todayPlan = try? await dailyPlanRepository.getPlan(for: Date())
                 
                 if let tone = self.userProfile?.coachingTone.lowercased() {
                     if tone.contains("socrático") || tone.contains("socratico") {
@@ -97,9 +108,13 @@ final class VenusChatViewModel {
                     }
                 }
                 
-                // If it's a new empty session, generate welcome message
+                // If it's a new empty session, generate welcome message or planning prompt
                 if messages.isEmpty {
-                    if openedFromMirror {
+                    if let prompt = initialPlanningPrompt, !prompt.isEmpty {
+                        sendMessage(text: prompt)
+                    } else if openedForPlanning {
+                        sendMessage(text: "Quero planejar minha rotina de hoje com a Venus.")
+                    } else if openedFromMirror {
                         await generateMirrorInitialMessage()
                     } else {
                         await generateWelcomeMessage()
@@ -197,6 +212,82 @@ final class VenusChatViewModel {
                 )
                 self.lastDiagnosis = diagnosis
                 
+                // Refresh todayPlan before processing
+                if let currentPlan = try? await dailyPlanRepository.getPlan(for: Date()) {
+                    self.todayPlan = currentPlan
+                }
+                
+                // Check if user is confirming a pending planning proposal from previous message
+                let isConfirmation = DailyPlanEngine.shared.isPlanningConfirmationIntent(trimmed)
+                if isConfirmation,
+                   let pendingMessageIndex = self.messages.lastIndex(where: {
+                       $0.planningProposal != nil &&
+                       !($0.planningProposal?.proposedBlocks.isEmpty ?? true) &&
+                       !($0.isPlanningConfirmed ?? false)
+                   }) {
+                    let pendingMessage = self.messages[pendingMessageIndex]
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        self.isVenusThinking = false
+                    }
+                    self.confirmPlanningProposal(for: pendingMessage.id)
+                    return
+                }
+                
+                let isPlanning = DailyPlanEngine.shared.isPlanningIntent(
+                    text: trimmed,
+                    hasActivePlan: todayPlan != nil
+                )
+                
+                if isPlanning {
+                    // Call structured planning assistant
+                    var planningResponse = try await venusAI.generatePlanningResponse(
+                        userMessage: trimmed,
+                        conversationHistory: messages,
+                        userProfile: userProfile,
+                        readiness: assessment,
+                        recentMoods: allMoods,
+                        currentPlan: todayPlan
+                    )
+                    
+                    // If AI returned 0 blocks, supply balanced starter blocks so card is always provided
+                    if planningResponse.proposedBlocks.isEmpty {
+                        let starters = DailyPlanEngine.shared.generateDefaultStarterProposedBlocks(
+                            startingFrom: Date(),
+                            readinessScore: assessment.score
+                        )
+                        planningResponse = AIPlanningResponse(
+                            message: planningResponse.message.isEmpty ? "Montei uma estrutura de rotina para calibrar seu dia com calma:" : planningResponse.message,
+                            intent: .createPlan,
+                            proposedBlocks: starters,
+                            reasoningSummary: "Rotina adaptada ao seu ritmo, com foco e pausas protegidas.",
+                            questions: planningResponse.questions,
+                            requiresConfirmation: true
+                        )
+                    }
+                    
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        self.isVenusThinking = false
+                    }
+                    
+                    let venusMessageId = UUID()
+                    let initialVenusMessage = ChatMessage(
+                        id: venusMessageId,
+                        content: "",
+                        isFromUser: false,
+                        planningProposal: planningResponse.proposedBlocks.isEmpty ? nil : planningResponse
+                    )
+                    
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        self.messages.append(initialVenusMessage)
+                        self.currentSession.addMessage(initialVenusMessage)
+                    }
+                    
+                    await animateTypewriterForMessage(id: venusMessageId, text: planningResponse.message, speed: 0.015)
+                    await saveCurrentSession()
+                    return
+                }
+                
+                // Normal streaming emotional / reflective chat
                 let stream = venusAI.generateStreamResponse(
                     userMessage: trimmed,
                     conversationHistory: messages,
@@ -315,6 +406,53 @@ final class VenusChatViewModel {
         }
     }
     
+    func confirmPlanningProposal(for messageId: UUID) {
+        guard let messageIndex = messages.firstIndex(where: { $0.id == messageId }),
+              let proposal = messages[messageIndex].planningProposal,
+              !proposal.proposedBlocks.isEmpty else { return }
+        
+        Task {
+            let domainBlocks = DailyPlanEngine.shared.convertProposedBlocks(proposal.proposedBlocks, baseDate: Date())
+            
+            let newPlan: DailyPlan
+            if let existing = self.todayPlan {
+                newPlan = DailyPlanEngine.shared.reorganizeRemainderOfDay(
+                    currentPlan: existing,
+                    startingFrom: Date(),
+                    newBlocks: domainBlocks,
+                    readinessScore: self.currentReadiness?.score
+                )
+            } else {
+                newPlan = DailyPlan(
+                    date: Date(),
+                    state: .active,
+                    summary: proposal.reasoningSummary ?? "Plano do dia criado com a Venus",
+                    blocks: domainBlocks
+                )
+            }
+            
+            try? await dailyPlanRepository.save(plan: newPlan)
+            self.todayPlan = newPlan
+            
+            withAnimation(.spring(duration: 0.3)) {
+                self.messages[messageIndex].isPlanningConfirmed = true
+                if let sessionIndex = self.currentSession.messages.firstIndex(where: { $0.id == messageId }) {
+                    self.currentSession.messages[sessionIndex].isPlanningConfirmed = true
+                }
+            }
+            
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            
+            let confirmationText = "Plano confirmado e ativado com sucesso! 🌸 Você pode acompanhar, adicionar ou ajustar seus blocos na tela 'Meu dia'."
+            let confirmationMessage = ChatMessage(content: confirmationText, isFromUser: false)
+            withAnimation(.easeOut(duration: 0.25)) {
+                self.messages.append(confirmationMessage)
+                self.currentSession.addMessage(confirmationMessage)
+            }
+            await saveCurrentSession()
+        }
+    }
+    
     private func animateTypewriter(text: String, speed: Double) async {
         let venusMessageId = UUID()
         let initialMessage = ChatMessage(id: venusMessageId, content: "", isFromUser: false)
@@ -324,12 +462,16 @@ final class VenusChatViewModel {
             currentSession.addMessage(initialMessage)
         }
         
+        await animateTypewriterForMessage(id: venusMessageId, text: text, speed: speed)
+    }
+    
+    private func animateTypewriterForMessage(id: UUID, text: String, speed: Double) async {
         var currentText = ""
         for char in text {
             currentText.append(char)
-            if let index = messages.firstIndex(where: { $0.id == venusMessageId }) {
+            if let index = messages.firstIndex(where: { $0.id == id }) {
                 messages[index].content = currentText
-                if let sessionIndex = currentSession.messages.firstIndex(where: { $0.id == venusMessageId }) {
+                if let sessionIndex = currentSession.messages.firstIndex(where: { $0.id == id }) {
                     currentSession.messages[sessionIndex].content = currentText
                 }
             }
@@ -412,7 +554,10 @@ final class VenusChatViewModel {
             
             audioEngine.prepare()
             try audioEngine.start()
-            isRecording = true
+            
+            withAnimation(.spring(response: 0.3)) {
+                isRecording = true
+            }
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         } catch {
             showErrorMessage("Erro ao iniciar gravação")
@@ -425,31 +570,26 @@ final class VenusChatViewModel {
         audioEngine.inputNode.removeTap(onBus: 0)
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
-        
         recognitionRequest = nil
         recognitionTask = nil
-        isRecording = false
         
-        try? AVAudioSession.sharedInstance().setActive(false)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-    }
-    
-    private func saveCurrentSession() async {
-        do {
-            var sessions = try await chatRepository.loadSessions()
-            if let index = sessions.firstIndex(where: { $0.id == currentSession.id }) {
-                sessions[index] = currentSession
-            } else {
-                sessions.append(currentSession)
-            }
-            try await chatRepository.saveSessions(sessions)
-        } catch {
-            print("Erro ao salvar sessão: \(error)")
+        withAnimation(.spring(response: 0.3)) {
+            isRecording = false
         }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
     
     private func showErrorMessage(_ message: String) {
         errorMessage = message
         showError = true
+        UINotificationFeedbackGenerator().notificationOccurred(.error)
+    }
+    
+    private func saveCurrentSession() async {
+        do {
+            try await chatRepository.saveSession(currentSession)
+        } catch {
+            print("Erro ao salvar sessão de chat: \(error)")
+        }
     }
 }

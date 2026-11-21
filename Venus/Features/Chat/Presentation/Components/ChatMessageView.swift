@@ -15,6 +15,7 @@ struct ChatMessageView: View {
     let onReact: () -> Void
     let onReply: () -> Void
     var onScheduleReminder: ((String) -> Void)? = nil
+    var onConfirmPlan: (() -> Void)? = nil
     
     @State private var dragOffset: CGFloat = 0
     @State private var isHeartPopping = false
@@ -123,6 +124,19 @@ struct ChatMessageView: View {
                     )
                     .shadow(color: isStreaming && !message.isFromUser ? VenusTheme.primary.opacity(0.18) : Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
                     .frame(maxWidth: UIScreen.main.bounds.width * 0.82, alignment: message.isFromUser ? .trailing : .leading)
+                    
+                    // Optional Planning Proposal Card
+                    if let proposal = message.planningProposal, !proposal.proposedBlocks.isEmpty, !message.isFromUser {
+                        ChatPlanningProposalCard(
+                            proposal: proposal,
+                            isConfirmed: message.isPlanningConfirmed == true,
+                            onConfirm: {
+                                onConfirmPlan?()
+                            }
+                        )
+                        .padding(.top, 4)
+                        .padding(.horizontal, 4)
+                    }
                     
                     // Optional Reminder Button (if present)
                     if let reminder = message.reminder, !reminder.isEmpty, !message.isFromUser {

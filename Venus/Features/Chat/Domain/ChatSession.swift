@@ -79,6 +79,10 @@ struct ChatMessage: Identifiable, Codable, Sendable, Equatable {
     var tags: [String]?
     var reminder: String?
     
+    // AI-generated planning proposal
+    var planningProposal: AIPlanningResponse?
+    var isPlanningConfirmed: Bool?
+    
     init(
         id: UUID = UUID(),
         content: String,
@@ -89,7 +93,9 @@ struct ChatMessage: Identifiable, Codable, Sendable, Equatable {
         replyToContent: String? = nil,
         summary: String? = nil,
         tags: [String]? = nil,
-        reminder: String? = nil
+        reminder: String? = nil,
+        planningProposal: AIPlanningResponse? = nil,
+        isPlanningConfirmed: Bool? = nil
     ) {
         self.id = id
         self.content = content
@@ -101,5 +107,7 @@ struct ChatMessage: Identifiable, Codable, Sendable, Equatable {
         self.summary = summary
         self.tags = tags
         self.reminder = reminder
+        self.planningProposal = planningProposal
+        self.isPlanningConfirmed = isPlanningConfirmed
     }
 }

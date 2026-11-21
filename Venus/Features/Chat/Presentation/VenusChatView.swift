@@ -13,8 +13,18 @@ struct VenusChatView: View {
     @FocusState private var isTextFieldFocused: Bool
     @Environment(\.dismiss) private var dismiss
     
-    init(openedFromMirror: Bool = false, session: ChatSession? = nil) {
-        _viewModel = State(initialValue: VenusChatViewModel(openedFromMirror: openedFromMirror, session: session))
+    init(
+        openedFromMirror: Bool = false,
+        openedForPlanning: Bool = false,
+        initialPrompt: String? = nil,
+        session: ChatSession? = nil
+    ) {
+        _viewModel = State(initialValue: VenusChatViewModel(
+            openedFromMirror: openedFromMirror,
+            openedForPlanning: openedForPlanning,
+            initialPlanningPrompt: initialPrompt,
+            session: session
+        ))
     }
     
     var body: some View {
@@ -85,6 +95,9 @@ struct VenusChatView: View {
                                         },
                                         onScheduleReminder: { reminder in
                                             viewModel.scheduleReminderNotification(text: reminder)
+                                        },
+                                        onConfirmPlan: {
+                                            viewModel.confirmPlanningProposal(for: message.id)
                                         }
                                     )
                                     .id(message.id)

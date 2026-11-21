@@ -30,7 +30,7 @@ struct VenusMascotHandsView: View {
     
     private var scale: CGFloat { size / 100.0 }
     
-    // Body radius is 0.38 * size. Flank paws sit at ±0.38 * size to peek out from the edges
+    // Hands float just beyond the ghost form, rather than reading as a separate outlined object.
     private var flankX: CGFloat { size * 0.38 }
 
     var body: some View {
@@ -165,14 +165,14 @@ struct VenusMascotHandsView: View {
     
     private func singlePaw(isRight: Bool) -> some View {
         ZStack {
-            // Paw body
+            // Diffuse spectral hand — layered light replaces the former hard rim.
             Circle()
                 .fill(
                     LinearGradient(
                         colors: [
-                            highlightTint.opacity(0.95),
-                            tint.opacity(0.95),
-                            tint.opacity(0.85)
+                            Color.white.opacity(0.70),
+                            highlightTint.opacity(0.70),
+                            tint.opacity(0.48)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -180,18 +180,25 @@ struct VenusMascotHandsView: View {
                 )
                 .frame(width: 14 * scale, height: 14 * scale)
                 .overlay(
-                    // Soft top highlight
+                    // Interior glow only; no drawn outline around the hand.
                     Circle()
-                        .stroke(Color.white.opacity(0.55), lineWidth: 1.2 * scale)
+                        .fill(
+                            RadialGradient(
+                                colors: [Color.white.opacity(0.32), Color.clear],
+                                center: .topLeading,
+                                startRadius: 0,
+                                endRadius: 11 * scale
+                            )
+                        )
                 )
                 .overlay(
-                    // Glossy specular dot
+                    // Small starlight glint
                     Circle()
-                        .fill(Color.white.opacity(0.85))
-                        .frame(width: 4 * scale, height: 4 * scale)
+                        .fill(Color.white.opacity(0.70))
+                        .frame(width: 3.4 * scale, height: 3.4 * scale)
                         .offset(x: isRight ? 1.5 * scale : -1.5 * scale, y: -2.5 * scale)
                 )
-                .shadow(color: tint.opacity(0.4), radius: 3 * scale, x: 0, y: 2 * scale)
+                .shadow(color: tint.opacity(0.32), radius: 4 * scale, x: 0, y: 2 * scale)
         }
     }
 }

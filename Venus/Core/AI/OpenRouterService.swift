@@ -47,7 +47,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("https://venus.app", forHTTPHeaderField: "HTTP-Referer")
         request.setValue("Venus Emotional Wellness", forHTTPHeaderField: "X-Title")
-        request.timeoutInterval = 30
+        request.timeoutInterval = 45
         
         let requestBody = OpenRouterChatRequest(
             model: modelToUse,
@@ -79,18 +79,26 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         let chatResponse = try decoder.decode(OpenRouterChatResponse.self, from: data)
         
         guard let choices = chatResponse.choices,
-              let firstChoice = choices.first,
-              let content = firstChoice.message.content else {
+              let firstChoice = choices.first else {
             throw VenusAIError.noResponse
         }
         
-        return content
+        if let content = firstChoice.message.content, !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return content
+        }
+        
+        // Fallback para modelos de raciocínio (reasoning tokens)
+        if let reasoning = firstChoice.message.reasoning, !reasoning.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return ThinkingStreamFilter.clean(reasoning)
+        }
+        
+        throw VenusAIError.noResponse
     }
 
     private func sendChatCompletion(
         messages: [OpenRouterMessage],
         temperature: Double = 0.7,
-        maxTokens: Int = 1000
+        maxTokens: Int = 1500
     ) async throws -> String {
         do {
             return try await executeChatCompletion(
@@ -100,8 +108,6 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                 maxTokens: maxTokens
             )
         } catch {
-            // Se o modelo primário (ex: respan/span-01-lite da Decisions API) não aceitar /chat/completions,
-            // aciona automaticamente o fallback gratuito para manter a experiência do usuário fluida
             if model != AppConfig.fallbackChatModel {
                 print("⚠️ [OpenRouter] Falha com modelo '\(model)' (\(error.localizedDescription)). Tentando fallback para '\(AppConfig.fallbackChatModel)'...")
                 return try await executeChatCompletion(
@@ -222,7 +228,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                 model: currentModel,
                 messages: apiMessages,
                 temperature: 0.7,
-                max_tokens: 1000,
+                max_tokens: 1500,
                 stream: true
             )
             
@@ -258,6 +264,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                     return
                 }
                 
+                var streamReceivedAny = false
                 let streamFilter = ThinkingStreamFilter()
                 
                 for try await line in asyncBytes.lines {
@@ -273,20 +280,39 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                     guard let data = dataContent.data(using: .utf8),
                           let chunk = try? JSONDecoder().decode(OpenRouterStreamResponse.self, from: data),
                           let choices = chunk.choices,
-                          let delta = choices.first?.delta,
-                          let content = delta.content else {
+                          let delta = choices.first?.delta else {
                         continue
                     }
                     
-                    let safeText = streamFilter.process(chunk: content)
-                    if !safeText.isEmpty {
-                        continuation.yield(safeText)
+                    if let content = delta.content, !content.isEmpty {
+                        let safeText = streamFilter.process(chunk: content)
+                        if !safeText.isEmpty {
+                            streamReceivedAny = true
+                            continuation.yield(safeText)
+                        }
                     }
                 }
                 
                 let remaining = streamFilter.flush()
                 if !remaining.isEmpty {
+                    streamReceivedAny = true
                     continuation.yield(remaining)
+                }
+                
+                // Se o stream completou sem texto emitido, aciona fallback síncrono
+                if !streamReceivedAny {
+                    print("⚠️ Stream finalizou sem texto visível. Acionando fallback direto...")
+                    if let fallbackContent = try? await self.executeChatCompletion(
+                        modelToUse: currentModel,
+                        messages: apiMessages,
+                        temperature: 0.7,
+                        maxTokens: 1500
+                    ) {
+                        let clean = ThinkingStreamFilter.clean(fallbackContent)
+                        if !clean.isEmpty {
+                            continuation.yield(clean)
+                        }
+                    }
                 }
                 
                 continuation.finish()
@@ -354,7 +380,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         
         messages.append(OpenRouterMessage(role: "user", content: userMessage))
         
-        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 800)
+        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 1500)
         return cleanResponseText(response)
     }
     
@@ -430,7 +456,6 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             }
         }
 
-        // Injeção do Motor de Autoconhecimento (Radar de Contradições, Interrogatório Socrático, Sombra, Valores, etc.)
         let diagnosis = currentDiagnosis ?? SelfKnowledgeDiagnosis(activeLens: activeLens)
         prompt += SelfKnowledgeEngine.shared.buildPromptEnrichment(
             diagnosis: diagnosis,
@@ -467,8 +492,13 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
-        let response = try await sendChatCompletion(messages: messages, temperature: 0.5, maxTokens: 600)
-        return cleanResponse(response)
+        do {
+            let response = try await sendChatCompletion(messages: messages, temperature: 0.5, maxTokens: 1500)
+            let cleaned = cleanResponse(response)
+            return cleaned.isEmpty ? "Seus registros recentes mostram que você está cuidando do seu ritmo. Continue com passos conscientes." : cleaned
+        } catch {
+            return "Seus registros recentes mostram que você está cuidando do seu ritmo. Continue com passos conscientes."
+        }
     }
     
     func generateMirrorInsights(
@@ -509,51 +539,73 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
-        let response = try await sendChatCompletion(messages: messages, temperature: 0.3, maxTokens: 1000)
-        let cleanJsonString = cleanJsonText(response)
-        
-        guard let jsonData = cleanJsonString.data(using: .utf8) else {
-            throw VenusAIError.invalidResponse
+        do {
+            let response = try await sendChatCompletion(messages: messages, temperature: 0.3, maxTokens: 1500)
+            let cleanJsonString = cleanJsonText(response)
+            
+            if let jsonData = cleanJsonString.data(using: .utf8),
+               let decoded = try? JSONDecoder().decode(AIMirrorResponse.self, from: jsonData) {
+                
+                let direction: WeeklyTrendDirection
+                switch decoded.direction.lowercased() {
+                case "improving": direction = .improving
+                case "declining": direction = .declining
+                default: direction = .stable
+                }
+                
+                let weeklyTrend = WeeklyEmotionalTrend(
+                    direction: direction,
+                    summary: decoded.summary,
+                    currentWeekScore: decoded.currentWeekScore,
+                    previousWeekScore: decoded.previousWeekScore
+                )
+                
+                let weeklyInsights = WeeklyStrategicInsights(
+                    dominantTrigger: decoded.dominantTrigger,
+                    bestDay: decoded.bestDay,
+                    criticalWindow: decoded.criticalWindow,
+                    sleepCounterfactual: nil,
+                    worstRecurringPattern: decoded.alertTitle ?? "Nenhum padrão crítico detectado",
+                    behavioralFocus: decoded.behavioralFocus,
+                    leverageScore: 0.8,
+                    streakQualityScore: 0.9,
+                    recoveryProtocol: nil,
+                    confidence: 0.85
+                )
+                
+                var patternAlert: PatternAlert? = nil
+                if let alertTitle = decoded.alertTitle, let alertDetail = decoded.alertDetail, !alertTitle.isEmpty {
+                    patternAlert = PatternAlert(
+                        title: alertTitle,
+                        detail: alertDetail
+                    )
+                }
+                
+                return (weeklyTrend, weeklyInsights, patternAlert)
+            }
+        } catch {
+            print("⚠️ [OpenRouterService] Falha ao gerar mirror insights estruturados: \(error)")
         }
         
-        let decoded = try JSONDecoder().decode(AIMirrorResponse.self, from: jsonData)
-        
-        let direction: WeeklyTrendDirection
-        switch decoded.direction.lowercased() {
-        case "improving": direction = .improving
-        case "declining": direction = .declining
-        default: direction = .stable
-        }
-        
-        let weeklyTrend = WeeklyEmotionalTrend(
-            direction: direction,
-            summary: decoded.summary,
-            currentWeekScore: decoded.currentWeekScore,
-            previousWeekScore: decoded.previousWeekScore
+        let fallbackTrend = WeeklyEmotionalTrend(
+            direction: .stable,
+            summary: "Sua semana mostra busca por clareza e acolhimento dos próprios ritmos.",
+            currentWeekScore: 0.72,
+            previousWeekScore: 0.68
         )
-        
-        let weeklyInsights = WeeklyStrategicInsights(
-            dominantTrigger: decoded.dominantTrigger,
-            bestDay: decoded.bestDay,
-            criticalWindow: decoded.criticalWindow,
+        let fallbackInsights = WeeklyStrategicInsights(
+            dominantTrigger: "Rotina e ritmo",
+            bestDay: "Hoje",
+            criticalWindow: "Período da tarde",
             sleepCounterfactual: nil,
-            worstRecurringPattern: decoded.alertTitle ?? "Nenhum padrão crítico detectado",
-            behavioralFocus: decoded.behavioralFocus,
+            worstRecurringPattern: "Nenhum padrão crítico detectado",
+            behavioralFocus: "Preservar intervalos de descanso sem culpa",
             leverageScore: 0.8,
-            streakQualityScore: 0.9,
+            streakQualityScore: 0.88,
             recoveryProtocol: nil,
-            confidence: 0.85
+            confidence: 0.82
         )
-        
-        var patternAlert: PatternAlert? = nil
-        if let alertTitle = decoded.alertTitle, let alertDetail = decoded.alertDetail, !alertTitle.isEmpty {
-            patternAlert = PatternAlert(
-                title: alertTitle,
-                detail: alertDetail
-            )
-        }
-        
-        return (weeklyTrend, weeklyInsights, patternAlert)
+        return (fallbackTrend, fallbackInsights, nil)
     }
     
     func generateSuggestion(mood: MoodType, userContext: UserProfile) async throws -> String {
@@ -569,8 +621,13 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
-        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 150)
-        return cleanResponse(response)
+        do {
+            let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 1200)
+            let cleaned = cleanResponse(response)
+            return cleaned.isEmpty ? "Respire fundo e dê a si mesmo(a) um momento de pausa hoje. 💜" : cleaned
+        } catch {
+            return "Respire fundo e dê a si mesmo(a) um momento de pausa hoje. 💜"
+        }
     }
     
     func generateGreeting(userName: String, mood: MoodType?) async throws -> String {
@@ -583,8 +640,13 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
-        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 100)
-        return cleanResponse(response)
+        do {
+            let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 1200)
+            let cleaned = cleanResponse(response)
+            return cleaned.isEmpty ? "Olá, \(name)! Que bom ter você aqui. Como posso te apoiar hoje? 💜" : cleaned
+        } catch {
+            return "Olá, \(name)! Que bom ter você aqui. Como posso te apoiar hoje? 💜"
+        }
     }
     
     func generateNextOnboardingQuestion(
@@ -618,20 +680,24 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
-        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 400)
-        let clean = cleanJsonText(response)
-        
-        guard let data = clean.data(using: .utf8),
-              let decoded = try? JSONDecoder().decode(AIOnboardingQuestionResponse.self, from: data) else {
-            return AIOnboardingQuestionResponse(
-                empathyReaction: "Entendo perfeitamente.",
-                nextQuestion: "O que mais você gostaria de compartilhar sobre sua rotina?",
-                suggestedTone: "Acolhedor",
-                hasEnoughContext: false
-            )
+        do {
+            let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 1200)
+            let clean = cleanJsonText(response)
+            
+            if let data = clean.data(using: .utf8),
+               let decoded = try? JSONDecoder().decode(AIOnboardingQuestionResponse.self, from: data) {
+                return decoded
+            }
+        } catch {
+            print("⚠️ [OpenRouterService] Falha na pergunta de onboarding: \(error)")
         }
         
-        return decoded
+        return AIOnboardingQuestionResponse(
+            empathyReaction: "Entendo perfeitamente.",
+            nextQuestion: "O que mais você gostaria de compartilhar sobre sua rotina?",
+            suggestedTone: "Acolhedor",
+            hasEnoughContext: false
+        )
     }
     
     func generateOnboardingProfile(userProfile: UserProfile) async throws -> AIOnboardingProfileResponse {
@@ -656,26 +722,171 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
-        let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 400)
-        let clean = cleanJsonText(response)
-        
-        guard let data = clean.data(using: .utf8),
-              let decoded = try? JSONDecoder().decode(AIOnboardingProfileResponse.self, from: data) else {
-            return AIOnboardingProfileResponse(
-                title: "Explorador da Consciência",
-                badge: "Em Busca de Clareza",
-                subtitle: "Sua jornada de autoconhecimento está apenas começando.",
-                strengths: "Curiosidade e abertura interna",
-                growthArea: "Construção de pausas conscientes",
-                statText: "Pronto para calibrar seu ritmo"
-            )
+        do {
+            let response = try await sendChatCompletion(messages: messages, temperature: 0.7, maxTokens: 1200)
+            let clean = cleanJsonText(response)
+            
+            if let data = clean.data(using: .utf8),
+               let decoded = try? JSONDecoder().decode(AIOnboardingProfileResponse.self, from: data) {
+                return decoded
+            }
+        } catch {
+            print("⚠️ [OpenRouterService] Falha no perfil de onboarding: \(error)")
         }
         
-        return decoded
+        return AIOnboardingProfileResponse(
+            title: "Explorador da Consciência",
+            badge: "Em Busca de Clareza",
+            subtitle: "Sua jornada de autoconhecimento está apenas começando.",
+            strengths: "Curiosidade e abertura interna",
+            growthArea: "Construção de pausas conscientes",
+            statText: "Pronto para calibrar seu ritmo"
+        )
+    }
+    
+    // MARK: - Daily Planning Assistant
+    
+    func generatePlanningResponse(
+        userMessage: String,
+        conversationHistory: [ChatMessage],
+        userProfile: UserProfile?,
+        readiness: ReadinessEnergyAssessment?,
+        recentMoods: [Mood],
+        currentPlan: DailyPlan?
+    ) async throws -> AIPlanningResponse {
+        let now = Date()
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "HH:mm"
+        let currentTimeString = timeFormatter.string(from: now)
+        
+        var context = "Hora atual: \(currentTimeString)\n"
+        if let name = userProfile?.name, !name.isEmpty {
+            context += "Nome do usuário: \(name)\n"
+        }
+        
+        if let work = userProfile?.workSchedule, work.hasWork {
+            context += "Horário de Trabalho: \(timeFormatter.string(from: work.startTime)) às \(timeFormatter.string(from: work.endTime))\n"
+        }
+        
+        if let study = userProfile?.studySchedule, study.studies {
+            context += "Horário de Estudos: \(timeFormatter.string(from: study.startTime)) às \(timeFormatter.string(from: study.endTime))\n"
+        }
+        
+        if let dailyBudget = userProfile?.dailyTimeBudgetMinutes, dailyBudget > 0 {
+            context += "Limite de tempo diário para foco: \(dailyBudget) minutos\n"
+        }
+        
+        if let readiness = readiness {
+            context += "Score de Prontidão (Readiness): \(String(format: "%.1f", readiness.score))/10 (\(readiness.stateTitle))\n"
+        }
+        
+        if let recentMood = recentMoods.last {
+            context += "Humor mais recente: \(recentMood.type.rawValue)\n"
+        }
+        
+        if let plan = currentPlan, !plan.blocks.isEmpty {
+            context += "\nPlano diário existente:\n"
+            for block in plan.blocks {
+                context += "- [\(block.status.displayName)] \(block.title) (\(block.category.displayName)): \(block.formattedTimeRange)\n"
+            }
+        }
+        
+        let systemPrompt = """
+        Você é a Venus, assistente pessoal adaptativa de rotina, estudos e bem-estar do aplicativo Venus.
+        Seu objetivo é transformar as demandas e intenções do usuário em um plano diário realista, acolhedor e possível, sem culpa.
+        
+        Contexto do Usuário:
+        \(context)
+        
+        DIRETRIZES FUNDAMENTAIS DE COMPORTAMENTO:
+        1. Reconheça a intenção do usuário:
+           - Se for criar uma rotina ou plano (ex: "cria uma rotina pra mim", "planejar meu dia", "organizar meus estudos", "quero uma rotina"): intent "createPlan". GERE OBRIGATORIAMENTE entre 3 e 5 blocos estruturados em `proposedBlocks` distribuídos de forma equilibrada a partir do momento atual (\(currentTimeString)) ou do início do dia.
+           - Se for reorganizar o dia (ex: "acordei tarde", "não consegui estudar", "estou cansado", "entrou um compromisso às 16h"): intent "updatePlan". PRESERVE blocos já concluídos. Reorganize apenas a partir de agora (\(currentTimeString)) priorizando o essencial.
+           - Se for concluir um bloco: intent "completeBlock".
+           - Se for conversa geral ou desabafo emocional estrito: intent "generalChat".
+        2. Realismo, Ritmo e Pausas:
+           - NUNCA lote o dia inteiro. Proteja margens de descanso (15 a 30 minutos) entre blocos de esforço mental ou estudo.
+           - Se a prontidão (Readiness) estiver baixa (< 5.0) ou usuário estiver cansado: reduza o tamanho dos blocos (ex: 30 a 45 min), diminua a carga total e garanta momentos de recuperação.
+           - Não gere culpa. Abrace imprevistos com naturalidade ("está tudo bem, vamos recalibrar seu dia").
+        3. Proposta Concreta Obrigatória:
+           - Ao criar ou sugerir rotina, NUNCA retorne `proposedBlocks` vazio. Distribua blocos claros (com título, categoria, startTime e endTime em formato HH:mm) para que o usuário possa confirmar e salvar imediatamente.
+        4. Confirmação:
+           - Sempre que sugerir novos blocos ou reorganização, defina `requiresConfirmation: true`.
+        5. Formato de Resposta:
+           Responda EXCLUSIVAMENTE em formato JSON com esta estrutura (sem markdown fences ou comentários adicionais):
+           {
+             "message": "Sua resposta humana, empática e acolhedora que será mostrada no chat",
+             "intent": "createPlan" | "updatePlan" | "completeBlock" | "generalChat",
+             "proposedBlocks": [
+               {
+                 "title": "Nome da atividade ou compromisso",
+                 "category": "study" | "work" | "habit" | "health" | "personal" | "rest",
+                 "startTime": "HH:mm",
+                 "endTime": "HH:mm",
+                 "priority": "high" | "medium" | "low",
+                 "note": "dica ou observação acolhedora opcional"
+               }
+             ],
+             "reasoningSummary": "Resumo curto em 1 frase sobre como a rotina foi adaptada",
+             "questions": ["Pergunta caso falte informação importante"],
+             "requiresConfirmation": true
+           }
+        """
+        
+        let messages = [
+            OpenRouterMessage(role: "system", content: systemPrompt),
+            OpenRouterMessage(role: "user", content: userMessage)
+        ]
+        
+        do {
+            let response = try await sendChatCompletion(messages: messages, temperature: 0.4, maxTokens: 1500)
+            let clean = cleanJsonText(response)
+            
+            guard let data = clean.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode(AIPlanningResponse.self, from: data) else {
+                if let startIndex = clean.firstIndex(of: "{"),
+                   let endIndex = clean.lastIndex(of: "}"),
+                   startIndex < endIndex {
+                    let substring = String(clean[startIndex...endIndex])
+                    if let subData = substring.data(using: .utf8),
+                       let subDecoded = try? JSONDecoder().decode(AIPlanningResponse.self, from: subData) {
+                        return subDecoded
+                    }
+                }
+                
+                let defaultStarters = DailyPlanEngine.shared.generateDefaultStarterProposedBlocks(
+                    startingFrom: now,
+                    readinessScore: readiness?.score
+                )
+                return AIPlanningResponse(
+                    message: cleanResponse(response).isEmpty ? "Montei uma sugestão de blocos para seu dia. Você pode confirmar ou ajustar:" : cleanResponse(response),
+                    intent: .createPlan,
+                    proposedBlocks: defaultStarters,
+                    reasoningSummary: "Rotina adaptada ao seu ritmo atual.",
+                    questions: nil,
+                    requiresConfirmation: true
+                )
+            }
+            
+            return decoded
+        } catch {
+            print("⚠️ [OpenRouterService] Erro ao gerar planejamento estruturado: \(error)")
+            let defaultStarters = DailyPlanEngine.shared.generateDefaultStarterProposedBlocks(
+                startingFrom: now,
+                readinessScore: readiness?.score
+            )
+            return AIPlanningResponse(
+                message: "Estou aqui com você. Preparei uma sugestão de rotina equilibrada para hoje para começarmos:",
+                intent: .createPlan,
+                proposedBlocks: defaultStarters,
+                reasoningSummary: "Estrutura inicial com foco e descanso.",
+                questions: ["Quer ajustar algum dos horários ou tarefas?"],
+                requiresConfirmation: true
+            )
+        }
     }
     
     func analyzeEmotionalState(message: String) async throws -> EmotionalState {
-        // Usa o serviço offline de Apple Natural Language para ultra-baixa latência e privacidade
         return AppleNaturalLanguageService.shared.analyze(text: message)
     }
     
@@ -725,7 +936,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
-        guard let response = try? await sendChatCompletion(messages: messages, temperature: 0.3, maxTokens: 300) else {
+        guard let response = try? await sendChatCompletion(messages: messages, temperature: 0.3, maxTokens: 1200) else {
             return nil
         }
         
@@ -760,11 +971,11 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         """
         
         let messages = [
-            OpenRouterMessage(role: "system", content: "Seja breve e direto."),
+            OpenRouterMessage(role: "system", content: "Seja breve e direto. Responda estritamente no formato: TITULO | SUBTITULO."),
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
-        guard let response = try? await sendChatCompletion(messages: messages, temperature: 0.5, maxTokens: 60) else {
+        guard let response = try? await sendChatCompletion(messages: messages, temperature: 0.5, maxTokens: 1200) else {
             return ("Prontidão Estável", "Ritmo equilibrado")
         }
         

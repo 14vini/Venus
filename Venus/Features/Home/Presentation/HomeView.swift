@@ -29,6 +29,14 @@ struct HomeView: View {
                         }
                     )
                     
+                    // Meu dia (Área de Planejamento Diário e Rotina Realista)
+                    HomeMyDayCard(
+                        plan: viewModel.todayPlan,
+                        onTap: {
+                            viewModel.showMyDay = true
+                        }
+                    )
+                    
                     // Hero Mascot Host (Card Neumórfico Monocromático)
                     HomeHeroMascotView(
                         userName: userName,
@@ -63,10 +71,17 @@ struct HomeView: View {
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
+                    viewModel.showMyDay = true
+                } label: {
+                    Image(systemName: "calendar.badge.clock")
+                        .foregroundStyle(VenusTheme.primary)
+                }
+                
+                Button {
                     viewModel.showEmotionalGalaxy = true
                 } label: {
                     Image(systemName: "sparkles.rectangle.stack")
-                        .foregroundStyle(VenusTheme.primary)
+                        .foregroundStyle(VenusTheme.text)
                 }
                 
                 Button {
@@ -85,6 +100,11 @@ struct HomeView: View {
                 viewModel: inlineCheckInViewModel,
                 ritualProgressLabel: viewModel.ritualProgressLabel
             )
+        }
+        .sheet(isPresented: $viewModel.showMyDay, onDismiss: {
+            viewModel.onAppear()
+        }) {
+            MyDayView()
         }
         .sheet(isPresented: $viewModel.showReadinessBreakdown) {
             ReadinessBreakdownSheet(

@@ -41,10 +41,12 @@ enum VenusAIError: LocalizedError {
 struct OpenRouterMessage: Codable, Sendable {
     let role: String
     let content: String?
+    let reasoning: String?
     
-    init(role: String, content: String?) {
+    init(role: String, content: String?, reasoning: String? = nil) {
         self.role = role
         self.content = content
+        self.reasoning = reasoning
     }
 }
 
@@ -59,7 +61,7 @@ struct OpenRouterChatRequest: Codable, Sendable {
         model: String,
         messages: [OpenRouterMessage],
         temperature: Double? = 0.7,
-        max_tokens: Int? = 1200,
+        max_tokens: Int? = 1500,
         stream: Bool? = nil
     ) {
         self.model = model
@@ -99,6 +101,7 @@ struct OpenRouterStreamChoice: Codable, Sendable {
 struct OpenRouterStreamDelta: Codable, Sendable {
     let role: String?
     let content: String?
+    let reasoning: String?
 }
 
 struct OpenRouterErrorDetail: Codable, Sendable {

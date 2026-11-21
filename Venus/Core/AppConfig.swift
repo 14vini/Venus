@@ -35,7 +35,7 @@ struct AppConfig {
 
     static var hasAIKeyConfigured: Bool { !openRouterAPIKey.isEmpty }
 
-    /// Modelo OpenRouter configurado (respan/span-01-lite)
+    /// Modelo OpenRouter configurado (gratuito por padrão: openrouter/free)
     /// Pode ser configurado via variável de ambiente OPENROUTER_MODEL ou Info.plist
     static var openRouterModel: String {
         // 1. Process Environment Variable (Xcode Scheme Run Arguments / CI)
@@ -51,11 +51,11 @@ struct AppConfig {
             return infoModel.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        // 3. Modelo solicitado
-        return "respan/span-01-lite"
+        // 3. Modelo gratuito solicitado
+        return "openrouter/free"
     }
 
-    /// Modelo de fallback gratuito para rotas de chat/streaming caso o modelo principal seja exclusivo da Decisions API
+    /// Modelo de fallback gratuito para rotas de chat/streaming
     static let fallbackChatModel = "openrouter/free"
 
     /// OpenRouter Chat Completions endpoint

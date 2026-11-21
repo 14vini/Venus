@@ -68,6 +68,17 @@ protocol VenusAIServiceProtocol: Sendable {
     ) async throws -> AIOnboardingQuestionResponse
     func generateOnboardingProfile(userProfile: UserProfile) async throws -> AIOnboardingProfileResponse
 
+    // MARK: - Daily Planning Assistant
+    
+    func generatePlanningResponse(
+        userMessage: String,
+        conversationHistory: [ChatMessage],
+        userProfile: UserProfile?,
+        readiness: ReadinessEnergyAssessment?,
+        recentMoods: [Mood],
+        currentPlan: DailyPlan?
+    ) async throws -> AIPlanningResponse
+
     // MARK: - Biometrics & Readiness AI Methods
 
     func analyzeChatReadinessImpact(messages: [ChatMessage]) async -> ChatReadinessImpact?
