@@ -31,6 +31,8 @@ struct IdentityStep: View {
                 .foregroundStyle(VenusTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(2)
+                .contentTransition(.opacity)
+                .animation(.spring(response: 0.42, dampingFraction: 0.8), value: userProfile.name)
             
             // Clean Borderless Name Input
             VStack(alignment: .leading, spacing: 8) {
@@ -42,17 +44,18 @@ struct IdentityStep: View {
                     .background(Color.clear)
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled(true)
-                    .submitLabel(.done)
+                    .submitLabel(.continue)
                     .focused($isInputFocused)
                     .onChange(of: inputName) { _, newValue in
                         userProfile.name = newValue
                     }
                     .onSubmit {
                         commitIdentity()
-                        if !userProfile.gender.isEmpty {
-                            onSubmit?()
-                        }
+                        // Return avança quando o passo estiver completo; o container valida.
+                        onSubmit?()
                     }
+                    .accessibilityLabel("Seu nome")
+                    .accessibilityHint("Pressione Return para continuar.")
                 
                 Rectangle()
                     .fill(isInputFocused ? OnboardingVisualPalette.lilac : VenusTheme.textSecondary.opacity(0.25))
@@ -66,6 +69,8 @@ struct IdentityStep: View {
                 Text("Como você se identifica?")
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
                     .foregroundStyle(VenusTheme.textSecondary)
+                    .contentTransition(.opacity)
+                    .animation(.spring(response: 0.42, dampingFraction: 0.8), value: selectedGender)
                 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], alignment: .leading, spacing: 8) {
                     ForEach(genderOptions, id: \.self) { option in
@@ -80,8 +85,11 @@ struct IdentityStep: View {
                             Text(option)
                                 .font(.system(.subheadline, design: .rounded).weight(isSelected ? .semibold : .regular))
                                 .foregroundColor(isSelected ? .white : VenusTheme.text)
+                                .contentTransition(.opacity)
+                                .animation(.spring(response: 0.42, dampingFraction: 0.8), value: isSelected)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 10)
+                                .frame(minHeight: 44)
                                 .background {
                                     if isSelected {
                                         Capsule(style: .continuous)
@@ -98,8 +106,9 @@ struct IdentityStep: View {
                                     }
                                 }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(OnboardingPressableButtonStyle())
                         .accessibilityLabel(option)
+                        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
                     }
                 }
             }
@@ -112,9 +121,11 @@ struct IdentityStep: View {
         .onAppear {
             inputName = userProfile.name
             selectedGender = userProfile.gender
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                isInputFocused = true
-            }
+        }
+        .task {
+            // Foco estável: cancelado se a pessoa sair da etapa antes disso.
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            isInputFocused = true
         }
         .onDisappear {
             commitIdentity()

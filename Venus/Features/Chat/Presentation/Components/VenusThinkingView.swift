@@ -4,12 +4,12 @@
 //
 //  Created by Kaua on 14/12/25.
 //
+//  Indicador discreto de que a Venus está preparando a resposta: só o mascot
+//  com aura suave. Sem texto, sem pontos e sem linguagem de processo.
+//
 
 import SwiftUI
 
-/// Indicador de que a Venus está preparando uma resposta: apenas o mascot em
-/// pose `.thinking` com uma aura pulsante sutil. Sem texto, sem pontos, sem
-/// qualquer linguagem de processo.
 struct VenusThinkingView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isPulsing = false
@@ -18,22 +18,22 @@ struct VenusThinkingView: View {
         HStack {
             ZStack {
                 Circle()
-                    .fill(VenusChatVisualStyle.aura.opacity(colorScheme == .dark ? 0.16 : 0.26))
-                    .frame(width: 58, height: 58)
-                    .blur(radius: 13)
-                    .scaleEffect(isPulsing ? 1.14 : 0.92)
-                    .opacity(isPulsing ? 0.85 : 0.40)
+                    .fill(VenusChatVisualStyle.aura.opacity(colorScheme == .dark ? 0.16 : 0.24))
+                    .frame(width: 50, height: 50)
+                    .blur(radius: 12)
+                    .scaleEffect(isPulsing ? 1.12 : 0.92)
+                    .opacity(isPulsing ? 0.7 : 0.35)
                     .accessibilityHidden(true)
 
                 VenusMoodOrb(
                     state: .thinking,
-                    size: 42,
+                    size: 36,
                     showHands: false,
                     showShadow: false,
                     isInteractive: false
                 )
             }
-            .frame(width: 58, height: 58)
+            .frame(width: 50, height: 50)
             .accessibilityLabel("Venus")
             .onAppear {
                 guard !isPulsing else { return }

@@ -287,8 +287,17 @@ struct VenusMoodOrb: View {
         if effectiveState == .welcoming { return .welcoming }
         if effectiveState == .curious { return .curious }
         if effectiveState == .excited { return .excited }
+        if let reaction = effectiveState.reactionExpression { return reaction }
         if let expression { return expression }
         return VenusMascotExpression(from: mood)
+    }
+
+    /// Brilho suave no peito para carinho, gratidão e orgulho.
+    private var showChestGlow: Bool {
+        switch effectiveExpression {
+        case .loving, .grateful, .proud, .sparkling: return true
+        default: return false
+        }
     }
     
     private var headTilt: Double {
@@ -299,6 +308,12 @@ struct VenusMoodOrb: View {
         case .empathetic: return -5.5
         case .welcoming: return 4.0
         case .petting: return 3.0
+        case .proud: return 4.5
+        case .shy: return -6.0
+        case .wink: return 5.0
+        case .surprised: return 3.0
+        case .determined: return -3.0
+        case .sleepyHappy: return 5.5
         default: return 0.0
         }
     }
@@ -307,20 +322,52 @@ struct VenusMoodOrb: View {
         if isPetting || effectiveExpression == .happy || effectiveExpression == .petting {
             return .coveringCheeks
         }
+        if effectiveExpression == .loving || effectiveExpression == .grateful || effectiveExpression == .shy {
+            return .heartHands
+        }
+        if effectiveExpression == .proud || effectiveExpression == .sparkling {
+            return .cheer
+        }
         switch effectiveState {
         case .welcoming: return .waving
         case .celebrating, .excited: return .clapping
         case .thinking: return .thinking
-        case .curious: return .curiousPeek
-        case .empathetic: return .supportive
+        case .curious, .surprised: return .curiousPeek
+        case .empathetic, .concerned: return .supportive
         case .listening: return .floatingIdle
-        case .sleeping: return .tucked
+        case .sleeping, .sleepyHappy: return .tucked
         default: return .floatingIdle
         }
     }
     
     private var currentAltitude: CGFloat {
         max(0, -dragOffset.height - jumpOffset)
+    }
+
+    /// Subtle depth shift driven by the existing drag and gaze, scaled to the
+    /// orb so a 30pt header reads as gently as the 148pt onboarding Venus.
+    /// No timer, no extra animation loop — it simply tracks existing input.
+    private var parallax: CGSize {
+        let reach = max(size, 1)
+        let depth = min(reach * 0.09, 12)
+        let dragX = dragOffset.width / reach
+        let dragY = dragOffset.height / reach
+        let gazeX = gazeOffset.width / reach
+        let gazeY = gazeOffset.height / reach
+        return CGSize(
+            width: (dragX + gazeX * 0.35) * depth,
+            height: (dragY + gazeY * 0.35) * depth
+        )
+    }
+
+    /// A little extra presence for the active states so they stay readable
+    /// at 30pt in Chat and at 148pt in onboarding.
+    private var statePresence: CGFloat {
+        switch effectiveState {
+        case .celebrating, .excited: return 1.06
+        case .listening: return 1.02
+        default: return 1.0
+        }
     }
 
     /// A diffuse colour field, rather than a ring or stroke, keeps the avatar
@@ -346,6 +393,24 @@ struct VenusMoodOrb: View {
                 .frame(width: size * 1.34, height: size * 1.34)
                 .blur(radius: max(8, size * 0.07))
 
+            // Tighter core of light: gives the glow a bright centre and a
+            // falloff, instead of reading as one flat blurred disc.
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color.white.opacity(colorScheme == .dark ? 0.16 : 0.24),
+                            highlightColor.opacity(auraOpacity * 0.55),
+                            Color.clear
+                        ],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: size * 0.36
+                    )
+                )
+                .frame(width: size * 0.78, height: size * 0.78)
+                .blur(radius: max(4, size * 0.04))
+
             VenusGhostBodyShape()
                 .fill(
                     LinearGradient(
@@ -363,6 +428,8 @@ struct VenusMoodOrb: View {
                 .blur(radius: max(6, size * 0.075))
                 .opacity(colorScheme == .dark ? 0.72 : 0.50)
         }
+        // The aura sits behind the body, so it drifts slightly against it.
+        .offset(x: -parallax.width * 0.6, y: -parallax.height * 0.6)
         .scaleEffect(animate ? 1.05 : 0.96)
     }
 
@@ -372,6 +439,7 @@ struct VenusMoodOrb: View {
         let bodyOpacity = colorScheme == .dark ? 0.80 : 0.70
 
         return ZStack {
+            // 1. Translucent glass base — the mood palette stays the source of truth.
             VenusGhostBodyShape()
                 .fill(
                     LinearGradient(
@@ -386,6 +454,24 @@ struct VenusMoodOrb: View {
                     )
                 )
 
+            // 2. Ambient occlusion: the deep tone gathers near the base, so
+            //    the silhouette reads as a rounded volume, not a flat decal.
+            VenusGhostBodyShape()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            deepColor.opacity(bodyOpacity * 0.52),
+                            deepColor.opacity(bodyOpacity * 0.16),
+                            Color.clear
+                        ],
+                        center: .init(x: 0.5, y: 0.94),
+                        startRadius: size * 0.04,
+                        endRadius: size * 0.50
+                    )
+                )
+
+            // 3. Broad top light, as before, but with a tighter specular
+            //    streak on top of it for a glossy, wet-glass finish.
             VenusGhostBodyShape()
                 .fill(
                     RadialGradient(
@@ -400,8 +486,6 @@ struct VenusMoodOrb: View {
                     )
                 )
 
-            // Broad, soft reflection: it feels like light passing through the
-            // spirit instead of a shiny object with a visible rim.
             Ellipse()
                 .fill(
                     LinearGradient(
@@ -418,15 +502,96 @@ struct VenusMoodOrb: View {
                 .offset(x: -size * 0.10, y: -size * 0.19)
                 .blur(radius: max(1.5, size * 0.018))
 
+            Ellipse()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.90),
+                            Color.white.opacity(0.22),
+                            Color.clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: size * 0.13, height: size * 0.11)
+                .rotationEffect(.degrees(-18))
+                .offset(x: -size * 0.13, y: -size * 0.24)
+                .blur(radius: max(0.8, size * 0.009))
+                .blendMode(.plusLighter)
+
+            // 3b. Pearlescent sweep: a faint iridescent reflection travels
+            // across the glass. It is built only from the mood palette and
+            // white, so the approved colours and silhouette never change.
+            // The angle follows the existing breathe flag — no new loop.
+            VenusGhostBodyShape()
+                .fill(
+                    AngularGradient(
+                        colors: [
+                            Color.white.opacity(colorScheme == .dark ? 0.16 : 0.22),
+                            highlightColor.opacity(0.12),
+                            Color.clear,
+                            baseColor.opacity(0.10),
+                            Color.white.opacity(colorScheme == .dark ? 0.10 : 0.14)
+                        ],
+                        center: .init(x: 0.42, y: 0.34),
+                        startAngle: .degrees(animate ? 205 : 190),
+                        endAngle: .degrees(animate ? 565 : 550)
+                    )
+                )
+                .blur(radius: max(2, size * 0.022))
+                .blendMode(.plusLighter)
+                .opacity(0.55)
+
+            // 3c. Inner light: a soft core that breathes with the same flag.
+            // It sits inside the existing mask, so no outline is redrawn.
+            Ellipse()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color.white.opacity(colorScheme == .dark ? 0.26 : 0.20),
+                            highlightColor.opacity(0.16),
+                            Color.clear
+                        ],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: size * 0.16
+                    )
+                )
+                .frame(width: size * 0.34, height: size * 0.28)
+                .offset(y: -size * 0.08)
+                .blur(radius: max(3, size * 0.03))
+                .blendMode(.plusLighter)
+                .opacity(animate ? 0.90 : 0.62)
+
+            // 4. Luminous inner rim. Soft and blurred — it never becomes a
+            //    hard outline, it just catches light along the edge.
+            VenusGhostBodyShape()
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.55),
+                            highlightColor.opacity(0.48),
+                            Color.clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: max(1.2, size * 0.018)
+                )
+                .blur(radius: max(1.2, size * 0.014))
+                .blendMode(.plusLighter)
+
+            // 5. Subsurface bounce light rising from the base.
             VenusGhostBodyShape()
                 .fill(
                     LinearGradient(
                         colors: [
                             Color.clear,
-                            Color.white.opacity(0.10),
+                            Color.white.opacity(0.08),
                             highlightColor.opacity(0.20)
                         ],
-                        startPoint: .top,
+                        startPoint: .center,
                         endPoint: .bottom
                     )
                 )
@@ -436,6 +601,149 @@ struct VenusMoodOrb: View {
         .compositingGroup()
         .mask(VenusGhostBodyShape())
         .shadow(color: baseColor.opacity(colorScheme == .dark ? 0.40 : 0.27), radius: max(7, size * 0.07), x: 0, y: max(3, size * 0.03))
+    }
+
+    // MARK: - State Readability
+
+    /// Tiny orbs (30–42pt in Chat) lose facial detail, so the three "active"
+    /// states get a compact glyph. Larger orbs get a more expressive treatment.
+    @ViewBuilder
+    private var stateAccent: some View {
+        switch effectiveState {
+        case .thinking:
+            if size <= 52 {
+                stateGlyph("ellipsis")
+            } else {
+                ZStack {
+                    Circle()
+                        .stroke(
+                            LinearGradient(
+                                colors: [highlightColor.opacity(0.6), highlightColor.opacity(0.1), Color.clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
+                        )
+                        .frame(width: size * 0.92, height: size * 0.92)
+                        .rotationEffect(.degrees(orbitAngle))
+
+                    // Second, slower counter-arc adds depth without a new loop.
+                    Circle()
+                        .stroke(highlightColor.opacity(0.28), lineWidth: 1)
+                        .frame(width: size * 0.72, height: size * 0.72)
+                        .rotationEffect(.degrees(-orbitAngle * 0.6))
+
+                    Image(systemName: "sparkle")
+                        .font(.system(size: max(8, size * 0.08), weight: .bold))
+                        .foregroundColor(highlightColor)
+                        .offset(x: size * 0.46)
+                        .rotationEffect(.degrees(orbitAngle))
+
+                    Image(systemName: "sparkle")
+                        .font(.system(size: max(6, size * 0.06), weight: .medium))
+                        .foregroundColor(highlightColor.opacity(0.8))
+                        .offset(x: -size * 0.46)
+                        .rotationEffect(.degrees(orbitAngle))
+                }
+            }
+
+        case .listening:
+            if size <= 52 {
+                stateGlyph("waveform")
+            } else {
+                ZStack {
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.clear, highlightColor.opacity(0.8), Color.clear],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(width: max(1.5, size * 0.018), height: size * 0.32)
+                        .offset(x: -size * 0.52)
+
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.clear, highlightColor.opacity(0.8), Color.clear],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(width: max(1.5, size * 0.018), height: size * 0.32)
+                        .offset(x: size * 0.52)
+                }
+                // Reuses the existing listening pulse — no new repeatForever.
+                .opacity(listeningWavePulse ? 0.9 : 0.32)
+                .scaleEffect(listeningWavePulse ? 1.06 : 0.98)
+            }
+
+        case .celebrating, .excited:
+            if size <= 52 {
+                stateGlyph("sparkles")
+            } else {
+                ForEach(0..<8, id: \.self) { index in
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    highlightColor.opacity(0.0),
+                                    Color.white.opacity(0.9),
+                                    highlightColor.opacity(0.0)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(width: max(1, size * 0.012), height: size * 0.11)
+                        .offset(y: -size * 0.56)
+                        .rotationEffect(.degrees(Double(index) * 45 + (animate ? 4 : -4)))
+                }
+                .opacity(0.8)
+            }
+
+        default:
+            EmptyView()
+        }
+    }
+
+    private func stateGlyph(_ symbol: String) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: max(6.5, size * 0.20), weight: .bold))
+            .foregroundColor(.white)
+            .shadow(color: highlightColor.opacity(0.9), radius: max(2, size * 0.06))
+            .frame(width: max(11, size * 0.30), height: max(11, size * 0.30))
+            .background(Circle().fill(highlightColor.opacity(0.45)))
+            .offset(x: size * 0.30, y: -size * 0.30)
+    }
+
+    /// Brilho no peito: luz difusa e um sparkle que respira com o corpo.
+    private var chestGlowView: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color(hex: "FF6B8B").opacity(0.48),
+                            Color(hex: "FFA8E8").opacity(0.24),
+                            Color.clear
+                        ],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: size * 0.18
+                    )
+                )
+                .frame(width: size * 0.40, height: size * 0.40)
+                .blur(radius: max(2, size * 0.02))
+                .blendMode(.plusLighter)
+
+            Image(systemName: "sparkle")
+                .font(.system(size: max(6, size * 0.045), weight: .bold))
+                .foregroundColor(.white.opacity(0.92))
+                .shadow(color: Color(hex: "FF6B8B").opacity(0.9), radius: 4)
+                .scaleEffect(animate ? 1.08 : 0.92)
+        }
     }
 
     var body: some View {
@@ -453,35 +761,6 @@ struct VenusMoodOrb: View {
                     VenusCosmeticAccessoryView(item: cosmetic, size: size * 0.76, mood: mood)
                 }
                 
-                // Orbiting sparkles when thinking
-                if effectiveState == .thinking {
-                    ZStack {
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [highlightColor.opacity(0.6), highlightColor.opacity(0.1), Color.clear],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.5
-                            )
-                            .frame(width: size * 0.92, height: size * 0.92)
-                            .rotationEffect(.degrees(orbitAngle))
-                        
-                        Image(systemName: "sparkle")
-                            .font(.system(size: max(8, size * 0.08), weight: .bold))
-                            .foregroundColor(highlightColor)
-                            .offset(x: size * 0.46)
-                            .rotationEffect(.degrees(orbitAngle))
-                        
-                        Image(systemName: "sparkle")
-                            .font(.system(size: max(6, size * 0.06), weight: .medium))
-                            .foregroundColor(highlightColor.opacity(0.8))
-                            .offset(x: -size * 0.46)
-                            .rotationEffect(.degrees(orbitAngle))
-                    }
-                }
-                
                 // Translucent ghost body.
                 spectralGhostBody
                 .overlay(
@@ -494,10 +773,19 @@ struct VenusMoodOrb: View {
                                 size: size * 0.76,
                                 gazeOffset: gazeOffset
                             )
-                            .offset(y: -size * 0.055)
+                            // Face is the foreground layer: it follows the drag
+                            // slightly, while the aura and hands drift against it.
+                            .offset(x: parallax.width, y: parallax.height - size * 0.055)
                         }
                     }
                 )
+
+                // Brilho no peito — reação curta de carinho/orgulho.
+                if showChestGlow {
+                    chestGlowView
+                        .offset(y: size * 0.10)
+                        .animation(.spring(response: 0.42, dampingFraction: 0.8), value: showChestGlow)
+                }
                 
                 // Cute Forehead Starlight Crown (Floating secondary star on top)
                 if effectiveState != .thinking && effectiveState != .sleeping && cosmetic == .none {
@@ -516,15 +804,21 @@ struct VenusMoodOrb: View {
                         highlightTint: highlightColor,
                         size: size * 0.76
                     )
+                    .offset(x: -parallax.width * 0.35, y: -parallax.height * 0.35)
                 }
                 
                 // Cosmetics (Foreground / Halo / Headphones / Cap / Saturn Ring)
                 if cosmetic != .none && cosmetic != .astralWings {
                     VenusCosmeticAccessoryView(item: cosmetic, size: size * 0.76, mood: mood)
+                        .offset(x: parallax.width * 0.5, y: parallax.height * 0.5)
                 }
+
+                // Compact glyphs (≤52pt) or expressive accents (large) keep
+                // thinking / listening / celebrating unmistakable at any size.
+                stateAccent
             }
             .scaleEffect(x: squishX, y: squishY)
-            .scaleEffect(animate ? (effectiveState == .sleeping ? 1.01 : 1.03) : 0.97)
+            .scaleEffect((animate ? (effectiveState == .sleeping ? 1.01 : 1.03) : 0.97) * statePresence)
             .rotationEffect(.degrees(dangleAngle + flipRotation + headTilt))
             .animation(.spring(response: 0.42, dampingFraction: 0.68), value: headTilt)
             .offset(x: dragOffset.width, y: dragOffset.height + jumpOffset)
@@ -563,7 +857,15 @@ struct VenusMoodOrb: View {
                 withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
                     listeningWavePulse = true
                 }
+                spawnListeningWaves()
             }
+            if effectiveState == .celebrating || effectiveState == .excited {
+                spawnCelebrationConfetti()
+            }
+            if effectiveState == .welcoming {
+                spawnSparkles()
+            }
+            spawnReaction(for: effectiveExpression)
             startIdleQuirksLoop()
         }
         .onDisappear {
@@ -585,6 +887,9 @@ struct VenusMoodOrb: View {
             } else if newState == .welcoming {
                 spawnSparkles()
             }
+        }
+        .onChange(of: effectiveExpression) { _, newExpression in
+            spawnReaction(for: newExpression)
         }
     }
     
@@ -750,6 +1055,50 @@ struct VenusMoodOrb: View {
             activeParticles.removeAll { p in confetti.contains { $0.id == p.id } }
         }
     }
+
+    /// Reações das novas expressões: curtas, acionáveis pelo estado/expressão
+    /// e sempre com retorno ao repouso. Não duplica as reações originais.
+    private func spawnReaction(for expression: VenusMascotExpression) {
+        switch expression {
+        case .loving, .grateful:
+            addParticles(
+                MascotParticleFactory.makeHeartBurst(count: 6, tint: highlightColor),
+                lifetime: 1.2
+            )
+        case .proud, .sparkling:
+            addParticles(
+                MascotParticleFactory.makeStarShower(count: 8, tint: highlightColor),
+                lifetime: 1.2
+            )
+        case .amused, .excitedSoft, .wink:
+            addParticles(
+                MascotParticleFactory.makeSoftSparkles(count: 6, tint: highlightColor),
+                lifetime: 0.95
+            )
+        case .surprised:
+            addParticles(
+                MascotParticleFactory.makeStarShower(count: 5, tint: highlightColor),
+                lifetime: 0.95
+            )
+        case .thinking:
+            addParticles(
+                MascotParticleFactory.makeThoughtBubbles(count: 3, tint: highlightColor),
+                lifetime: 1.4
+            )
+        default:
+            break
+        }
+    }
+
+    private func addParticles(_ particles: [MascotParticleItem], lifetime: Double) {
+        guard !particles.isEmpty else { return }
+        activeParticles.append(contentsOf: particles)
+        DispatchQueue.main.asyncAfter(deadline: .now() + lifetime) {
+            activeParticles.removeAll { particle in
+                particles.contains { $0.id == particle.id }
+            }
+        }
+    }
     
     // MARK: - Idle Quirks Scheduler
     
@@ -763,8 +1112,8 @@ struct VenusMoodOrb: View {
                 guard !Task.isCancelled else { break }
                 guard !isPetting && dragOffset == .zero && state == .idle else { continue }
                 
-                // Random quirk: small happy hop or yawn
-                let quirkRoll = Int.random(in: 0...2)
+                // Random quirk: small happy hop, yawn or a short playful reaction
+                let quirkRoll = Int.random(in: 0...3)
                 if quirkRoll == 0 {
                     // Mini joyful hop
                     withAnimation(.spring(response: 0.22, dampingFraction: 0.6)) {
@@ -782,6 +1131,11 @@ struct VenusMoodOrb: View {
                     // Sleepy yawn
                     internalState = .yawning
                     try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    internalState = nil
+                } else if quirkRoll == 2 {
+                    // Reação curta: sorriso divertido + faíscas, volta ao repouso.
+                    internalState = .amused
+                    try? await Task.sleep(nanoseconds: 1_600_000_000)
                     internalState = nil
                 }
             }

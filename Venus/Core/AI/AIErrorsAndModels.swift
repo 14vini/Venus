@@ -174,24 +174,47 @@ struct AIMirrorResponse: Codable {
 }
 
 struct AIOnboardingProfileResponse: Codable, Sendable {
-    let title: String
-    let badge: String
-    let subtitle: String
-    let strengths: String
-    let growthArea: String
-    let statText: String
+    // var: a camada de IA higieniza cada campo antes de devolver ao chamador.
+    var title: String
+    var badge: String
+    var subtitle: String
+    var strengths: String
+    var growthArea: String
+    var statText: String
 }
 
 struct AIOnboardingQuestionResponse: Codable, Sendable {
-    let empathyReaction: String
-    let nextQuestion: String
-    let suggestedTone: String?
-    let hasEnoughContext: Bool?
+    // var: a camada de IA higieniza cada campo antes de devolver ao chamador.
+    var empathyReaction: String
+    var nextQuestion: String
+    var suggestedTone: String?
+    var hasEnoughContext: Bool?
 }
 
 // MARK: - System Prompts
 
 struct VenusSystemPrompt {
+    /// Contrato de saída anexado a todas as rotas de texto. Mantém o acolhimento
+    /// e as diretrizes de crise, mas barra pensamento, JSON e marcação oculta.
+    static let outputContract = """
+    REGRAS DE SAÍDA (OBRIGATÓRIAS):
+    - Responda DIRETAMENTE ao usuário, em texto conversacional simples e em português do Brasil.
+    - NUNCA exponha pensamentos, raciocínio, rascunho, planejamento, tags internas (<think>, <thought>, [THOUGHT], <reasoning>, etc.) nem comentários sobre o seu próprio processo.
+    - NUNCA gere JSON, chaves, código, blocos ```, markdown desnecessário (** ou #) ou prefixos como "Pergunta:", "Resposta:", "Análise:", "Output:".
+    - Escreva como uma pessoa calorosa e lúcida: frases curtas, sem clichês e sem bajulação.
+    - Se houver sinal de crise ou automutilação, acolha sem pânico e oriente a procurar apoio profissional e o CVV (188).
+    """
+    
+    /// Contrato para rotas que devem devolver dados estruturados. O JSON é
+    /// obrigatório aqui; o que não pode vazar são campos de processo e marcações.
+    static let jsonOutputContract = """
+    REGRAS DE SAÍDA ESTRUTURADA (OBRIGATÓRIAS):
+    - Responda APENAS com o objeto JSON válido pedido, sem texto antes ou depois, sem markdown fences e sem comentários.
+    - NUNCA inclua campos de raciocínio ou processo (reasoning, analysis, thought, thinking, pensamento, raciocínio etc.).
+    - Todos os valores de texto devem ser português do Brasil, diretos e acolhedores, sem tags internas, sem JSON aninhado e sem prefixos como "Pergunta:" ou "Resposta:".
+    - Em qualquer sinal de crise, o texto de apoio deve citar com carinho o CVV (188).
+    """
+    
     static let crisisSupportMessage = """
     Percebo que você está passando por um momento de sofrimento muito profundo. Você não precisa carregar isso sozinho(a). 
     
@@ -219,5 +242,7 @@ struct VenusSystemPrompt {
       1. Demonstre acolhimento imediato, sem julgamento, sem pânico e sem minimizar a dor.
       2. Forneça com carinho o canal de apoio gratuito no Brasil: **CVV - Ligue 188** (Centro de Valorização da Vida) e o site cvv.org.br.
       3. Incentive-o a buscar uma pessoa de confiança ou profissional de saúde mental.
+
+    \(outputContract)
     """
 }

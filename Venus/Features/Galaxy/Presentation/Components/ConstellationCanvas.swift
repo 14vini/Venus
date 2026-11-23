@@ -5,6 +5,7 @@
 //  Created by Kaua on 24/09/26.
 //
 //  F15 — mesma constelação, atmosfera suave e seleção com haptic + transição.
+//  F36 — céu lilás/rosa com respiração lenta e seleção elástica realçada.
 //
 
 import SwiftUI
@@ -93,7 +94,9 @@ struct ConstellationCanvas: View {
                                 .overlay(
                                     Circle()
                                         .stroke(
-                                            Color.white.opacity(colorScheme == .dark ? 0.8 : 0.55),
+                                            isSelected
+                                                ? VenusF36Palette.rose.opacity(0.9)
+                                                : Color.white.opacity(colorScheme == .dark ? 0.8 : 0.55),
                                             lineWidth: isSelected ? 2 : 1
                                         )
                                 )
@@ -236,6 +239,7 @@ private struct CosmicStarField: View {
     let twinkle: Bool
 
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isBreathing = false
 
     // Seeded background stars for cosmos aesthetics
     private let backgroundStars: [(x: CGFloat, y: CGFloat, size: CGFloat, opacity: Double)] = [
@@ -254,24 +258,30 @@ private struct CosmicStarField: View {
             ZStack {
                 RadialGradient(
                     colors: colorScheme == .dark
-                        ? [Color(hex: "2E2845"), Color(hex: "252037"), Color.clear]
-                        : [Color(hex: "E6EAF9").opacity(0.55), Color(hex: "F4E5F1").opacity(0.45), Color.clear],
+                        ? [Color(hex: "3A2639"), Color(hex: "2B2340"), Color.clear]
+                        : [Color(hex: "EDE2F7").opacity(0.65), Color(hex: "F9DFEB").opacity(0.50), Color.clear],
                     center: .center,
                     startRadius: 40,
                     endRadius: geo.size.width * 0.85
                 )
+                .scaleEffect(isBreathing ? 1.06 : 1)
+                .animation(.easeInOut(duration: 9).repeatForever(autoreverses: true), value: isBreathing)
 
                 Circle()
-                    .fill(VenusTheme.primary.opacity(colorScheme == .dark ? 0.12 : 0.10))
+                    .fill(VenusF36Palette.lilac.opacity(colorScheme == .dark ? 0.16 : 0.22))
                     .frame(width: geo.size.width * 0.7)
                     .blur(radius: 45)
                     .offset(x: -geo.size.width * 0.2, y: -geo.size.height * 0.18)
+                    .scaleEffect(isBreathing ? 1.08 : 1)
+                    .animation(.easeInOut(duration: 8).repeatForever(autoreverses: true), value: isBreathing)
 
                 Circle()
-                    .fill(Color(hex: "E9A8D8").opacity(colorScheme == .dark ? 0.10 : 0.14))
+                    .fill(VenusF36Palette.rose.opacity(colorScheme == .dark ? 0.14 : 0.24))
                     .frame(width: geo.size.width * 0.6)
                     .blur(radius: 40)
                     .offset(x: geo.size.width * 0.22, y: geo.size.height * 0.2)
+                    .scaleEffect(isBreathing ? 0.94 : 1)
+                    .animation(.easeInOut(duration: 11).repeatForever(autoreverses: true), value: isBreathing)
 
                 ForEach(0..<backgroundStars.count, id: \.self) { i in
                     let s = backgroundStars[i]
@@ -282,5 +292,6 @@ private struct CosmicStarField: View {
                 }
             }
         }
+        .onAppear { isBreathing = true }
     }
 }

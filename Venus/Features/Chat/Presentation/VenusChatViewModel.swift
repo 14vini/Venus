@@ -10,6 +10,27 @@ import Speech
 import AVFoundation
 import UIKit
 
+/// Estado compartilhado entre a leitura do stream e a revelação em lotes.
+/// Mantido num ator isolado para evitar capturas mutáveis em closures Sendable.
+@MainActor
+private final class VenusStreamBuffer {
+    var text = "" {
+        didSet { cachedVisible = nil }
+    }
+    var isFinished = false
+
+    private var cachedVisible: String?
+
+    /// O filtro roda no máximo uma vez por novo chunk — nunca a cada tick do
+    /// relógio. Sem cache, o regex de `clean` executaria ~50x/s no main actor.
+    func visibleText() -> String {
+        if let cachedVisible { return cachedVisible }
+        let visible = ThinkingStreamFilter.clean(text)
+        cachedVisible = visible
+        return visible
+    }
+}
+
 @MainActor
 @Observable
 final class VenusChatViewModel {
@@ -44,7 +65,14 @@ final class VenusChatViewModel {
     private let openedFromMirror: Bool
     private let openedForPlanning: Bool
     private let initialPlanningPrompt: String?
-    private let lightHaptic = UIImpactFeedbackGenerator(style: .soft)
+    private var didLoadInitialData = false
+
+    // Revelação em lotes: escritas curtas e frequentes (≈18 escritas/s), sem
+    // reconstruir a lista a cada caractere. A suavidade espelha a Home.
+    private let flushIntervalNanos: UInt64 = 55_000_000
+    private let batchCharacterCount = 18
+    /// Spring único da Home para estados que mudam na tela do chat.
+    private static let uiSpring = Animation.spring(response: 0.42, dampingFraction: 0.8)
     
     init(
         openedFromMirror: Bool = false,
@@ -81,20 +109,24 @@ final class VenusChatViewModel {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
     
+    /// Mantido por compatibilidade de API. Não inicia loops infinitos: a animação
+    /// da forma de onda é disparada apenas enquanto a gravação está ativa.
     func startAnimations() {
-        withAnimation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true)) {
-            particleAnimation = true
-        }
-        withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
-            waveAnimation = true
-        }
+        particleAnimation = true
     }
     
-    func requestPermissions() {
-        SFSpeechRecognizer.requestAuthorization { _ in }
+    /// A autorização é pedida somente quando o usuário toca no microfone.
+    func requestPermissions(completion: (@MainActor @Sendable (Bool) -> Void)? = nil) {
+        SFSpeechRecognizer.requestAuthorization { status in
+            let authorized = status == .authorized
+            guard let completion else { return }
+            Task { @MainActor in completion(authorized) }
+        }
     }
     
     func loadInitialData() {
+        guard !didLoadInitialData else { return }
+        didLoadInitialData = true
         Task {
             do {
                 self.userProfile = try await userProfileRepository.load()
@@ -170,25 +202,33 @@ final class VenusChatViewModel {
         
         replyingToMessage = nil
         
-        withAnimation(.easeOut(duration: 0.25)) {
+        // A mensagem do usuário e o indicador entram na mesma transição da Home:
+        // o envio parece imediato e a resposta começa a chegar sem espera.
+        withAnimation(Self.uiSpring) {
             messages.append(userMessage)
             currentSession.addMessage(userMessage)
-        }
-        
-        withAnimation(.easeOut(duration: 0.25)) {
             isVenusThinking = true
         }
-        
+
         Task {
-            // Asynchronously refine emotional state if needed
+            // Refinamento emocional corre em paralelo, sem bloquear o stream.
             Task {
                 if let refined = try? await venusAI.analyzeEmotionalState(message: trimmed) {
                     self.currentEmotionalState = refined
                 }
             }
-            
+
             do {
-                let allMoods = (try? await moodRepository.getAllMoods()) ?? []
+                // Duas leituras independentes em paralelo: menos tempo até o
+                // primeiro token, sem trabalho extra no main actor.
+                async let moods = moodRepository.getAllMoods()
+                async let savedPlan = dailyPlanRepository.getPlan(for: Date())
+
+                let allMoods = (try? await moods) ?? []
+                if let currentPlan = try? await savedPlan {
+                    self.todayPlan = currentPlan
+                }
+
                 let todayMood = allMoods.last?.type
                 let todayMoodItem = allMoods.last
                 let assessment = readinessEngine.evaluate(
@@ -202,7 +242,7 @@ final class VenusChatViewModel {
                     aiStateSubtitle: nil
                 )
                 self.currentReadiness = assessment
-                
+
                 let diagnosis = SelfKnowledgeEngine.shared.diagnose(
                     userMessage: trimmed,
                     readiness: assessment,
@@ -211,11 +251,6 @@ final class VenusChatViewModel {
                     currentLens: activeLens
                 )
                 self.lastDiagnosis = diagnosis
-                
-                // Refresh todayPlan before processing
-                if let currentPlan = try? await dailyPlanRepository.getPlan(for: Date()) {
-                    self.todayPlan = currentPlan
-                }
                 
                 // Check if user is confirming a pending planning proposal from previous message
                 let isConfirmation = DailyPlanEngine.shared.isPlanningConfirmationIntent(trimmed)
@@ -226,7 +261,7 @@ final class VenusChatViewModel {
                        !($0.isPlanningConfirmed ?? false)
                    }) {
                     let pendingMessage = self.messages[pendingMessageIndex]
-                    withAnimation(.easeOut(duration: 0.25)) {
+                    withAnimation(Self.uiSpring) {
                         self.isVenusThinking = false
                     }
                     self.confirmPlanningProposal(for: pendingMessage.id)
@@ -265,7 +300,7 @@ final class VenusChatViewModel {
                         )
                     }
                     
-                    withAnimation(.easeOut(duration: 0.25)) {
+                    withAnimation(Self.uiSpring) {
                         self.isVenusThinking = false
                     }
                     
@@ -277,7 +312,7 @@ final class VenusChatViewModel {
                         planningProposal: planningResponse.proposedBlocks.isEmpty ? nil : planningResponse
                     )
                     
-                    withAnimation(.easeOut(duration: 0.25)) {
+                    withAnimation(Self.uiSpring) {
                         self.messages.append(initialVenusMessage)
                         self.currentSession.addMessage(initialVenusMessage)
                     }
@@ -298,72 +333,70 @@ final class VenusChatViewModel {
                 )
                 
                 var streamReceivedAny = false
-                var messageCreated = false
                 let venusMessageId = UUID()
-                var fullReceivedText = ""
-                var displayedCharacterCount = 0
-                var streamFinished = false
+                let streamBuffer = VenusStreamBuffer()
                 
-                // Concurrent typing engine that smoothly discharges characters
-                let typingTask = Task { @MainActor in
+                // Revelação em lotes: o filtro e os `firstIndex` acontecem uma
+                // vez por chunk; a UI só é tocada a cada ~60 ms.
+                let revealTask = Task { @MainActor in
+                    var messageCreated = false
+                    var displayedCount = 0
+                    var pollsSinceFlush = 0
+                    var messageIndex: Int?
+                    var sessionMessageIndex: Int?
+                    
                     while !Task.isCancelled {
-                        let cleanFull = ThinkingStreamFilter.clean(fullReceivedText)
+                        let visible = streamBuffer.visibleText()
                         
-                        if displayedCharacterCount < cleanFull.count {
-                            if !messageCreated {
-                                messageCreated = true
-                                withAnimation(.easeOut(duration: 0.25)) {
-                                    self.isVenusThinking = false
-                                    let initialVenusMessage = ChatMessage(id: venusMessageId, content: "", isFromUser: false)
-                                    self.currentlyStreamingMessageId = venusMessageId
-                                    self.messages.append(initialVenusMessage)
-                                    self.currentSession.addMessage(initialVenusMessage)
-                                }
+                        if !messageCreated && !visible.isEmpty {
+                            let indices = self.createStreamingMessage(id: venusMessageId, content: visible)
+                            messageIndex = indices.message
+                            sessionMessageIndex = indices.session
+                            displayedCount = visible.count
+                            messageCreated = true
+                        } else if messageCreated {
+                            pollsSinceFlush += 1
+                            if pollsSinceFlush >= 3 && visible.count != displayedCount {
+                                displayedCount = visible.count
+                                self.setMessageContent(
+                                    visible,
+                                    messageIndex: messageIndex,
+                                    sessionIndex: sessionMessageIndex
+                                )
+                                pollsSinceFlush = 0
                             }
-                            
-                            displayedCharacterCount += 1
-                            let prefixString = String(cleanFull.prefix(displayedCharacterCount))
-                            
-                            if let index = self.messages.firstIndex(where: { $0.id == venusMessageId }) {
-                                self.messages[index].content = prefixString
-                                if let sessionIndex = self.currentSession.messages.firstIndex(where: { $0.id == venusMessageId }) {
-                                    self.currentSession.messages[sessionIndex].content = prefixString
-                                }
-                            }
-                            
-                            if displayedCharacterCount % 5 == 0 {
-                                self.lightHaptic.impactOccurred(intensity: 0.15)
-                            }
-                            
-                            let pending = cleanFull.count - displayedCharacterCount
-                            let sleepNs: UInt64 = pending > 40 ? 4_000_000 : (pending > 15 ? 9_000_000 : 16_000_000)
-                            try? await Task.sleep(nanoseconds: sleepNs)
-                        } else if streamFinished {
-                            break
-                        } else {
-                            try? await Task.sleep(nanoseconds: 15_000_000)
                         }
+                        
+                        if streamBuffer.isFinished {
+                            let finalText = VenusTextSanitizer.sanitize(streamBuffer.text)
+                            if messageCreated {
+                                self.setMessageContent(
+                                    finalText,
+                                    messageIndex: messageIndex,
+                                    sessionIndex: sessionMessageIndex
+                                )
+                            } else if !finalText.isEmpty {
+                                let indices = self.createStreamingMessage(id: venusMessageId, content: finalText)
+                                messageIndex = indices.message
+                                sessionMessageIndex = indices.session
+                                messageCreated = true
+                            }
+                            break
+                        }
+                        
+                        try? await Task.sleep(nanoseconds: 20_000_000)
                     }
                 }
                 
                 for try await chunk in stream {
                     streamReceivedAny = true
-                    fullReceivedText += chunk
+                    streamBuffer.text += chunk
                 }
                 
-                streamFinished = true
-                await typingTask.value
+                streamBuffer.isFinished = true
+                await revealTask.value
                 
-                // Final clean-up of the message content
-                if let index = self.messages.firstIndex(where: { $0.id == venusMessageId }) {
-                    let cleaned = ThinkingStreamFilter.clean(self.messages[index].content)
-                    self.messages[index].content = cleaned
-                    if let sessionIndex = self.currentSession.messages.firstIndex(where: { $0.id == venusMessageId }) {
-                        self.currentSession.messages[sessionIndex].content = cleaned
-                    }
-                }
-                
-                withAnimation(.easeOut(duration: 0.2)) {
+                withAnimation(Self.uiSpring) {
                     self.currentlyStreamingMessageId = nil
                 }
                 
@@ -376,9 +409,9 @@ final class VenusChatViewModel {
                         readiness: assessment,
                         activeLens: activeLens
                     )
-                    let cleanResponse = ThinkingStreamFilter.clean(rawResponse)
+                    let cleanResponse = VenusTextSanitizer.sanitize(rawResponse)
                     
-                    withAnimation(.easeOut(duration: 0.25)) {
+                    withAnimation(Self.uiSpring) {
                         self.isVenusThinking = false
                     }
                     await animateTypewriter(text: cleanResponse, speed: 0.018)
@@ -388,7 +421,7 @@ final class VenusChatViewModel {
             } catch {
                 print("❌ ERRO na chamada da IA (OpenRouter Streaming): \(error)")
                 
-                withAnimation(.easeOut(duration: 0.25)) {
+                withAnimation(Self.uiSpring) {
                     self.isVenusThinking = false
                     self.currentlyStreamingMessageId = nil
                 }
@@ -445,7 +478,7 @@ final class VenusChatViewModel {
             
             let confirmationText = "Plano confirmado e ativado com sucesso! 🌸 Você pode acompanhar, adicionar ou ajustar seus blocos na tela 'Meu dia'."
             let confirmationMessage = ChatMessage(content: confirmationText, isFromUser: false)
-            withAnimation(.easeOut(duration: 0.25)) {
+            withAnimation(Self.uiSpring) {
                 self.messages.append(confirmationMessage)
                 self.currentSession.addMessage(confirmationMessage)
             }
@@ -453,11 +486,39 @@ final class VenusChatViewModel {
         }
     }
     
+    // MARK: - Revelação em lotes (streaming, planejamento, fallback e erro)
+
+    /// Cria a mensagem da Venus e devolve os índices já resolvidos, para que
+    /// os flushes seguintes não repitam `firstIndex` na UI nem na sessão.
+    private func createStreamingMessage(id: UUID, content: String) -> (message: Int?, session: Int?) {
+        withAnimation(Self.uiSpring) {
+            isVenusThinking = false
+            let initialMessage = ChatMessage(id: id, content: content, isFromUser: false)
+            currentlyStreamingMessageId = id
+            messages.append(initialMessage)
+            currentSession.addMessage(initialMessage)
+        }
+        return (
+            messages.firstIndex(where: { $0.id == id }),
+            currentSession.messages.firstIndex(where: { $0.id == id })
+        )
+    }
+
+    /// Escreve nas duas cópias da mensagem sem voltar a procurá-la pelo id.
+    private func setMessageContent(_ content: String, messageIndex: Int?, sessionIndex: Int?) {
+        if let messageIndex, messages.indices.contains(messageIndex) {
+            messages[messageIndex].content = content
+        }
+        if let sessionIndex, currentSession.messages.indices.contains(sessionIndex) {
+            currentSession.messages[sessionIndex].content = content
+        }
+    }
+
     private func animateTypewriter(text: String, speed: Double) async {
         let venusMessageId = UUID()
         let initialMessage = ChatMessage(id: venusMessageId, content: "", isFromUser: false)
         
-        withAnimation(.easeOut(duration: 0.25)) {
+        withAnimation(Self.uiSpring) {
             messages.append(initialMessage)
             currentSession.addMessage(initialMessage)
         }
@@ -465,17 +526,33 @@ final class VenusChatViewModel {
         await animateTypewriterForMessage(id: venusMessageId, text: text, speed: speed)
     }
     
+    /// Texto completo revelado em blocos curtos a cada ~55 ms: a leitura flui
+    /// sem travar a UI. Limpa uma única vez (pensamento, JSON e markdown cru
+    /// nunca entram na mensagem) e sinaliza o cursor só no fim.
     private func animateTypewriterForMessage(id: UUID, text: String, speed: Double) async {
-        var currentText = ""
-        for char in text {
-            currentText.append(char)
-            if let index = messages.firstIndex(where: { $0.id == id }) {
-                messages[index].content = currentText
-                if let sessionIndex = currentSession.messages.firstIndex(where: { $0.id == id }) {
-                    currentSession.messages[sessionIndex].content = currentText
-                }
-            }
-            try? await Task.sleep(nanoseconds: UInt64(speed * 1_000_000_000))
+        let messageIndex = messages.firstIndex(where: { $0.id == id })
+        let sessionIndex = currentSession.messages.firstIndex(where: { $0.id == id })
+        let visible = VenusTextSanitizer.sanitize(text)
+        let blockSize = max(batchCharacterCount - 4, min(batchCharacterCount + 12, Int((speed * 1000).rounded()) + 6))
+        
+        withAnimation(Self.uiSpring) {
+            currentlyStreamingMessageId = id
+        }
+        
+        var revealed = 0
+        while revealed < visible.count {
+            revealed = min(revealed + blockSize, visible.count)
+            setMessageContent(
+                String(visible.prefix(revealed)),
+                messageIndex: messageIndex,
+                sessionIndex: sessionIndex
+            )
+            try? await Task.sleep(nanoseconds: flushIntervalNanos)
+        }
+        setMessageContent(visible, messageIndex: messageIndex, sessionIndex: sessionIndex)
+        
+        withAnimation(Self.uiSpring) {
+            currentlyStreamingMessageId = nil
         }
     }
     
@@ -511,7 +588,14 @@ final class VenusChatViewModel {
         if isRecording {
             stopRecording()
         } else {
-            startRecording()
+            requestPermissions { [weak self] granted in
+                guard let self else { return }
+                if granted {
+                    self.startRecording()
+                } else {
+                    self.showErrorMessage("Autorize o acesso ao microfone para gravar.")
+                }
+            }
         }
     }
     
@@ -557,6 +641,7 @@ final class VenusChatViewModel {
             
             withAnimation(.spring(response: 0.3)) {
                 isRecording = true
+                waveAnimation = true
             }
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         } catch {
@@ -575,6 +660,7 @@ final class VenusChatViewModel {
         
         withAnimation(.spring(response: 0.3)) {
             isRecording = false
+            waveAnimation = false
         }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }

@@ -2,6 +2,7 @@
 
 # Xcode
 DerivedData/
+DerivedData-*/
 build/
 *.xcuserstate
 *.xccheckout

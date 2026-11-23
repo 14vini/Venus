@@ -37,6 +37,11 @@ enum VenusCosmeticItem: String, CaseIterable, Sendable {
         default: return nil
         }
     }
+
+    /// Rótulo do marco de streak exibido nos Ajustes (A3): o mesmo mapa do mascote.
+    static func milestoneLabel(forStreakDays days: Int) -> String? {
+        allCases.first { $0.requiredStreakDays == days }?.title
+    }
 }
 
 // MARK: - Cosmetic Accessory View
@@ -74,6 +79,14 @@ struct VenusCosmeticAccessoryView: View {
                         .frame(width: 44 * scale, height: 16 * scale)
                         .shadow(color: Color(hex: "FFE44A").opacity(0.8), radius: 6 * scale)
                     
+                    // Specular streak across the band: a thin lit arc that
+                    // makes the halo feel like a rounded object.
+                    Ellipse()
+                        .stroke(Color.white.opacity(0.75), lineWidth: 1.2 * scale)
+                        .frame(width: 30 * scale, height: 10 * scale)
+                        .offset(x: -6 * scale, y: -3 * scale)
+                        .blur(radius: 0.4 * scale)
+
                     // Star jewel on halo
                     Image(systemName: "sparkle")
                         .font(.system(size: 8 * scale, weight: .bold))
@@ -150,6 +163,18 @@ struct VenusCosmeticAccessoryView: View {
                             )
                             .frame(width: 12 * scale, height: 26 * scale)
                             .overlay(
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.white.opacity(0.72), Color.clear],
+                                            startPoint: .topLeading,
+                                            endPoint: .center
+                                        )
+                                    )
+                                    .frame(width: 5 * scale, height: 22 * scale)
+                                    .offset(x: -2 * scale)
+                            )
+                            .overlay(
                                 Circle()
                                     .fill(Color.white.opacity(0.8))
                                     .frame(width: 5 * scale, height: 5 * scale)
@@ -164,6 +189,18 @@ struct VenusCosmeticAccessoryView: View {
                                 )
                             )
                             .frame(width: 12 * scale, height: 26 * scale)
+                            .overlay(
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.white.opacity(0.72), Color.clear],
+                                            startPoint: .topLeading,
+                                            endPoint: .center
+                                        )
+                                    )
+                                    .frame(width: 5 * scale, height: 22 * scale)
+                                    .offset(x: -2 * scale)
+                            )
                             .overlay(
                                 Circle()
                                     .fill(Color.white.opacity(0.8))
@@ -236,6 +273,14 @@ struct VenusCosmeticAccessoryView: View {
             }
         }
         .allowsHitTesting(false)
+        // Equipar/trocar cosmético entra com mola suave, sem "pulo".
+        .phaseAnimator([false, true], trigger: item.rawValue) { content, phase in
+            content
+                .opacity(phase ? 1.0 : 0.35)
+                .scaleEffect(phase ? 1.0 : 0.88)
+        } animation: { _ in
+            .spring(response: 0.42, dampingFraction: 0.8)
+        }
     }
 }
 

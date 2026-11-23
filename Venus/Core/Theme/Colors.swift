@@ -19,12 +19,12 @@ struct VenusTheme {
     static let secondary = Color(dynamicProvider(light: "#0096C7", dark: "#00B4D8"))
     static let tertiary = Color(dynamicProvider(light: "#48CAE4", dark: "#90E0EF"))
     
-    // Accents
-    static let accentOrange = Color(dynamicProvider(light: "#0096C7", dark: "#00B4D8"))
-    static let accentPink = Color(dynamicProvider(light: "#0077B6", dark: "#48CAE4"))
+    // Accents — cores semânticas correspondentes ao próprio nome do token
+    static let accentOrange = Color(dynamicProvider(light: "#F97316", dark: "#FB923C"))
+    static let accentPink = Color(dynamicProvider(light: "#EC4899", dark: "#F472B6"))
     static let accentBlue = Color(dynamicProvider(light: "#0077B6", dark: "#00B4D8"))
-    static let accentGreen = Color(dynamicProvider(light: "#00B4D8", dark: "#48CAE4"))
-    static let accentPurple = Color(dynamicProvider(light: "#023E8A", dark: "#90E0EF"))
+    static let accentGreen = Color(dynamicProvider(light: "#22C55E", dark: "#4ADE80"))
+    static let accentPurple = Color(dynamicProvider(light: "#8B5CF6", dark: "#A78BFA"))
     static let accentPurpleDeep = Color(dynamicProvider(light: "#03045E", dark: "#0077B6"))
     static let moodMint = Color(dynamicProvider(light: "#48CAE4", dark: "#90E0EF"))
     static let moodMintStrong = Color(dynamicProvider(light: "#0096C7", dark: "#00B4D8"))
@@ -287,6 +287,18 @@ struct VenusTheme {
             endPoint: .bottomTrailing
         )
     }
+
+    // MARK: - Jornada (F32) — lilás → rosa → branco, tons profundos no escuro
+    // Tokens aditivos: usados pelo sistema visual compartilhado da jornada.
+    static let journeyLilac = Color(dynamicProvider(light: "#B39CE8", dark: "#C6B4F2"))
+    static let journeyRose = Color(dynamicProvider(light: "#F0A6BE", dark: "#E794B0"))
+    static let journeySky = Color(dynamicProvider(light: "#9FC6F2", dark: "#82AEEA"))
+
+    static let journeyBackgroundTop = Color(dynamicProvider(light: "#DCD0F4", dark: "#2B2340"))
+    static let journeyBackgroundMiddle = Color(dynamicProvider(light: "#F4CBD8", dark: "#3A2639"))
+    static let journeyBackgroundBottom = Color(dynamicProvider(light: "#FDF8FB", dark: "#17131F"))
+
+    static let journeyCTA = Color(dynamicProvider(light: "#241E2B", dark: "#3B3442"))
 
     // Helper to create dynamic UIColor
     private static func dynamicProvider(light: String, dark: String) -> UIColor {

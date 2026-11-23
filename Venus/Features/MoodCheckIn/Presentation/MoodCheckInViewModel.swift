@@ -57,6 +57,8 @@ final class MoodCheckInViewModel {
     var isSaving: Bool = false
     var savedSuccess: Bool = false
     var validationHintVisible: Bool = false
+    var errorMessage: String = ""
+    var showError: Bool = false
     
     let quickTags = ["Trabalho", "Sono", "Relacionamentos", "Saúde", "Estudos", "Finanças"]
     let bodySignalOptions = ["Tensão muscular", "Respiração curta", "Dor de cabeça", "Cansaço físico", "Agitação", "Sem sintomas"]
@@ -139,6 +141,8 @@ final class MoodCheckInViewModel {
     func startNewCheckIn(prefilledMood: MoodType? = nil) {
         savedSuccess = false
         isSaving = false
+        showError = false
+        errorMessage = ""
         validationHintVisible = false
         selectedMood = prefilledMood
         note = ""
@@ -208,6 +212,9 @@ final class MoodCheckInViewModel {
         isSaving = true
         let energy = selectedEnergyLevel
         Task {
+            // `defer` cobre sucesso, falha e qualquer caminho futuro: o loading
+            // nunca fica preso e a interface volta a responder ao usuário.
+            defer { self.isSaving = false }
             do {
                 _ = try await saveMoodUseCase.execute(
                     type: mood,
@@ -222,11 +229,9 @@ final class MoodCheckInViewModel {
                     bodySignals: normalizedBodySignals(),
                     note: sanitizedNote()
                 )
-                self.isSaving = false
                 self.savedSuccess = true
             } catch {
-                print("Error saving quick mood: \(error)")
-                self.isSaving = false
+                self.handleSaveError(error)
             }
         }
     }
@@ -243,6 +248,7 @@ final class MoodCheckInViewModel {
         isSaving = true
 
         Task {
+            defer { self.isSaving = false }
             do {
                 _ = try await saveMoodUseCase.execute(
                     type: mood,
@@ -257,13 +263,29 @@ final class MoodCheckInViewModel {
                     bodySignals: normalizedBodySignals(),
                     note: sanitizedNote()
                 )
-                self.isSaving = false
                 self.savedSuccess = true
             } catch {
-                print("Error saving mood: \(error)")
-                self.isSaving = false
+                self.handleSaveError(error)
             }
         }
+    }
+
+    /// Ação do alerta de falha. O próprio `saveCheckIn` escolhe novamente entre
+    /// check-in rápido e completo conforme os campos preenchidos.
+    func retrySave() {
+        saveCheckIn()
+    }
+
+    // MARK: - Erro de salvamento
+
+    private func handleSaveError(_ error: Error) {
+        // A falha precisa ter voz: copy acolhedora, haptic e opção de tentar
+        // de novo — nunca apenas um print no console.
+        print("Erro ao salvar check-in: \(error)")
+        errorMessage = "Não conseguimos salvar agora. Quer tentar de novo?"
+        showError = true
+        isSaving = false
+        UINotificationFeedbackGenerator().notificationOccurred(.error)
     }
 
     func resetAfterSave() {

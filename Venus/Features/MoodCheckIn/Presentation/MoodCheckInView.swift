@@ -99,6 +99,17 @@ struct MoodCheckInView: View {
                 dismiss()
             }
         }
+        // Alerta nativo do sistema: VoiceOver lê título e mensagem, o foco e o
+        // teclado são gerenciados pelo iOS e nada cobre os controles da etapa.
+        .alert("Não deu para salvar", isPresented: $viewModel.showError) {
+            Button("Tentar de novo") {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                viewModel.retrySave()
+            }
+            Button("Agora não", role: .cancel) {}
+        } message: {
+            Text(viewModel.errorMessage)
+        }
     }
 
     // MARK: - Barra Superior

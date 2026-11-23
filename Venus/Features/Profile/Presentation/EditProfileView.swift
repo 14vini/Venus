@@ -4,6 +4,8 @@
 //
 //  Created by Kaua on 18/06/26.
 //
+//  F36 — fundo da jornada e controles tintados em lilás, sem mudar o formulário.
+//
 
 import SwiftUI
 import UIKit
@@ -136,6 +138,9 @@ struct EditProfileView: View {
                 .font(.system(size: 15, design: .rounded).weight(.regular))
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(VenusSoftGradientBackground())
+        .tint(VenusF36Palette.lilac)
         .navigationTitle("Editar Perfil")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -209,9 +214,9 @@ struct EditProfileView: View {
     
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 10, design: .rounded).weight(.semibold))
-            .kerning(1.2)
-            .foregroundStyle(VenusTheme.textSecondary)
+            .font(.system(size: 10, design: .rounded).weight(.bold))
+            .kerning(1.4)
+            .foregroundStyle(VenusF36Palette.lilac)
     }
 
     @ViewBuilder

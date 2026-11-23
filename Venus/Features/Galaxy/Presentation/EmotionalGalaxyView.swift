@@ -5,6 +5,7 @@
 //  Created by Kaua on 24/09/26.
 //
 //  F15 — constelação com atmosfera suave, vidro real e haptics na seleção.
+//  F36 — cabeçalho de jornada com arco e pontos, menos texto e transições spring.
 //
 
 import SwiftUI
@@ -22,6 +23,7 @@ struct EmotionalGalaxyView: View {
     @State private var selectedStar: GalaxyStar? = nil
     @State private var allHistoricalMoods: [Mood] = []
     @State private var isLoadingMoods: Bool = false
+    @State private var didAppear: Bool = false
 
     private let moodRepository = DependencyContainer.shared.makeMoodRepository()
 
@@ -31,6 +33,9 @@ struct EmotionalGalaxyView: View {
         case month = "30 Dias"
 
         var id: String { rawValue }
+        var index: Int {
+            GalaxyTimeRange.allCases.firstIndex(of: self) ?? 0
+        }
         var dayCount: Int {
             switch self {
             case .week: return 7
@@ -52,7 +57,7 @@ struct EmotionalGalaxyView: View {
     }
 
     private var toolbarColor: Color {
-        colorScheme == .dark ? Color(hex: "2B2540") : Color(hex: "DFE5F7")
+        colorScheme == .dark ? Color(hex: "2B2340") : Color(hex: "EDE2F7")
     }
 
     var body: some View {
@@ -62,6 +67,8 @@ struct EmotionalGalaxyView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 18) {
+                        journeyHeader
+
                         timeRangeSelector
 
                         constellationPanel
@@ -71,6 +78,9 @@ struct EmotionalGalaxyView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
                     .padding(.bottom, 100)
+                    .opacity(didAppear ? 1 : 0)
+                    .offset(y: didAppear ? 0 : 14)
+                    .animation(.spring(response: 0.55, dampingFraction: 0.85), value: didAppear)
                 }
             }
             .navigationTitle("Galáxia de Memórias")
@@ -94,10 +104,29 @@ struct EmotionalGalaxyView: View {
                     .accessibilityLabel("Fechar galáxia")
                 }
             }
+            .onAppear {
+                withAnimation(.spring(response: 0.55, dampingFraction: 0.85)) {
+                    didAppear = true
+                }
+            }
             .task {
                 await loadAllMoods()
             }
         }
+    }
+
+    // MARK: - Cabeçalho da jornada
+
+    private var journeyHeader: some View {
+        VenusF36JourneyHeader(
+            eyebrow: "Sua jornada emocional",
+            title: "Galáxia",
+            subtitle: "Cada estrela é um momento que você registrou.",
+            dotCount: GalaxyTimeRange.allCases.count,
+            currentDot: selectedTimeRange.index + 1,
+            dotCaption: selectedTimeRange.rawValue,
+            tint: VenusF36Palette.rose
+        )
     }
 
     // MARK: - Seletor de período
@@ -122,7 +151,7 @@ struct EmotionalGalaxyView: View {
                     .buttonStyle(.plain)
                     .glassEffect(
                         selectedTimeRange == range
-                            ? .regular.tint(VenusTheme.primary.opacity(0.16))
+                            ? .regular.tint(VenusF36Palette.lilac.opacity(0.22))
                             : .regular,
                         in: Capsule(style: .continuous)
                     )
@@ -157,22 +186,21 @@ struct EmotionalGalaxyView: View {
 
             HStack(alignment: .firstTextBaseline) {
                 Text("Constelação de \(userName)")
-                    .font(.system(size: 23, design: .rounded).weight(.bold))
+                    .font(.system(size: 23, design: .rounded).weight(.light))
                     .foregroundStyle(VenusTheme.text)
 
                 Spacer(minLength: 8)
 
-                Text("\(stars.count)")
-                    .font(.system(size: 14, design: .rounded).weight(.semibold))
-                    .foregroundStyle(VenusTheme.primary)
+                Text("\(stars.count) estrelas")
+                    .font(.system(size: 12, design: .rounded).weight(.semibold))
+                    .foregroundStyle(VenusF36Palette.rose)
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .glassEffect(.regular, in: Capsule(style: .continuous))
+                    .padding(.vertical, 7)
+                    .glassEffect(
+                        .regular.tint(VenusF36Palette.rose.opacity(0.16)),
+                        in: Capsule(style: .continuous)
+                    )
             }
-
-            Text("\(stars.count) estrelas mapeadas no período")
-                .font(.system(size: 14, design: .rounded).weight(.regular))
-                .foregroundStyle(VenusTheme.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)

@@ -3,7 +3,7 @@
 //  Venus
 //
 //  Modos de bem-estar e regulação do sistema nervoso representados
-//  pelos seixos translúcidos da Home (Stress, Sleep, Burnout, Meditation, Anxiety, Rest).
+//  pelos seixos translúcidos da Home (Estresse, Sono, Burnout, Meditação, Ansiedade, Descanso).
 //
 
 import SwiftUI
@@ -21,36 +21,36 @@ public enum VenusWellnessMode: String, CaseIterable, Identifiable, Sendable {
     /// Rótulo exibido no seixo de vidro
     public var label: String {
         switch self {
-        case .stress:     return "Stress"
-        case .sleep:      return "Sleep"
+        case .stress:     return "Estresse"
+        case .sleep:      return "Sono"
         case .burnout:    return "Burnout"
-        case .meditation: return "Meditation"
-        case .rest:       return "Sleep"
-        case .anxiety:    return "Anxiety"
+        case .meditation: return "Meditação"
+        case .rest:       return "Descanso"
+        case .anxiety:    return "Ansiedade"
         }
     }
 
-    /// Primeira linha do título grande da Home ("Start Your Stress")
+    /// Primeira linha do título grande da Home ("Alivie o estresse")
     public var titleFirst: String {
         switch self {
-        case .stress:     return "Stress"
-        case .sleep:      return "Sleep"
-        case .burnout:    return "Burnout"
-        case .meditation: return "Mindful"
-        case .rest:       return "Sensory"
-        case .anxiety:    return "Anxiety"
+        case .stress:     return "Alivie o estresse"
+        case .sleep:      return "Desacelere e durma"
+        case .burnout:    return "Recupere sua energia"
+        case .meditation: return "Esteja presente"
+        case .rest:       return "Faça uma pausa"
+        case .anxiety:    return "Acolha a calma"
         }
     }
 
-    /// Segunda linha do título grande da Home ("Relief Mode")
+    /// Segunda linha do título grande da Home ("Modo de alívio")
     public var titleSecond: String {
         switch self {
-        case .stress:     return "Relief Mode"
-        case .sleep:      return "Restoration Mode"
-        case .burnout:    return "Recovery Mode"
-        case .meditation: return "Presence Mode"
-        case .rest:       return "Pause Mode"
-        case .anxiety:    return "Soothing Mode"
+        case .stress:     return "Modo de alívio"
+        case .sleep:      return "Modo de descanso"
+        case .burnout:    return "Modo de recuperação"
+        case .meditation: return "Modo de presença"
+        case .rest:       return "Modo de pausa"
+        case .anxiety:    return "Modo de acolhimento"
         }
     }
 
@@ -58,17 +58,17 @@ public enum VenusWellnessMode: String, CaseIterable, Identifiable, Sendable {
     public var subtitle: String {
         switch self {
         case .stress:
-            return "Calm your nervous system and reduce tension."
+            return "Acalme seu sistema nervoso e reduza a tensão."
         case .sleep:
-            return "Downregulate sensory input and drift into deep rest."
+            return "Desacelere os estímulos e entre em um descanso profundo."
         case .burnout:
-            return "Release chronic cognitive load and recharge vital energy."
+            return "Libere a carga mental e recarregue sua energia."
         case .meditation:
-            return "Anchor into the present moment with conscious breathing."
+            return "Ancore-se no presente com a respiração consciente."
         case .rest:
-            return "Dim mental stimulation and reset focus and attention."
+            return "Reduza a estimulação mental e renove seu foco."
         case .anxiety:
-            return "Gently soften racing thoughts and ground your awareness."
+            return "Suavize os pensamentos acelerados e aterre sua atenção."
         }
     }
 

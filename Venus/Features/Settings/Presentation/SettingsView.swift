@@ -5,6 +5,7 @@
 //  Created by Kaua on 19/03/26.
 //
 //  F15 — hierarquia clara (cabeçalho, grupos, ações), vidro real e haptics.
+//  F36 — cabeçalho com arco, grupos em vidro e marcos de streak visíveis.
 //
 
 import SwiftUI
@@ -13,11 +14,10 @@ import UIKit
 struct SettingsView: View {
     @Environment(UserProfile.self) private var userProfile
     @AppStorage(LocalSubscriptionStatusProvider.planKey) private var isProEnabled = false
-    @AppStorage("debug.streakOverride") private var streakOverride: Int = 0
-    @AppStorage("debug.streakOverrideEnabled") private var streakOverrideEnabled: Bool = false
     @State private var showResetAlert = false
     @State private var isResetting = false
     @State private var resetErrorMessage: String?
+    @State private var didAppear: Bool = false
 
     var body: some View {
         ZStack {
@@ -31,11 +31,19 @@ struct SettingsView: View {
 
                     resetSection
 
-                    streakSection
+                    progressSection
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
                 .padding(.bottom, 100)
+                .opacity(didAppear ? 1 : 0)
+                .offset(y: didAppear ? 0 : 14)
+                .animation(.spring(response: 0.55, dampingFraction: 0.85), value: didAppear)
+            }
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.85)) {
+                didAppear = true
             }
         }
         .navigationTitle("Ajustes")
@@ -62,17 +70,15 @@ struct SettingsView: View {
     // MARK: - Cabeçalho
 
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Ajustes")
-                .font(.system(size: 30, design: .rounded).weight(.bold))
-                .foregroundStyle(VenusTheme.text)
-
-            Text("Aqui fica o que muda a experiência do app, sem poluir a Home.")
-                .font(.system(size: 14, design: .rounded).weight(.regular))
-                .foregroundStyle(VenusTheme.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        VenusF36JourneyHeader(
+            eyebrow: "Seu espaço",
+            title: "Ajustes",
+            subtitle: "O que muda a sua experiência, em um só lugar.",
+            dotCount: 4,
+            currentDot: 1,
+            dotCaption: "Marcos: 3 · 7 · 14 · 30 dias",
+            tint: VenusF36Palette.rose
+        )
     }
 
     // MARK: - Assinatura
@@ -84,20 +90,20 @@ struct SettingsView: View {
             HStack(alignment: .top, spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(VenusTheme.accentPurple.opacity(0.16))
+                        .fill(VenusF36Palette.lilac.opacity(0.20))
                         .frame(width: 44, height: 44)
 
                     Image(systemName: "crown.fill")
                         .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(VenusTheme.accentPurple)
+                        .foregroundStyle(VenusF36Palette.lilac)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Modo Pro")
-                        .font(.system(size: 18, design: .rounded).weight(.semibold))
+                        .font(.system(size: 20, design: .rounded).weight(.light))
                         .foregroundStyle(VenusTheme.text)
 
-                    Text("Ative para liberar leituras mais completas e mais check-ins no dia.")
+                    Text("Mais leituras e mais check-ins por dia.")
                         .font(.system(size: 13, design: .rounded).weight(.regular))
                         .foregroundStyle(VenusTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -107,7 +113,7 @@ struct SettingsView: View {
 
                 Toggle("", isOn: venusHapticBinding($isProEnabled, style: .medium))
                     .labelsHidden()
-                    .tint(VenusTheme.accentPurple)
+                    .tint(VenusF36Palette.lilac)
             }
 
             HStack(spacing: 8) {
@@ -130,19 +136,24 @@ struct SettingsView: View {
                 .font(.system(size: 10, design: .rounded).weight(.semibold))
                 .kerning(0.8)
         }
-        .foregroundStyle(VenusTheme.accentPurpleDeep)
+        .foregroundStyle(VenusF36Palette.lilac)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .glassEffect(.regular.tint(VenusTheme.accentPurple.opacity(0.18)), in: Capsule(style: .continuous))
+        .glassEffect(.regular.tint(VenusF36Palette.lilac.opacity(0.20)), in: Capsule(style: .continuous))
     }
 
     private var statusPill: some View {
         Text(isProEnabled ? "Pro ativo" : "Modo gratuito")
             .font(.system(size: 11, design: .rounded).weight(.medium))
-            .foregroundStyle(isProEnabled ? VenusTheme.accentPurpleDeep : VenusTheme.textSecondary)
+            .foregroundStyle(isProEnabled ? VenusF36Palette.rose : VenusTheme.textSecondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .glassEffect(.regular, in: Capsule(style: .continuous))
+            .glassEffect(
+                isProEnabled
+                    ? .regular.tint(VenusF36Palette.rose.opacity(0.18))
+                    : .regular,
+                in: Capsule(style: .continuous)
+            )
             .contentTransition(.opacity)
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isProEnabled)
     }
@@ -166,10 +177,10 @@ struct SettingsView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Resetar app")
-                        .font(.system(size: 18, design: .rounded).weight(.semibold))
+                        .font(.system(size: 20, design: .rounded).weight(.light))
                         .foregroundStyle(VenusTheme.text)
 
-                    Text("Apaga dados locais, preferências, tarefas, check-ins e faz o app voltar ao onboarding.")
+                    Text("Apaga seus dados e volta ao começo.")
                         .font(.system(size: 13, design: .rounded).weight(.regular))
                         .foregroundStyle(VenusTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -192,11 +203,12 @@ struct SettingsView: View {
                     Text(isResetting ? "Resetando..." : "Apagar tudo e recomeçar")
                         .font(.system(size: 14, design: .rounded).weight(.semibold))
                 }
+                .foregroundStyle(.red)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
+                .frame(height: 52)
             }
-            .buttonStyle(.glass)
-            .tint(.red)
+            .buttonStyle(.plain)
+            .glassEffect(.regular.tint(Color.red.opacity(0.10)), in: Capsule(style: .continuous))
             .disabled(isResetting)
             .scaleEffect(isResetting ? 0.98 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isResetting)
@@ -204,11 +216,11 @@ struct SettingsView: View {
         .settingsCardStyle()
     }
 
-    // MARK: - Streak Debug
+    // MARK: - Progresso (informação real)
 
-    private var streakSection: some View {
+    private var progressSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionKicker("DESENVOLVIMENTO")
+            sectionKicker("SEU PROGRESSO")
 
             HStack(alignment: .top, spacing: 14) {
                 ZStack {
@@ -222,77 +234,51 @@ struct SettingsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Testar Streak")
-                        .font(.system(size: 18, design: .rounded).weight(.semibold))
+                    Text("Streak de check-ins")
+                        .font(.system(size: 20, design: .rounded).weight(.light))
                         .foregroundStyle(VenusTheme.text)
 
-                    Text("Simula dias de streak para ver milestones, confetti e falas do mascot.")
+                    Text("Cada check-in fortalece sua sequência e desbloqueia um cosmético.")
                         .font(.system(size: 13, design: .rounded).weight(.regular))
                         .foregroundStyle(VenusTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
-            Toggle("Ativar override de streak", isOn: venusHapticBinding($streakOverrideEnabled, style: .medium))
-                .font(.system(size: 14, design: .rounded).weight(.medium))
-                .tint(VenusTheme.accentOrange)
+            Text("MARCOS DESBLOQUEÁVEIS")
+                .font(.system(size: 10, design: .rounded).weight(.semibold))
+                .kerning(1.2)
+                .foregroundStyle(VenusTheme.textSecondary)
 
-            if streakOverrideEnabled {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("Dias simulados")
-                            .font(.system(size: 14, design: .rounded).weight(.medium))
-                            .foregroundStyle(VenusTheme.text)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
+                ForEach(Array([3, 7, 14, 30].enumerated()), id: \.offset) { index, milestone in
+                    let tint = index.isMultiple(of: 2) ? VenusF36Palette.lilac : VenusF36Palette.rose
 
-                        Spacer()
+                    HStack(spacing: 6) {
+                        Text("\(milestone) dias")
+                            .font(.system(size: 12, design: .rounded).weight(.semibold))
+                            .foregroundStyle(tint)
 
-                        StreakBadge(days: streakOverride, celebrated: true)
-                    }
-
-                    Stepper(value: venusHapticBinding($streakOverride), in: 0...365) {
-                        Text("\(streakOverride) dias")
-                            .font(.system(size: 14, design: .rounded).weight(.semibold))
-                            .foregroundStyle(VenusTheme.accentOrange)
-                    }
-
-                    Text("MILESTONES")
-                        .font(.system(size: 10, design: .rounded).weight(.semibold))
-                        .kerning(1.2)
-                        .foregroundStyle(VenusTheme.textSecondary)
-
-                    HStack(spacing: 10) {
-                        ForEach([3, 7, 14, 30], id: \.self) { milestone in
-                            Button {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                streakOverride = milestone
-                            } label: {
-                                Text("\(milestone)d")
-                                    .font(.system(size: 13, design: .rounded).weight(.semibold))
-                                    .foregroundStyle(
-                                        streakOverride == milestone
-                                            ? VenusTheme.accentOrange
-                                            : VenusTheme.textSecondary
-                                    )
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 8)
-                            }
-                            .buttonStyle(.plain)
-                            .glassEffect(
-                                streakOverride == milestone
-                                    ? .regular.tint(VenusTheme.accentOrange.opacity(0.28))
-                                    : .regular,
-                                in: Capsule(style: .continuous)
-                            )
+                        if let reward = VenusCosmeticItem.milestoneLabel(forStreakDays: milestone) {
+                            Text(reward)
+                                .font(.system(size: 10, design: .rounded).weight(.medium))
+                                .foregroundStyle(VenusTheme.textSecondary)
+                                .lineLimit(1)
                         }
                     }
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 44)
+                    .glassEffect(
+                        .regular.tint(tint.opacity(0.12)),
+                        in: Capsule(style: .continuous)
+                    )
                 }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-                .animation(.spring(response: 0.35, dampingFraction: 0.85), value: streakOverrideEnabled)
             }
 
-            Text(streakOverrideEnabled ? "Override ativo: \(streakOverride) dias" : "Override desativado — usando streak real.")
+            Text("Contam apenas os seus check-ins reais.")
                 .font(.system(size: 12, design: .rounded).weight(.medium))
-                .foregroundStyle(streakOverrideEnabled ? VenusTheme.accentOrange : VenusTheme.textSecondary)
+                .foregroundStyle(VenusTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .settingsCardStyle()
     }

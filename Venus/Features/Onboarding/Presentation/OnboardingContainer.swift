@@ -25,9 +25,28 @@ struct OnboardingContainer: View {
     @State private var isRequestingHealth: Bool = false
     
     private let venusAI: VenusAIServiceProtocol = DependencyContainer.shared.makeVenusAIService()
+    /// Agente separado e reutilizável para as perguntas (modelo gratuito do OpenRouter).
+    private let questionAgent: any VenusQuestionGenerating = VenusQuestionAgent()
     private let healthKitService: HealthKitServiceProtocol = DependencyContainer.shared.makeHealthKitService()
     
-    @State private var bottomControlsHeight: CGFloat = 0
+    /// Total de perguntas dinâmicas antes de seguir para a permissão de saúde.
+    private let totalDynamicQuestions = 2
+    
+    /// Perguntas locais usadas se o agente falhar — nunca mostram processo da IA.
+    private let localFallbackQuestions = [
+        "O que tem trazido mais tranquilidade para você ultimamente?",
+        "Quando você sente que o dia finalmente desacelera?",
+        "O que você gostaria que fosse mais leve na sua rotina?",
+        "Há algo que te faz sentir mais presente agora?",
+        "Como você costuma cuidar de si quando o dia fica pesado?"
+    ]
+    
+    /// Reações curtas e calorosas — apenas texto de acolhimento, nunca de processo.
+    private let empathyLines = [
+        "Entender seu ritmo ajuda a calibrar seus dias.",
+        "Cada resposta sua traz um pouco mais de clareza.",
+        "É bom conhecer mais da sua mente, uma pergunta por vez."
+    ]
     
     init(userProfile: UserProfile, initialStep: Int = 0) {
         let safeInitialStep = min(max(initialStep, 0), 5)
@@ -128,14 +147,15 @@ struct OnboardingContainer: View {
             ZStack(alignment: .top) {
                 contentView
                     .safeAreaPadding(.top, 98)
-                    .safeAreaPadding(.bottom, max(110, bottomControlsHeight + 16))
+                    .safeAreaPadding(.bottom, 16)
 
                 topHUDView
                     .safeAreaPadding(.top, 10)
             }
-            .overlay(alignment: .bottom) {
+            // O CTA vive dentro do safe area: com teclado aberto ele sobe junto
+            // e nunca fica escondido atrás dele.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
                 bottomControlsView
-                    .safeAreaPadding(.bottom, 12)
                     .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -147,18 +167,18 @@ struct OnboardingContainer: View {
     private var revealStepView: some View {
         HStack {
             Spacer(minLength: 0)
-            ZStack(alignment: .bottom) {
+            ZStack {
                 ScrollView(showsIndicators: false) {
                     currentStepView
                         .id(currentStep)
                         .transition(stepTransition)
                         .safeAreaPadding(.top, 132)
-                        .safeAreaPadding(.bottom, max(120, bottomControlsHeight + 20))
+                        .safeAreaPadding(.bottom, 20)
                 }
-                
-                bottomControlsView
-                    .safeAreaPadding(.bottom, 12)
-                    .frame(maxWidth: .infinity)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    bottomControlsView
+                        .frame(maxWidth: .infinity)
+                }
             }
             .overlay(alignment: .top) {
                 OnboardingJourneyHeader(currentStep: currentStep)
@@ -194,7 +214,7 @@ struct OnboardingContainer: View {
             Image(systemName: "chevron.left")
                 .font(.system(size: 14, weight: .black))
                 .foregroundStyle(palette.accent)
-                .frame(width: 38, height: 38)
+                .frame(width: 44, height: 44)
                 .contentShape(Circle())
                 .glassEffect(.clear, in: Circle())
         }
@@ -237,6 +257,16 @@ struct OnboardingContainer: View {
                         scrollProxy.scrollTo("top", anchor: .top)
                     }
                 }
+                // Teclado aberto: rola até o campo ativo sem tirar o CTA da tela.
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        if currentStep == 3 {
+                            scrollProxy.scrollTo("step_3_\(dynamicQuestionCount)", anchor: .bottom)
+                        } else if currentStep == 1 || currentStep == 2 {
+                            scrollProxy.scrollTo("step_\(currentStep)", anchor: .top)
+                        }
+                    }
+                }
             }
         }
     }
@@ -253,17 +283,24 @@ struct OnboardingContainer: View {
                     Text("Configurar depois")
                         .font(.system(.footnote, design: .rounded).weight(.semibold))
                         .foregroundColor(VenusTheme.textSecondary)
-                        .padding(.vertical, 4)
+                        .contentTransition(.opacity)
+                        .frame(minHeight: 44)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(OnboardingPressableButtonStyle())
+                .animation(.spring(response: 0.42, dampingFraction: 0.8), value: currentStep)
             }
         }
         .padding(.horizontal, 24)
         .padding(.top, 8)
         .padding(.bottom, 12)
-        .readHeight { height in
-            bottomControlsHeight = height
-        }
+        .background(
+            LinearGradient(
+                colors: [Color.clear, palette.accent.opacity(0.06)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .allowsHitTesting(false)
+        )
     }
 
     private var nextButton: some View {
@@ -283,6 +320,8 @@ struct OnboardingContainer: View {
         .disabled(!canProceed || isBusy)
         .opacity(canProceed ? 1 : 0.62)
         .accessibilityLabel(nextButtonTitle)
+        .accessibilityHint(isBusy ? "Aguarde um instante." : "Avança para a próxima etapa.")
+        .accessibilityAddTraits(.isButton)
     }
     
     @ViewBuilder
@@ -307,9 +346,14 @@ struct OnboardingContainer: View {
                 text: $currentAnswerText,
                 aiQuestion: currentAIQuestion,
                 isLoadingAI: isLoadingAIQuestion,
-                defaultQuestion: "Como costuma ser seu foco e quais momentos do dia são mais produtivos para você?",
-                placeholder: "Conte sobre como sua mente opera, momentos de clareza ou distrações...",
-                tintColor: palette.accent
+                defaultQuestion: "Como é seu foco ao longo do dia?",
+                placeholder: "Escreva um pouco sobre você...",
+                tintColor: palette.accent,
+                onContinue: {
+                    if canProceed {
+                        goToNextStep()
+                    }
+                }
             )
         case 4:
             HealthPermissionsStep(onContinue: {
@@ -379,23 +423,22 @@ struct OnboardingContainer: View {
                 currentStep = 3
             }
             
-            fetchNextAIQuestion(index: 1)
+            fetchNextQuestion(index: 1)
             return
         }
         
         if currentStep == 3 {
             let answer = currentAnswerText.trimmingCharacters(in: .whitespacesAndNewlines)
-            let question = currentAIQuestion?.nextQuestion ?? "Como sua mente costuma reagir quando surgem várias demandas?"
+            let question = currentAIQuestion?.nextQuestion ?? fallbackQuestion(for: max(1, dynamicQuestionCount))
             conversationHistory.append((question, answer))
             
-            // Check if AI has enough context (minimum 2 questions, safety cap 5)
-            let hasEnough = currentAIQuestion?.hasEnoughContext ?? false
-            if (hasEnough && dynamicQuestionCount >= 2) || dynamicQuestionCount >= 5 {
+            // Quantidade fixa e local de perguntas — sem depender de sinal da IA.
+            if dynamicQuestionCount >= totalDynamicQuestions {
                 advanceToHealthStep()
                 return
             }
             
-            // Fetch next dynamic question with fluid animation
+            // Próxima pergunta dinâmica com transição fluida.
             withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
                 dynamicQuestionCount += 1
                 currentAnswerText = ""
@@ -403,7 +446,7 @@ struct OnboardingContainer: View {
                 isLoadingAIQuestion = true
             }
             
-            fetchNextAIQuestion(index: dynamicQuestionCount)
+            fetchNextQuestion(index: dynamicQuestionCount)
             return
         }
         
@@ -425,34 +468,75 @@ struct OnboardingContainer: View {
         }
     }
     
-    private func fetchNextAIQuestion(index: Int) {
+    // MARK: - Perguntas dinâmicas (agente separado do chat)
+
+    private func fetchNextQuestion(index: Int) {
+        // Contexto é calculado antes da Task para evitar capturar a view no chamado assíncrono.
+        let context = profileContext()
+        let answers = answeredSoFar()
+        let fallback = fallbackQuestion(for: index)
+        let empathy = VenusTextSanitizer.sanitize(empathyLine(for: index))
+
         Task {
+            let rawQuestion: String
             do {
-                let aiResponse = try await venusAI.generateNextOnboardingQuestion(
-                    userName: userProfile.name,
-                    userProfile: userProfile,
-                    conversationHistory: conversationHistory,
-                    questionIndex: index
+                rawQuestion = try await questionAgent.generateQuestion(
+                    profileContext: context,
+                    answeredSoFar: answers
                 )
-                await MainActor.run {
-                    if let tone = aiResponse.suggestedTone, !tone.isEmpty {
-                        self.userProfile.coachingTone = tone
-                    }
-                    
-                    // If AI deems it already has enough context and we have at least 2 questions answered
-                    if (aiResponse.hasEnoughContext == true) && self.conversationHistory.count >= 2 {
-                        self.advanceToHealthStep()
-                    } else {
-                        self.currentAIQuestion = aiResponse
-                        self.isLoadingAIQuestion = false
-                    }
-                }
             } catch {
-                await MainActor.run {
-                    self.isLoadingAIQuestion = false
+                rawQuestion = fallback
+            }
+
+            // Defesa extra: nada de JSON, tags de raciocínio ou prefixos na UI.
+            let clean = VenusTextSanitizer.sanitize(rawQuestion)
+
+            await MainActor.run {
+                self.currentAIQuestion = AIOnboardingQuestionResponse(
+                    empathyReaction: empathy,
+                    nextQuestion: clean.isEmpty ? fallback : clean,
+                    suggestedTone: nil,
+                    hasEnoughContext: false
+                )
+                if self.userProfile.coachingTone.isEmpty {
+                    self.userProfile.coachingTone = "Acolhedor"
                 }
+                self.isLoadingAIQuestion = false
             }
         }
+    }
+
+    /// Contexto rico e atualizado para o agente de perguntas.
+    private func profileContext() -> String {
+        var lines: [String] = []
+
+        let name = userProfile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty { lines.append("Nome: \(name)") }
+        if !userProfile.gender.isEmpty { lines.append("Identificação: \(userProfile.gender)") }
+        if !userProfile.primaryGoal.isEmpty { lines.append("Objetivo: \(userProfile.primaryGoal)") }
+        if !userProfile.improvementAreas.isEmpty {
+            lines.append("Áreas de melhoria: \(userProfile.improvementAreas.joined(separator: ", "))")
+        }
+
+        let initial = conversationHistory.first?.answer
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !initial.isEmpty { lines.append("Contexto inicial: \(initial)") }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private func answeredSoFar() -> [String] {
+        conversationHistory
+            .map { $0.answer }
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    private func fallbackQuestion(for index: Int) -> String {
+        localFallbackQuestions[(max(1, index) - 1) % localFallbackQuestions.count]
+    }
+
+    private func empathyLine(for index: Int) -> String {
+        empathyLines[(max(1, index) - 1) % empathyLines.count]
     }
     
     private func advanceToHealthStep() {
@@ -465,6 +549,7 @@ struct OnboardingContainer: View {
     }
 
     private func advanceToRevealStep() {
+        hideKeyboard()
         // Conclusão da coleta: confirmação tátil suave.
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
@@ -508,34 +593,6 @@ struct OnboardingContainer: View {
             let repo = DependencyContainer.shared.makeUserProfileRepository()
             try? await repo.save(profile: userProfile)
         }
-    }
-}
-
-private struct ViewHeightReader: ViewModifier {
-    let onChange: (CGFloat) -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .background(
-                GeometryReader { proxy in
-                    Color.clear
-                        .preference(key: ViewHeightPreferenceKey.self, value: proxy.size.height)
-                }
-            )
-            .onPreferenceChange(ViewHeightPreferenceKey.self, perform: onChange)
-    }
-}
-
-private struct ViewHeightPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
-private extension View {
-    func readHeight(_ onChange: @escaping (CGFloat) -> Void) -> some View {
-        modifier(ViewHeightReader(onChange: onChange))
     }
 }
 

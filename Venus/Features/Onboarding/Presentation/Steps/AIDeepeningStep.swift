@@ -14,14 +14,12 @@ struct AIDeepeningStep: View {
     let defaultQuestion: String
     let placeholder: String
     var tintColor: Color = VenusTheme.accentPurple
+    var onContinue: (() -> Void)? = nil
     
-    @State private var displayedQuestion: String = ""
-    @State private var isTyping: Bool = false
-    @State private var cursorBlink: Bool = true
     @FocusState private var isTextFocused: Bool
     
     private var targetQuestion: String {
-        aiQuestion?.nextQuestion ?? defaultQuestion
+        VenusTextSanitizer.sanitize(aiQuestion?.nextQuestion ?? defaultQuestion)
     }
     
     var body: some View {
@@ -30,60 +28,34 @@ struct AIDeepeningStep: View {
             Spacer(minLength: 40)
         }
         .padding(.horizontal, 24)
-        .onAppear {
-            cursorBlink = true
-        }
-        .task(id: "\(isLoadingAI)_\(targetQuestion)") {
-            if !isLoadingAI && !targetQuestion.isEmpty {
-                await runTypewriter(for: targetQuestion)
-            }
-        }
     }
     
     private var questionContentView: some View {
         VStack(alignment: .leading, spacing: 18) {
             // Empathy Reaction from Venus (limpo, sem emojis, sem travessao)
             if let reaction = aiQuestion?.empathyReaction, !reaction.isEmpty {
-                Text(reaction)
+                Text(VenusTextSanitizer.sanitize(reaction))
                     .font(.system(.subheadline, design: .rounded).weight(.regular))
                     .foregroundColor(VenusTheme.text)
                     .lineSpacing(2)
+                    .contentTransition(.opacity)
+                    .animation(.spring(response: 0.42, dampingFraction: 0.8), value: reaction)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
             
-            // Pergunta dinâmica com máquina de escrever e cursor (sem texto de processo)
-            HStack(alignment: .top, spacing: 2) {
-                if !displayedQuestion.isEmpty {
-                    Text(displayedQuestion)
-                        .font(.system(size: 26, weight: .light, design: .rounded))
-                        .foregroundStyle(VenusTheme.text)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .lineSpacing(2)
-                }
-                
-                if isTyping || isLoadingAI || displayedQuestion.isEmpty {
-                    Text("|")
-                        .font(.system(size: 26, weight: .black, design: .rounded))
-                        .foregroundStyle(tintColor)
-                        .opacity(cursorBlink ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.35).repeatForever(autoreverses: true), value: cursorBlink)
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                // Skip typing instantly on tap
-                if isTyping {
-                    displayedQuestion = targetQuestion
-                    isTyping = false
-                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        isTextFocused = true
-                    }
-                }
-            }
+            // Pergunta dinâmica com a mesma máquina de escrever das demais etapas.
+            // Enquanto a IA responde, só o cursor aparece — nunca "gerando...".
+            OnboardingTypewriterText(
+                text: targetQuestion,
+                font: .system(size: 26, weight: .light, design: .rounded),
+                color: VenusTheme.text,
+                cursorColor: tintColor,
+                showCursorWhenEmpty: isLoadingAI,
+                onRevealCompleted: focusEditorAfterReveal
+            )
             
             // Clean Borderless Floating Input Area (Always clear & focused)
             ZStack(alignment: .topLeading) {
@@ -103,7 +75,14 @@ struct AIDeepeningStep: View {
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
                     .frame(minHeight: 180, maxHeight: 300)
+                    .submitLabel(.done)
+                    .keyboardDoneToolbar(
+                        primaryTitle: onContinue == nil ? nil : "Avançar",
+                        primaryAction: onContinue
+                    )
                     .focused($isTextFocused)
+                    .accessibilityLabel("Sua resposta")
+                    .accessibilityHint("Toque para escrever; o botão OK fecha o teclado.")
             }
             .padding(.top, 8)
             .contentShape(Rectangle())
@@ -113,43 +92,11 @@ struct AIDeepeningStep: View {
         }
     }
     
-    @MainActor
-    private func runTypewriter(for fullText: String) async {
-        guard !fullText.isEmpty else { return }
-        
-        displayedQuestion = ""
-        isTyping = true
-        cursorBlink = true
-        
-        // Haptic feedback on start loading/typing text
-        let startHaptic = UIImpactFeedbackGenerator(style: .medium)
-        startHaptic.prepare()
-        startHaptic.impactOccurred()
-        
-        let typingHaptic = UIImpactFeedbackGenerator(style: .light)
-        typingHaptic.prepare()
-        
-        var charCount = 0
-        for char in fullText {
-            guard isTyping else { break }
-            displayedQuestion.append(char)
-            charCount += 1
-            
-            // Subtle rhythmic vibration as text loads
-            if char == " " || charCount % 7 == 0 {
-                typingHaptic.impactOccurred(intensity: 0.6)
-            }
-            
-            try? await Task.sleep(nanoseconds: 14_000_000) // 14ms per character (fluent & natural)
+    /// Foca o campo quando a pergunta termina de aparecer (ou é revelada com um toque).
+    private func focusEditorAfterReveal() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            isTextFocused = true
         }
-        
-        isTyping = false
-        
-        // Soft completion feedback
-        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-        
-        try? await Task.sleep(nanoseconds: 150_000_000)
-        isTextFocused = true
     }
 }
 

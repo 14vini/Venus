@@ -5,6 +5,7 @@
 //  Created by Kaua on 18/06/26.
 //
 //  F15 — seções em vidro real, tipografia fina e haptic na navegação.
+//  F36 — cabeçalho com arco de progresso do perfil e CTA escuro em pill.
 //
 
 import SwiftUI
@@ -12,6 +13,7 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(UserProfile.self) private var userProfile
     @State private var showEditSheet = false
+    @State private var didAppear: Bool = false
     @State private var aboutYouText: String = "Cada check-in desenha um pouco mais do seu reflexo emocional. Continue registrando seus momentos com a Venus."
 
     private let profileRepository = DependencyContainer.shared.makeUserProfileRepository()
@@ -23,12 +25,25 @@ struct ProfileView: View {
         return formatter
     }()
 
+    /// Dimensões preenchidas do perfil: identidade, meta, rotina, foco e interesses.
+    private var profileDimensionCount: Int {
+        var filled = 0
+        if !userProfile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { filled += 1 }
+        if !userProfile.primaryGoal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { filled += 1 }
+        if userProfile.workSchedule?.hasWork == true || userProfile.studySchedule.studies { filled += 1 }
+        if !userProfile.improvementAreas.isEmpty || !userProfile.emotionalAreas.isEmpty || !userProfile.coreValues.isEmpty { filled += 1 }
+        if !userProfile.interests.isEmpty || !userProfile.currentHobbies.isEmpty || !userProfile.desiredHobbies.isEmpty { filled += 1 }
+        return filled
+    }
+
     var body: some View {
         ZStack {
             VenusSoftGradientBackground()
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 18) {
+                    journeyHeader
+
                     headerSection
 
                     aboutYouSection
@@ -38,10 +53,20 @@ struct ProfileView: View {
                     preferencesSection
 
                     hobbiesAndInterestsSection
+
+                    editCTAButton
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
                 .padding(.bottom, 100)
+                .opacity(didAppear ? 1 : 0)
+                .offset(y: didAppear ? 0 : 14)
+                .animation(.spring(response: 0.55, dampingFraction: 0.85), value: didAppear)
+            }
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.85)) {
+                didAppear = true
             }
         }
         .navigationTitle("Meu Perfil")
@@ -70,6 +95,33 @@ struct ProfileView: View {
     }
 
     // MARK: - Cabeçalho
+
+    private var journeyHeader: some View {
+        VenusF36JourneyHeader(
+            eyebrow: "Seu reflexo",
+            title: "Perfil",
+            subtitle: "Um retrato que cresce com cada check-in.",
+            dotCount: 5,
+            currentDot: profileDimensionCount,
+            dotCaption: "\(profileDimensionCount) de 5 dimensões",
+            tint: VenusF36Palette.lilac
+        )
+    }
+
+    private var editCTAButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            showEditSheet = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "pencil")
+                    .font(.system(size: 14, weight: .semibold))
+                Text("Editar meu perfil")
+            }
+        }
+        .buttonStyle(VenusF36DarkPillStyle())
+        .padding(.top, 4)
+    }
 
     private var headerSection: some View {
         HStack(spacing: 16) {
@@ -231,11 +283,11 @@ struct ProfileView: View {
     private func sectionHeader(_ title: String, systemImage: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: systemImage)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(VenusTheme.primary)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(VenusF36Palette.lilac)
 
             Text(title)
-                .font(.system(size: 18, design: .rounded).weight(.semibold))
+                .font(.system(size: 20, design: .rounded).weight(.light))
                 .foregroundStyle(VenusTheme.text)
         }
     }

@@ -381,4 +381,19 @@ extension View {
     func venusScrollMotion(_ style: VenusScrollMotionStyle = .gentle) -> some View {
         modifier(VenusScrollMotionModifier(style: style))
     }
+
+    // MARK: - Jornada (F32)
+
+    /// Card de vidro líquido da jornada. Implementação em `VenusJourneyStyle`.
+    func venusJourneyCard(
+        cornerRadius: CGFloat = VenusJourneyStyle.cardRadius,
+        interactive: Bool = false
+    ) -> some View {
+        modifier(VenusJourneyCardModifier(cornerRadius: cornerRadius, interactive: interactive))
+    }
+
+    /// Tipografia fina com negrito seletivo da jornada.
+    func venusJourneyText(_ style: VenusJourneyTextStyle) -> some View {
+        modifier(VenusJourneyTextModifier(style: style))
+    }
 }

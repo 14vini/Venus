@@ -10,7 +10,7 @@ import SwiftUI
 struct HealthPermissionsStep: View {
     var onContinue: () -> Void
     
-    @State private var isRequesting = false
+    @State private var appeared = false
     private let healthKitService: HealthKitServiceProtocol = DependencyContainer.shared.makeHealthKitService()
     
     var body: some View {
@@ -21,11 +21,15 @@ struct HealthPermissionsStep: View {
                 .foregroundStyle(VenusTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(2)
+                .contentTransition(.opacity)
+                .animation(.spring(response: 0.42, dampingFraction: 0.8), value: appeared)
             
-            Text("Para a Venus calcular seu score de prontidão, sono e energia diária com precisão científica:")
+            Text("Para cuidar do seu score de prontidão, sono e energia:")
                 .font(.system(.subheadline, design: .rounded).weight(.medium))
                 .foregroundStyle(VenusTheme.textSecondary)
                 .lineSpacing(3)
+                .contentTransition(.opacity)
+                .animation(.spring(response: 0.42, dampingFraction: 0.8).delay(0.08), value: appeared)
             
             // Feature List
             VStack(spacing: 12) {
@@ -33,24 +37,27 @@ struct HealthPermissionsStep: View {
                     icon: "heart.fill",
                     color: VenusTheme.accentPink,
                     title: "Variabilidade Cardíaca (HRV)",
-                    detail: "Avalia a recuperação do seu sistema nervoso"
+                    detail: "Recuperação do sistema nervoso"
                 )
                 
                 metricRow(
                     icon: "moon.fill",
                     color: VenusTheme.accentPurple,
                     title: "Sono & Ritmo Circadiano",
-                    detail: "Monitora a qualidade e a restauração do seu descanso"
+                    detail: "Qualidade do seu descanso"
                 )
                 
                 metricRow(
                     icon: "bolt.fill",
                     color: VenusTheme.accentOrange,
                     title: "Frequência Cardíaca & Energia",
-                    detail: "Mede o esforço e a bateria corporal durante o dia"
+                    detail: "Esforço e energia ao longo do dia"
                 )
             }
             .padding(.top, 4)
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 10)
+            .animation(.spring(response: 0.45, dampingFraction: 0.8).delay(0.14), value: appeared)
             
             // Privacy Note
             HStack(spacing: 8) {
@@ -63,11 +70,19 @@ struct HealthPermissionsStep: View {
                     .foregroundColor(VenusTheme.textSecondary)
             }
             .padding(.top, 8)
+            .opacity(appeared ? 1 : 0)
+            .animation(.spring(response: 0.42, dampingFraction: 0.8).delay(0.2), value: appeared)
             
             Spacer(minLength: 30)
         }
         .padding(.horizontal, 24)
         .padding(.top, 16)
+        .accessibilityElement(children: .contain)
+        .onAppear {
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) {
+                appeared = true
+            }
+        }
     }
     
     private func metricRow(icon: String, color: Color, title: String, detail: String) -> some View {
@@ -86,10 +101,12 @@ struct HealthPermissionsStep: View {
                 Text(title)
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
                     .foregroundStyle(VenusTheme.text)
+                    .contentTransition(.opacity)
                 
                 Text(detail)
                     .font(.system(.caption, design: .rounded).weight(.medium))
                     .foregroundStyle(VenusTheme.textSecondary)
+                    .contentTransition(.opacity)
             }
             
             Spacer()

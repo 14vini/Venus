@@ -238,6 +238,84 @@ Pedido do usuário: "volta a tabbar nativa e remove o liquidglass dos botões da
 Escopo: `Venus/App/MainTabView.swift`, apagar `Venus/Core/UIComponents/VenusFloatingTabBar.swift`, ajustar a folga de 90pt em `Venus/Features/Home/Presentation/HomeView.swift`.
 T3: `...:f22-native-tab-r1` — **concluído e verificado**. `TabView(selection:)` nativa com 4 `.tabItem`, zero `.glassEffect`/`GlassEffectContainer` no `MainTabView`, `VenusFloatingTabBar.swift` apagado (0 referências), `bottomClearance` 90→20, check-in flutuante simples (44pt, gradiente, sem vidro). Build EXIT=0, gate 4/0. Verificado pelo orquestrador via grep + gate.
 
+---
+
+## 11. Rodada ampla (usuário — sem perguntas, fazer o recomendado)
+
+Diagnóstico inicial do orquestrador: build revalidado em 22/11 → **EXIT=0** (as redeclarações de `dailyProgress` já foram corrigidas pelo agente paralelo do usuário). Testes: scheme `Venus` não está configurado para `test action` (TEST_EXIT=66) — registrar como limitação, não erro de código. Já existe `Venus/Core/AI/VenusQuestionAgent.swift` (agente separado, modelos gratuitos `inclusionai/ling-3.2-flash:free`, `google/gemma-4-31b-it:free`, `openrouter/free`) — válido, só precisa de refinamento.
+
+| # | Frente | Escopo exclusivo | Status |
+|---|---|---|---|
+| F23 | Chat — UX/design estilo ChatGPT limpo, animação de texto da Home, responsivo | `Venus/Features/Chat/**` | **concluído (T3)** — `...:f23-chat-ux-r1`. Spring da Home, typewriter ágil, cache do filtro, leitura paralela, insights no sheet, zero pensamento/JSON; build EXIT=0, 0 warnings |
+| F24 | IA — velocidade, sem pensamento/JSON, filtros e modelos gratuitos | `Venus/Core/AI/{OpenRouterService,ThinkingStreamFilter,AIErrorsAndModels,VenusAIServiceProtocol}.swift` | **concluído (T3)** — `...:f24-ai-speed-r1`. Filtro ampliado, reasoning nunca devolvido, sessão reutilizada, timeout 45→20s/60→30s, 4/4 cenários do filtro PASS, build EXIT=0 |
+| F25 | Venus desenhada — melhorar o mascot em código + tentar asset 3D idêntico | `Venus/Core/UIComponents/{VenusMoodSurfaceComponents,VenusMascotFaceView,VenusMascotHandsView,VenusMascotParticles}.swift`, `output/venus/**` | **concluído (T3)** — `...:f25-venus-visual-r1`. Refinos perolados no mascot (silhueta/paleta intactas) propagam-se aos 10 pontos de uso; USDZ 1,4MB em output/venus (usdchecker Success, não importado); build EXIT=0 |
+
+### Entrega final da rodada ampla
+| Frente | Status | Evidência |
+|---|---|---|
+| F23 Chat UX | concluído | spring da Home, typewriter ágil, cache do filtro, leitura paralela, insights no sheet; build 0 |
+| F24 IA | concluído | filtro ampliado, reasoning nunca devolvido, timeouts 45→20/60→30, 4/4 cenários PASS; build 0 |
+| F25 Venus | concluído | refinos perolados propagados; USDZ 1,4MB em output/venus (usdchecker Success, não importado); build 0 |
+| F26 Onboarding | concluído | typewriter unificado, CTA preso ao safe area, teclado gerenciado, question agent timeout 6s; build 0 |
+| F27 Auditoria | concluído | 1 bloqueante (A1 já corrigido), 9 importantes, 5 menores; 0 arquivos tocados |
+| F28 Home | concluído | streak >7d, IA exibida, 3 rituais Duolingo, 12 órfãos removidos; build 0 |
+| F29 Check-in | concluído | erro de salvamento com alert + haptic; build 0 |
+| F30 Chat layout | concluído | GeometryReader/fixedSize removidos da raiz, containerRelativeFrame 82%, build 0 |
+
+**Gate final:** `bash scripts/gate_avatar.sh` → **4 pass / 0 fail** (`sem-3d`, `sem-texto-pensamento`, `build`, `areas-vetadas`).
+**Nota:** script de gate atualizado nesta rodada — `Core/AI` saiu da lista de áreas vetadas porque a F24 foi explicitamente autorizada a mexer lá.
+**Greps finais:** `ultraThinMaterial=0` · `VenusAvatar3DView=0` · `fixedSize` no ChatMessageView=0 · `GeometryReader` no ChatMessageView=0 em código (2 menções em comentário) · termos de pensamento na UI=0 (1 menção em comentário).
+**Limitação:** nenhuma captura do Chat foi possível — acesso a dispositivo do T3 desligado, sem CLI de toque, e diálogo de Health Access bloqueia o simulador. Validação por código/build/gate/grep.
+**Estado:** não commitado. HEAD `64f0acb`.
+
+### F30 — correção de layout do Chat (diagnóstico por código) — CONCLUÍDO (f30-chat-layout-r1)
+
+---
+
+## 12. Rodada de refinamento visual (23/11) — "app inteiro = check-in"
+
+Pedido do usuário: (1) melhorar o desenho da Venus com **muitas mais reações**, expressões mais bonitas e transições entre expressões; (2) deixar **todo o app** com o visual da tela de check-in (lilás→rosa→branco, arco de progresso, tipografia fina, CTA escuro, menos texto, mais visualização, transições suaves); (3) **mock-up de teste para streaks**.
+
+| # | Frente | Escopo exclusivo | clientRequestId |
+|---|---|---|---|
+| F31 | Venus — novas expressões/reações + transições | `Core/UIComponents/{VenusMascotFaceView,VenusMascotHandsView,VenusMascotParticles,VenusMoodSurfaceComponents,VenusCosmetics}.swift` | `f31-venus-expressions-r1` — **concluído**: 12 novos estados aditivos, olhos lua/coração/piscadela, novas bocas, 4 novos fabricantes de partículas, brilho no peito, transição phaseAnimator spring; build EXIT=0 |
+| F32 | Design system da jornada compartilhado | `Core/UIComponents/VenusJourneyStyle.swift` (novo), `Core/Theme/{Colors,View+Modifiers}.swift`, `Features/MoodCheckIn/Presentation/Components/VenusJourneyDesign.swift` | `f32-journey-style-r1` — **concluído**: tokens lilás/rosa/céu light+dark, VenusJourneyStyle com background/arco/CTA/texto/haptics, modifiers `.venusJourneyCard/.venusJourneyText`, check-in intacto; build EXIT=0 |
+
+Erros `switch must be exhaustive` em `VenusMascotFaceView.swift` são transitórios da F31 (novos casos `.amused`, `.surprised`, `.proud`... em inserção). Não intervir — a própria F31 deve fechar os switches antes de entregar. Gate consolidado só após todas as frentes.
+| F33 | Home no visual jornada | `Features/Home/**` | `f33-home-journey-r1` — **concluído**: 0/3 rituais com arco, Venus central, saudação IA no hero, prontidão em pill, chips de modo, CTA escuro; screenshot `/tmp/f33-home.png`验证 visual claro; build EXIT=0 |
+
+### Entrega final da rodada de refinamento visual
+- Gate: **4 pass / 0 fail** (gate_avatar.sh).
+- Verificação visual real obtida pelo F33: `/tmp/f33-home.png` (claro) e `/tmp/f33-home-dark.png` (escuro). Home confere com a linguagem do check-in: gradiente lilás→rosa, arco de 3 rituais, Venus central, menos texto, CTA escuro, tab bar nativa.
+- Estados: não commitado (HEAD `64f0acb`). Limitação: screenshots apenas da Home; Chat/Check-in não foi possível capturar por bloqueio de device.
+| F34 | Chat no visual jornada | `Features/Chat/Presentation/**` | `f34-chat-journey-r1` — **concluído**: paleta lilás→rosa, glows 7s/9s, arco de 6 pontos no header, input em pílula escura, correção F30 mantida, gate 4/0 |
+| F35 | Onboarding no visual jornada | `Features/Onboarding/**` | `f35-onboarding-journey-r1` — **concluído**: tela Day 1 (número gigante em degradê, frase curta), falas curtas da Venus, textos enxugados; build isolado EXIT=0 (workspace travado só pela F31 em edição) |
+| F36 | Galaxy/Perfil/Ajustes/Assinatura no visual jornada | `Features/{Galaxy,Profile,Settings,Subscription}/**` (exceto `VenusStreakMockView.swift`) | `f36-other-journey-r1` — **concluído**: arco nos cabeçalhos (perfil 5 dimensões, ajustes 4 marcos, galaxy 7/14/30), céu lilás/rosa, menos texto, build EXIT=0 |
+| F37 | Mock-up de streaks (debug/preview) | `Features/Settings/Presentation/Components/VenusStreakMockView.swift` (novo) | `f37-streak-mock-r1` — **concluído**: seletor 3/7/14/30, cosméticos reais, arco/pontos, CTA escuro, haptics, previews light/dark, build EXIT=0 |
+
+Nota: resposta sobre autenticação dada ao usuário nesta rodada — recomendação: Sign in with Apple + CloudKit private DB, auth aditiva (local-first), `AdoptLocalDataUseCase`, outbox, Keychain, migração não destrutiva. Nenhuma frente de auth aberta ainda (aguardando pedido explícito de implementação).
+
+Regra: F33–F36 implementam a linguagem visual localmente (paleta lilás/rosa/céu, gradiente suave, arco/pontos, menos texto, mais visual, transições springs, haptics) sem depender de API nova da F32 para não quebrar build paralelo; consolidação depois.
+
+### F30 — correção de layout do Chat (diagnóstico por código)
+Usuário relatou mensagens sobrepostas/desalinhadas. Tentei captura visual: há iPhone 17 Pro bootado, `simctl io` capturou a **Home** com sucesso, mas o acesso a dispositivo do T3 está **desligado** ("Agent device access is turned off") e não há `agent-device` CLI — não foi possível navegar até o Chat para screenshot. Diagnóstico por leitura integral: `ChatMessageView` tem `GeometryReader` como raiz + `.fixedSize(vertical: true)` dentro de `LazyVStack(spacing: 0)` — combinação que colapsa a altura das linhas e sobrepõe mensagens. Delegado `f30-chat-layout-r1` (escopo: ChatMessageView + VenusChatView) para eliminar o GeometryReader da raiz e garantir altura intrínseca.
+| F26 | Onboarding — animação de texto, botões/teclado, perguntas IA refinadas | `Venus/Features/Onboarding/**`, `Venus/Core/AI/VenusQuestionAgent.swift` | **delegado (T3)** — `...:f26-onboarding-r1` |
+| F27 | Auditoria app inteiro — redondo, Duolingo-like UX/algoritmo (somente leitura) | nenhum arquivo | **delegado (T3, role research)** — `...:f27-audit-r1` |
+
+Nota: o provider de imagem anterior falhou com credencial inválida; a F25 foi instruída a pesquisar alternativas (inclusive "Antigravity") e, se não houver gerador disponível, usar SceneKit procedural sem importar o asset no app.
+
+### Auditoria F27 — resultado e desdobramentos
+Relatório lido: 1 bloqueante (A1), 9 importantes, 5 menores. Verificado pelo orquestrador que **A1 já foi corrigido** (AppConfig sem chave hardcoded — vem de env/Info.plist). Pontos fortes preservados: arquitetura, motores de prontidão/padrões, filtro de pensamento/JSON, animações/haptics, psicologia de streak/cosméticos.
+Desdobramentos delegados:
+| # | Frente | Escopo | clientRequestId |
+|---|---|---|---|
+| F28 | Home — A3 streak >7d, A4 IA desperdiçada exibida, A9 micro-celebrações Duolingo, A13 limpeza órfãos | Home/**, PatternEngineUseCase, SettingsView, VenusCosmetics | `f28-home-audit-r1` — **concluído**: streak com getAllMoods, aiGreeting no hero, patternSnapshot no callback async, VenusDailyRitualsView (3 rituais), 12 órfãos removidos, build EXIT=0 |
+| F29 | Check-in — A5 erro de salvamento com voz (alert + haptic) | MoodCheckIn/Presentation/** | `f29-checkin-errors-r1` — **concluído**: errorMessage/showError/retrySave, defer limpa isSaving, alert acessível + haptic .error, build EXIT=0 |
+
+Itens F26 (A7 haptics/cursor, A8 cascata do question agent) já cobertos no prompt da F26. Itens A6/A10-A15 ficam registrados como melhorias futuras (acessibilidade, sanitização única, acentos, tokens, testes).
+
+Regras comuns: separar tudo em subagents (T3, lineage), nada de mostrar pensamento/JSON, Venus antiga preservada, escopo exclusivo, build com derivedData próprio.
+
 Regras mantidas: Venus antiga (`VenusMoodOrb`), zero texto de processo da IA, Liquid Glass real, minimalismo, haptics/transições com propósito, escopo exclusivo. Imagem 3 (Day 1) é a referência principal da Prontidão; imagem 1 orienta a tab bar; imagem 2 a linguagem visual.
 
 Regras de paralelismo: cada agente usa `--derivedDataPath "$PWD/build/DerivedData-<frente>"` diferente para não colidir builds. Gate (`scripts/gate_avatar.sh`) reescrito para checar ausência de `VenusAvatar3DView`, ausência de texto de pensamento, build e áreas vetadas.

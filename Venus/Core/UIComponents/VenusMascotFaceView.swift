@@ -22,6 +22,40 @@ enum VenusMascotState: String, CaseIterable, Sendable {
     case yawning
     case curious
     case excited
+
+    // MARK: Novas reações (aditivas — os casos acima permanecem intactos)
+    case amused
+    case surprised
+    case proud
+    case shy
+    case grateful
+    case excitedSoft
+    case concerned
+    case loving
+    case wink
+    case sleepyHappy
+    case determined
+    case sparkling
+
+    /// Expressão que acompanha os novos estados de reação. Nenhum estado
+    /// original é alterado: `nil` mantém o comportamento anterior.
+    var reactionExpression: VenusMascotExpression? {
+        switch self {
+        case .amused: return .amused
+        case .surprised: return .surprised
+        case .proud: return .proud
+        case .shy: return .shy
+        case .grateful: return .grateful
+        case .excitedSoft: return .excitedSoft
+        case .concerned: return .concerned
+        case .loving: return .loving
+        case .wink: return .wink
+        case .sleepyHappy: return .sleepyHappy
+        case .determined: return .determined
+        case .sparkling: return .sparkling
+        default: return nil
+        }
+    }
 }
 
 enum VenusMascotExpression: String, CaseIterable, Sendable {
@@ -40,6 +74,20 @@ enum VenusMascotExpression: String, CaseIterable, Sendable {
     case welcoming
     case empathetic
     case excited
+
+    // MARK: Novas expressões (aditivas — os casos acima permanecem intactos)
+    case amused
+    case surprised
+    case proud
+    case shy
+    case grateful
+    case excitedSoft
+    case concerned
+    case loving
+    case wink
+    case sleepyHappy
+    case determined
+    case sparkling
     
     init(from mood: MoodType?) {
         guard let mood else {
@@ -75,6 +123,9 @@ struct VenusMascotFaceView: View {
     @State private var floatingZzz = false
     @State private var mouthPulse = false
     @State private var curiousTilt: Double = 0
+    @State private var browBob = false
+
+    @Environment(\.colorScheme) private var colorScheme
     
     // Scale proportions relative to 100pt base
     private var scale: CGFloat { size / 100.0 }
@@ -90,14 +141,63 @@ struct VenusMascotFaceView: View {
         if state == .sleeping { return .tired }
         if state == .listening { return .listening }
         if state == .empathetic { return .empathetic }
+        if let reaction = state.reactionExpression { return reaction }
         return expression
+    }
+
+    // MARK: - Famílias visuais (novas expressões reaproveitam a identidade)
+
+    /// Olhos em lua: felicidade serena, sem dentes e sem contorno duro.
+    private var isMoonEyed: Bool {
+        switch activeExpression {
+        case .happy, .celebrating, .petting, .welcoming, .amused, .sleepyHappy, .wink:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Olhos com estrelas para alegria intensa e descoberta.
+    private var isStarEyed: Bool {
+        switch activeExpression {
+        case .energetic, .excited, .excitedSoft, .sparkling, .surprised:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var closedEyelash: some View {
+        Capsule()
+            .fill(faceColor)
+            .frame(width: 13 * scale, height: 3.0 * scale)
     }
 
     var body: some View {
         ZStack {
+            // Convex sheen across the face plane: a soft top light that makes
+            // the features feel embedded in a rounded surface, not painted on.
+            RadialGradient(
+                colors: [
+                    Color.white.opacity(colorScheme == .dark ? 0.14 : 0.22),
+                    Color.white.opacity(0.06),
+                    Color.clear
+                ],
+                center: .init(x: 0.34, y: 0.16),
+                startRadius: 0,
+                endRadius: size * 0.42
+            )
+            .frame(width: size * 0.74, height: size * 0.52)
+            .blendMode(.plusLighter)
+            .allowsHitTesting(false)
+
             // Eyebrows / Expressive micro-accents
             eyebrowsView
-                .offset(y: eyeVerticalOffset - 8 * scale)
+                .offset(
+                    y: eyeVerticalOffset - 8 * scale
+                        + ((activeExpression == .surprised || activeExpression == .amused) ? (browBob ? -1.6 * scale : 0) : 0)
+                )
+                .animation(.spring(response: 0.42, dampingFraction: 0.8), value: activeExpression)
             
             // Cheeks (Soft Airbrushed Blush with Starlight Glints)
             if shouldShowBlush {
@@ -126,6 +226,7 @@ struct VenusMascotFaceView: View {
                     x: gazeOffset.width * 0.06,
                     y: mouthVerticalOffset + gazeOffset.height * 0.06
                 )
+                .animation(.spring(response: 0.42, dampingFraction: 0.8), value: activeExpression)
             
             // Sleep Zzz Micro-particles
             if state == .sleeping || activeExpression == .tired {
@@ -133,9 +234,23 @@ struct VenusMascotFaceView: View {
             }
         }
         .frame(width: size * 0.74, height: size * 0.52)
+        // Cross-fade com mola na troca de expressão: leve recuo, rotação e
+        // opacidade que retornam ao repouso. Blink/saccade/float continuam
+        // em camadas próprias — nenhuma animação é duplicada aqui.
+        .phaseAnimator([false, true], trigger: activeExpression.rawValue) { content, phase in
+            content
+                .opacity(phase ? 1.0 : 0.42)
+                .scaleEffect(phase ? 1.0 : 0.94)
+                .rotationEffect(.degrees(phase ? 0 : -3.5))
+        } animation: { _ in
+            .spring(response: 0.42, dampingFraction: 0.8)
+        }
         .onAppear {
             startBlinkingLoop()
             startSaccadeLoop()
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+                browBob = true
+            }
             if state == .speaking {
                 withAnimation(.easeInOut(duration: 0.25).repeatForever(autoreverses: true)) {
                     mouthPulse = true
@@ -193,7 +308,7 @@ struct VenusMascotFaceView: View {
                     .rotationEffect(.degrees(-12))
             }
             
-        case .excited, .celebrating:
+        case .excited, .celebrating, .sparkling, .excitedSoft:
             HStack(spacing: 28 * scale) {
                 Capsule()
                     .fill(faceColor.opacity(0.85))
@@ -206,6 +321,94 @@ struct VenusMascotFaceView: View {
                     .frame(width: 8 * scale, height: 2.0 * scale)
                     .rotationEffect(.degrees(8))
                     .offset(y: -1.5 * scale)
+            }
+
+        case .surprised:
+            // Sobrancelhas erguidas — espanto doce, nunca tenso.
+            HStack(spacing: 28 * scale) {
+                Capsule()
+                    .fill(faceColor.opacity(0.80))
+                    .frame(width: 8 * scale, height: 2.0 * scale)
+                    .rotationEffect(.degrees(-6))
+                    .offset(y: -4 * scale)
+
+                Capsule()
+                    .fill(faceColor.opacity(0.80))
+                    .frame(width: 8 * scale, height: 2.0 * scale)
+                    .rotationEffect(.degrees(6))
+                    .offset(y: -4 * scale)
+            }
+
+        case .amused, .wink:
+            // Uma sobrancelha levanta: cumplicidade e piscadela.
+            HStack(spacing: 27 * scale) {
+                Capsule()
+                    .fill(faceColor.opacity(0.78))
+                    .frame(width: 8 * scale, height: 1.9 * scale)
+                    .rotationEffect(.degrees(-14))
+                    .offset(y: -2.6 * scale)
+
+                Capsule()
+                    .fill(faceColor.opacity(0.70))
+                    .frame(width: 7.5 * scale, height: 1.8 * scale)
+                    .rotationEffect(.degrees(4))
+            }
+
+        case .proud, .determined:
+            // Arco confiante, levemente inclinado para dentro.
+            HStack(spacing: 27 * scale) {
+                Capsule()
+                    .fill(faceColor.opacity(0.82))
+                    .frame(width: 8 * scale, height: 2.0 * scale)
+                    .rotationEffect(.degrees(9))
+                    .offset(y: 0.5 * scale)
+
+                Capsule()
+                    .fill(faceColor.opacity(0.82))
+                    .frame(width: 8 * scale, height: 2.0 * scale)
+                    .rotationEffect(.degrees(-9))
+                    .offset(y: 0.5 * scale)
+            }
+
+        case .concerned, .shy:
+            HStack(spacing: 26 * scale) {
+                Capsule()
+                    .fill(faceColor.opacity(0.70))
+                    .frame(width: 7.5 * scale, height: 1.8 * scale)
+                    .rotationEffect(.degrees(-12))
+
+                Capsule()
+                    .fill(faceColor.opacity(0.70))
+                    .frame(width: 7.5 * scale, height: 1.8 * scale)
+                    .rotationEffect(.degrees(12))
+            }
+
+        case .loving, .grateful:
+            HStack(spacing: 26 * scale) {
+                Capsule()
+                    .fill(faceColor.opacity(0.72))
+                    .frame(width: 8 * scale, height: 1.8 * scale)
+                    .rotationEffect(.degrees(8))
+                    .offset(y: -1 * scale)
+
+                Capsule()
+                    .fill(faceColor.opacity(0.72))
+                    .frame(width: 8 * scale, height: 1.8 * scale)
+                    .rotationEffect(.degrees(-8))
+                    .offset(y: -1 * scale)
+            }
+
+        case .sleepyHappy:
+            HStack(spacing: 26 * scale) {
+                Capsule()
+                    .fill(faceColor.opacity(0.55))
+                    .frame(width: 7 * scale, height: 1.6 * scale)
+                    .rotationEffect(.degrees(10))
+
+                Capsule()
+                    .fill(faceColor.opacity(0.55))
+                    .frame(width: 7 * scale, height: 1.6 * scale)
+                    .rotationEffect(.degrees(-10))
             }
             
         case .thinking:
@@ -230,7 +433,9 @@ struct VenusMascotFaceView: View {
     // MARK: - Blush View
     
     private func blushCheekView(isRight: Bool) -> some View {
-        let isIntense = activeExpression == .petting || activeExpression == .welcoming || activeExpression == .excited
+        let isIntense = activeExpression == .petting || activeExpression == .welcoming
+            || activeExpression == .excited || activeExpression == .loving
+            || activeExpression == .shy || activeExpression == .grateful
         
         return ZStack {
             // Soft atmospheric airbrush glow
@@ -250,7 +455,8 @@ struct VenusMascotFaceView: View {
                 .frame(width: (isIntense ? 23 : 18) * scale, height: (isIntense ? 17 : 13) * scale)
             
             // Micro sparkle in cheek when happy / celebrating / welcoming
-            if activeExpression == .happy || activeExpression == .petting || activeExpression == .celebrating || activeExpression == .welcoming || activeExpression == .excited {
+            if isMoonEyed || isStarEyed || activeExpression == .empathetic
+                || activeExpression == .grateful || activeExpression == .loving {
                 Image(systemName: "sparkle")
                     .font(.system(size: (isIntense ? 5.5 : 4.0) * scale, weight: .bold))
                     .foregroundColor(Color.white.opacity(0.90))
@@ -260,42 +466,104 @@ struct VenusMascotFaceView: View {
     }
     
     // MARK: - Eyes Views
-    
+
+    /// Extra reflections that make round pupils read as glossy glass instead
+    /// of flat dots. Sized from the existing per-expression scale factor.
+    private func specularGlints(isRight: Bool, radius: CGFloat) -> some View {
+        // A highlight belongs to the light source, not to the pupil. Drifting
+        // it slightly against the existing saccade/gaze gives the navy eyes
+        // depth without adding a second animation loop.
+        let lightShift = CGSize(
+            width: -(saccadeOffset.width + gazeOffset.width * 0.15) * 0.35,
+            height: -(saccadeOffset.height + gazeOffset.height * 0.15) * 0.25
+        )
+
+        return ZStack {
+            Circle()
+                .fill(Color.white.opacity(0.10))
+                .frame(width: radius * 0.95, height: radius * 0.95)
+                .offset(x: (isRight ? -1 : 1) * radius * 0.34, y: -radius * 0.36)
+                .blur(radius: max(0.5, 0.6 * scale))
+
+            Circle()
+                .fill(Color.white.opacity(0.55))
+                .frame(width: max(0.8, 1.1 * scale), height: max(0.8, 1.1 * scale))
+                .offset(x: (isRight ? 1 : -1) * radius * 0.30, y: radius * 0.34)
+        }
+        .offset(x: lightShift.width, y: lightShift.height)
+    }
+
+    /// A whisper of light along the lower lid makes the round eyes read as wet
+    /// glass. Same palette, same geometry — only an inner reflection.
+    @ViewBuilder
+    private func lowerLidCatchlight(isRight: Bool) -> some View {
+        if hasLowerLidCatchlight {
+            Capsule()
+                .fill(Color.white.opacity(colorScheme == .dark ? 0.16 : 0.20))
+                .frame(width: max(2, 4.2 * scale), height: max(0.6, 0.9 * scale))
+                .offset(x: isRight ? 0.6 * scale : -0.6 * scale, y: -1.2 * scale)
+                .blur(radius: max(0.3, 0.4 * scale))
+        }
+    }
+
+    private var hasLowerLidCatchlight: Bool {
+        switch activeExpression {
+        case .calm, .energetic, .excited, .curious, .empathetic, .thinking, .sad, .stressed, .listening,
+             .proud, .determined, .grateful, .shy, .concerned, .surprised, .loving, .sleepyHappy, .amused:
+            return true
+        default:
+            return false
+        }
+    }
+
     @ViewBuilder
     private var leftEye: some View {
         eyeShape(isRight: false)
+            .overlay(lowerLidCatchlight(isRight: false))
             .scaleEffect(y: isBlinking ? 0.1 : 1.0)
     }
     
     @ViewBuilder
     private var rightEye: some View {
         eyeShape(isRight: true)
+            .overlay(lowerLidCatchlight(isRight: true))
             .scaleEffect(y: isBlinking ? 0.1 : 1.0)
     }
     
     @ViewBuilder
     private func eyeShape(isRight: Bool) -> some View {
         if isBlinking && state != .sleeping && activeExpression != .tired && activeExpression != .petting {
-            // Blinking / Soft closed eyelash arc
-            Capsule()
-                .fill(faceColor)
-                .frame(width: 13 * scale, height: 3.0 * scale)
+            closedEyelash
+        } else if activeExpression == .wink && isRight {
+            // Piscadela: um olho fecha enquanto o outro continua brilhando.
+            closedEyelash
         } else {
             switch activeExpression {
-            case .happy, .celebrating, .petting, .welcoming:
-                // Joyful anime curved crescent eyes (^ ^)
-                HappyEyeShape()
-                    .stroke(
-                        faceColor,
-                        style: StrokeStyle(
-                            lineWidth: (activeExpression == .petting ? 3.8 : 3.4) * scale,
-                            lineCap: .round,
-                            lineJoin: .round
-                        )
+            case .loving:
+                // Olhos em coração — reação de carinho, sem texto.
+                HeartEyeShape()
+                    .fill(faceColor)
+                    .frame(width: 13 * scale, height: 12 * scale)
+                    .overlay(
+                        Circle()
+                            .fill(Color.white.opacity(0.85))
+                            .frame(width: max(0.8, 2.4 * scale), height: max(0.8, 2.4 * scale))
+                            .offset(x: isRight ? 3.0 * scale : -3.0 * scale, y: -3.4 * scale)
                     )
-                    .frame(width: 14 * scale, height: 8.5 * scale)
+
+            case .happy, .celebrating, .petting, .welcoming, .amused, .sleepyHappy, .wink:
+                // Olhos em lua: mesma identidade azul-marinho, mais doçura.
+                MoonEyeShape(isRight: isRight)
+                    .fill(faceColor)
+                    .frame(width: 15 * scale, height: 9.5 * scale)
+                    .overlay(
+                        Circle()
+                            .fill(Color.white.opacity(0.55))
+                            .frame(width: max(0.8, 1.4 * scale), height: max(0.8, 1.4 * scale))
+                            .offset(x: isRight ? 3.8 * scale : -3.8 * scale, y: -2.8 * scale)
+                    )
                 
-            case .calm:
+            case .calm, .proud, .determined:
                 // Premium Anime/Game Eye with Dual Glossy Specular Dome
                 ZStack {
                     // Pupil with vertical depth
@@ -324,8 +592,10 @@ struct VenusMascotFaceView: View {
                         .frame(width: 1.8 * scale, height: 1.8 * scale)
                         .offset(x: 2.2 * scale, y: 2.2 * scale)
                 }
+                .overlay(specularGlints(isRight: isRight, radius: 10.5 * scale))
+                .offset(y: activeExpression == .proud ? -0.8 * scale : 0)
                 
-            case .energetic, .excited:
+            case .energetic, .excited, .excitedSoft, .sparkling, .surprised:
                 // Sparkling Star Eyes
                 ZStack {
                     Circle()
@@ -344,6 +614,7 @@ struct VenusMascotFaceView: View {
                         .frame(width: 2.8 * scale, height: 2.8 * scale)
                         .offset(x: isRight ? 2.6 * scale : -2.6 * scale, y: 2.6 * scale)
                 }
+                .scaleEffect(activeExpression == .surprised ? 1.10 : 1.0)
                 
             case .curious:
                 // Big curious eyes looking with interest
@@ -372,7 +643,7 @@ struct VenusMascotFaceView: View {
                 }
                 .offset(y: 1.0 * scale)
                 
-            case .empathetic:
+            case .empathetic, .grateful, .shy, .concerned:
                 // Empathetic gentle shining eyes
                 ZStack {
                     Circle()
@@ -407,6 +678,7 @@ struct VenusMascotFaceView: View {
                         .frame(width: 1.8 * scale, height: 1.8 * scale)
                         .offset(x: -2.0 * scale, y: 2.0 * scale)
                 }
+                .overlay(specularGlints(isRight: isRight, radius: 10.5 * scale))
                 .offset(x: 2.2 * scale, y: -3.2 * scale)
                 
             case .sad:
@@ -451,6 +723,7 @@ struct VenusMascotFaceView: View {
                         .frame(width: 2.0 * scale, height: 2.0 * scale)
                         .offset(x: 2.0 * scale, y: 2.0 * scale)
                 }
+                .overlay(specularGlints(isRight: isRight, radius: 11.8 * scale))
             }
         }
     }
@@ -460,30 +733,55 @@ struct VenusMascotFaceView: View {
     @ViewBuilder
     private var mouthView: some View {
         switch activeExpression {
-        case .happy, .celebrating, .petting, .welcoming, .excited:
+        case .happy, .celebrating, .petting, .welcoming, .excited, .sparkling, .wink:
             // Cute open smile with rounded tongue glow
             HappyMouthShape()
                 .fill(faceColor)
                 .frame(width: (activeExpression == .excited ? 13 : 11.5) * scale, height: (activeExpression == .excited ? 7.5 : 6.5) * scale)
                 .scaleEffect(mouthPulse ? 1.15 : 1.0)
+
+        case .excitedSoft:
+            // Alegria contida: mesmo sorriso, um pouco menor.
+            HappyMouthShape()
+                .fill(faceColor)
+                .frame(width: 10.5 * scale, height: 5.8 * scale)
+                .scaleEffect(mouthPulse ? 1.10 : 1.0)
             
-        case .calm, .empathetic:
+        case .calm, .empathetic, .grateful, .loving, .sleepyHappy:
             // Gentle serene curve
             SereneSmileShape()
                 .stroke(faceColor, style: StrokeStyle(lineWidth: 2.4 * scale, lineCap: .round))
                 .frame(width: 8.5 * scale, height: 4.5 * scale)
+
+        case .shy, .proud, .amused:
+            // Sorriso assimétrico e gentil — curvatura que conversa com a emoção.
+            SmirkMouthShape()
+                .stroke(faceColor, style: StrokeStyle(lineWidth: 2.2 * scale, lineCap: .round))
+                .frame(width: 8 * scale, height: 4.2 * scale)
             
         case .energetic:
             // Wide happy open mouth
             HappyMouthShape()
                 .fill(faceColor)
                 .frame(width: 13 * scale, height: 7.5 * scale)
+
+        case .determined:
+            // Linha curta e firme, sem dureza de contorno.
+            Capsule()
+                .fill(faceColor.opacity(0.9))
+                .frame(width: 7.5 * scale, height: 2.2 * scale)
             
         case .curious:
             // Cute soft small "o"
             Circle()
                 .stroke(faceColor, lineWidth: 2.2 * scale)
                 .frame(width: 4.6 * scale, height: 4.6 * scale)
+
+        case .surprised:
+            // "o" um pouco maior: espanto doce, sem texto.
+            Circle()
+                .stroke(faceColor, lineWidth: 2.3 * scale)
+                .frame(width: 6.2 * scale, height: 6.2 * scale)
             
         case .thinking:
             // Small curious "o" shifted
@@ -497,6 +795,12 @@ struct VenusMascotFaceView: View {
             SereneSmileShape()
                 .stroke(faceColor.opacity(0.85), style: StrokeStyle(lineWidth: 2.2 * scale, lineCap: .round))
                 .frame(width: 7 * scale, height: 3.5 * scale)
+
+        case .concerned:
+            // Leve curva descendente: cuidado sem peso.
+            ConcernedMouthShape()
+                .stroke(faceColor.opacity(0.85), style: StrokeStyle(lineWidth: 2.2 * scale, lineCap: .round))
+                .frame(width: 7.5 * scale, height: 3.8 * scale)
             
         case .stressed:
             // Neutral wavy little line
@@ -546,23 +850,31 @@ struct VenusMascotFaceView: View {
     // MARK: - Helpers & Positions
     
     private var shouldShowBlush: Bool {
-        activeExpression == .happy || activeExpression == .celebrating || activeExpression == .energetic || activeExpression == .petting || activeExpression == .welcoming || activeExpression == .excited || activeExpression == .empathetic
+        activeExpression == .happy || activeExpression == .celebrating || activeExpression == .energetic
+            || activeExpression == .petting || activeExpression == .welcoming || activeExpression == .excited
+            || activeExpression == .empathetic || activeExpression == .loving || activeExpression == .shy
+            || activeExpression == .grateful || activeExpression == .amused || activeExpression == .sleepyHappy
+            || activeExpression == .wink || activeExpression == .proud
     }
     
     private var eyeVerticalOffset: CGFloat {
         switch activeExpression {
         case .thinking: return -4.5 * scale
         case .curious: return -1.5 * scale
+        case .surprised: return -1.0 * scale
+        case .sleepyHappy: return 0.5 * scale
         default: return -2.5 * scale
         }
     }
     
     private var mouthVerticalOffset: CGFloat {
         switch activeExpression {
-        case .happy, .celebrating, .energetic, .petting, .welcoming, .excited: return 9.5 * scale
+        case .happy, .celebrating, .energetic, .petting, .welcoming, .excited,
+             .excitedSoft, .sparkling, .wink, .loving, .grateful: return 9.5 * scale
         case .thinking: return 8.5 * scale
         case .yawning: return 9.5 * scale
         case .curious: return 8.5 * scale
+        case .surprised: return 9.0 * scale
         default: return 7.5 * scale
         }
     }
@@ -574,6 +886,10 @@ struct VenusMascotFaceView: View {
                 let delay = Double.random(in: 2.8...5.2)
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 guard !Task.isCancelled else { break }
+
+                // A piscadela e o sorriso sonolento já fecham um olho:
+                // não competem com um blink duplo.
+                if activeExpression == .wink || activeExpression == .sleepyHappy { continue }
                 
                 withAnimation(.spring(response: 0.10, dampingFraction: 0.8)) {
                     isBlinking = true
@@ -610,7 +926,9 @@ struct VenusMascotFaceView: View {
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 guard !Task.isCancelled else { break }
                 
-                guard state == .idle || state == .listening || state == .welcoming || state == .empathetic else { continue }
+                guard state == .idle || state == .listening || state == .welcoming || state == .empathetic
+                    || state == .proud || state == .grateful || state == .loving || state == .determined
+                    || state == .amused else { continue }
                 
                 let randomX = CGFloat.random(in: -2.2...2.2) * scale
                 let randomY = CGFloat.random(in: -1.0...1.0) * scale
@@ -680,6 +998,88 @@ struct SereneSmileShape: Shape {
         path.addQuadCurve(
             to: CGPoint(x: rect.maxX, y: rect.minY + 1),
             control: CGPoint(x: rect.midX, y: rect.maxY * 1.3)
+        )
+        return path
+    }
+}
+
+// MARK: - New Expressive Shapes
+
+/// Olho em lua cheia inclinada: um arco externo amplo e um interno mais
+/// raso criam a lua sem contorno duro. Preenchido com o azul-marinho da Venus.
+struct MoonEyeShape: Shape {
+    let isRight: Bool
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let tilt: CGFloat = isRight ? 0.6 : -0.6
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY - tilt))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX, y: rect.maxY + tilt),
+            control: CGPoint(x: rect.midX, y: rect.minY - rect.height * 0.22)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX, y: rect.maxY - tilt),
+            control: CGPoint(x: rect.midX, y: rect.minY + rect.height * 0.48)
+        )
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Coração simplificado, usado apenas nos olhos da expressão `.loving`.
+struct HeartEyeShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let w = rect.width
+        let h = rect.height
+        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.addCurve(
+            to: CGPoint(x: rect.minX + w * 0.02, y: rect.minY + h * 0.42),
+            control1: CGPoint(x: rect.minX - w * 0.08, y: rect.minY + h * 0.62),
+            control2: CGPoint(x: rect.minX - w * 0.02, y: rect.minY + h * 0.06)
+        )
+        path.addCurve(
+            to: CGPoint(x: rect.midX, y: rect.minY + h * 0.30),
+            control1: CGPoint(x: rect.minX + w * 0.16, y: rect.minY - h * 0.06),
+            control2: CGPoint(x: rect.midX - w * 0.08, y: rect.minY - h * 0.04)
+        )
+        path.addCurve(
+            to: CGPoint(x: rect.maxX - w * 0.02, y: rect.minY + h * 0.42),
+            control1: CGPoint(x: rect.midX + w * 0.08, y: rect.minY - h * 0.04),
+            control2: CGPoint(x: rect.maxX - w * 0.16, y: rect.minY - h * 0.06)
+        )
+        path.addCurve(
+            to: CGPoint(x: rect.midX, y: rect.maxY),
+            control1: CGPoint(x: rect.maxX + w * 0.02, y: rect.minY + h * 0.06),
+            control2: CGPoint(x: rect.maxX + w * 0.08, y: rect.minY + h * 0.62)
+        )
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Sorriso levemente assimétrico para travessura, orgulho e timidez.
+struct SmirkMouthShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY + 1))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX, y: rect.minY + 2.5),
+            control: CGPoint(x: rect.midX, y: rect.maxY * 1.2)
+        )
+        return path
+    }
+}
+
+/// Curva suavemente descendente para cuidado — sem traço duro.
+struct ConcernedMouthShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY + 2.5))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX, y: rect.minY + 1),
+            control: CGPoint(x: rect.midX, y: rect.maxY * 0.9)
         )
         return path
     }

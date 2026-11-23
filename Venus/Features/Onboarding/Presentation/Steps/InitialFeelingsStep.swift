@@ -20,17 +20,19 @@ struct InitialFeelingsStep: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            // Question Header (sem subtítulo)
-            Text("Como costuma ser sua rotina e o que mais tem ocupado sua mente ultimamente, \(displayName)?")
+            // Pergunta curta: sem explicações longas ao lado da máquina de escrever.
+            Text("Como tem sido sua rotina, \(displayName)?")
                 .font(.system(size: 26, weight: .light, design: .rounded))
                 .foregroundStyle(VenusTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(2)
+                .contentTransition(.opacity)
+                .animation(.spring(response: 0.42, dampingFraction: 0.8), value: displayName)
             
             // Clean Borderless Input Area (sem background, sem voz)
             ZStack(alignment: .topLeading) {
                 if textInput.isEmpty {
-                    Text("Ex: Meus dias são corridos entre trabalho e estudos, sinto picos de foco mas também momentos de sobrecarga e cansaço mental...")
+                    Text("Conte um pouco sobre os seus dias...")
                         .font(.system(size: 19, weight: .medium, design: .rounded))
                         .foregroundColor(VenusTheme.textSecondary.opacity(0.55))
                         .padding(.top, 8)
@@ -45,10 +47,14 @@ struct InitialFeelingsStep: View {
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
                     .frame(minHeight: 180, maxHeight: 300)
+                    .submitLabel(.done)
+                    .keyboardDoneToolbar(primaryTitle: onContinue == nil ? nil : "Avançar", primaryAction: onContinue)
                     .focused($isTextFocused)
                     .onChange(of: textInput) { _, newValue in
                         userProfile.contextNote = newValue
                     }
+                    .accessibilityLabel("Sua rotina e ocupações")
+                    .accessibilityHint("O botão OK fecha o teclado; Avançar segue para a próxima etapa.")
             }
             
             .padding(.top, 8)
@@ -59,9 +65,10 @@ struct InitialFeelingsStep: View {
         .padding(.top, 20)
         .onAppear {
             textInput = userProfile.contextNote
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                isTextFocused = true
-            }
+        }
+        .task {
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            isTextFocused = true
         }
     }
 }

@@ -47,33 +47,33 @@ struct OnboardingMascotCompanionView: View {
         }
     }
 
+    /// Falas curtas: a Venus acompanha sem explicar demais — a pergunta é a estrela.
     private var speechText: String {
         switch currentStep {
         case 1:
             let name = userProfile.name.trimmingCharacters(in: .whitespacesAndNewlines)
             if !name.isEmpty {
-                return "Que alegria te conhecer, \(name). É um prazer ter você aqui."
+                return "Que alegria, \(name)!"
             }
-            return "Olá, como você prefere que eu te chame?"
+            return "Como posso te chamar?"
 
         case 2:
             if !userProfile.contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return "Entender seu ritmo nos dá a base perfeita para calibrar seus dias."
+                return "Seu ritmo nos guia."
             }
-            let name = userProfile.name.isEmpty ? "" : ", \(userProfile.name)"
-            return "Como costuma ser seu ritmo e nível de energia\(name)?"
+            return "Como é o seu ritmo?"
 
         case 3:
-            return "Vamos conhecer um pouco mais da sua mente, uma pergunta de cada vez."
+            return "Uma pergunta por vez."
 
         case 4:
-            return "Cada resposta sua ajuda a desenhar o seu ritmo."
+            return "Cada resposta conta."
 
         case 5:
-            return "Olhe só o quanto você já avançou."
+            return "Olha só o seu caminho."
 
         default:
-            return "Estou pronta para começar."
+            return "Pronta para começar."
         }
     }
 
@@ -100,15 +100,19 @@ struct OnboardingMascotCompanionView: View {
                     Text("Venus")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .foregroundStyle(VenusTheme.text)
+                        .contentTransition(.opacity)
                 }
 
-                Text(speechText)
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
-                    .foregroundStyle(VenusTheme.text)
-                    .lineSpacing(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .contentTransition(.opacity)
-                    .animation(.spring(response: 0.35, dampingFraction: 0.75), value: speechText)
+                // Fala da Venus com a mesma cadência suave das perguntas.
+                OnboardingTypewriterText(
+                    text: speechText,
+                    font: .system(size: 13, weight: .regular, design: .rounded),
+                    color: VenusTheme.text,
+                    cursorColor: OnboardingVisualPalette.lilac,
+                    lineSpacing: 2,
+                    speedNanos: 10_000_000,
+                    hapticsEnabled: false
+                )
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)

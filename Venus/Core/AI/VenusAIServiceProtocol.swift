@@ -7,6 +7,13 @@
 
 import Foundation
 
+/// Contrato estável da camada de IA — nenhuma assinatura foi alterada nesta rodada.
+///
+/// Garantia interna de implementação (F24): todo texto devolvido por estas
+/// funções já passou por `ThinkingStreamFilter`, inclusive os campos de texto
+/// das respostas estruturadas. Pensamento, JSON cru, tags internas e rótulos de
+/// processo não chegam à interface. Os modelos gratuitos padrão e de fallback
+/// (`openrouter/free`) permanecem intactos em `AppConfig`.
 protocol VenusAIServiceProtocol: Sendable {
     func generateResponse(
         userMessage: String,

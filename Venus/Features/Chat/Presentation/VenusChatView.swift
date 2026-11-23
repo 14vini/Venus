@@ -15,7 +15,13 @@ struct VenusChatView: View {
     @State private var inputText: String = ""
     @FocusState private var isTextFieldFocused: Bool
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.presentationMode) private var presentationMode
+    @Environment(\.colorScheme) private var colorScheme
     @State private var showDetails = false
+    @State private var didLoadInitialData = false
+    @State private var isNearBottom = true
+
+    private var isDark: Bool { colorScheme == .dark }
 
     init(
         openedFromMirror: Bool = false,
@@ -31,24 +37,26 @@ struct VenusChatView: View {
         ))
     }
 
+    /// A tela só oferece "voltar" quando foi apresentada modalmente
+    /// (fullScreenCover da Home ou sheet de "Meu Dia"). Como aba raiz da TabView
+    /// não há apresentação para dispensar — esconder evita um botão morto.
+    private var isModalPresentation: Bool {
+        presentationMode.wrappedValue.isPresented
+    }
+
+    /// Coalescência do scroll: muda a cada bloco de ~40 caracteres revelados,
+    /// não a cada flush (~16/s). O scroll final é feito ao concluir a resposta.
+    private var lastMessageBlock: Int {
+        (viewModel.messages.last?.content.count ?? 0) / 40
+    }
+
     var body: some View {
         ZStack {
             VenusChatBackground()
 
             VStack(spacing: 0) {
                 // (a) Cabeçalho discreto
-                VenusChatHeaderView(
-                    lens: viewModel.activeLens,
-                    isThinking: viewModel.isVenusThinking,
-                    hasPendingReview: hasPendingPlan
-                ) {
-                    isTextFieldFocused = false
-                    dismiss()
-                } onShowDetails: {
-                    isTextFieldFocused = false
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    showDetails = true
-                }
+                chatHeader
 
                 // (b) Mensagens + (c) entrada
                 conversationArea
@@ -62,7 +70,9 @@ struct VenusChatView: View {
                 lens: viewModel.activeLens,
                 emotionalState: viewModel.currentEmotionalState,
                 session: viewModel.currentSession,
-                planMessage: latestPlanMessage
+                planMessage: latestPlanMessage,
+                diagnosis: viewModel.lastDiagnosis,
+                messageCount: viewModel.messages.count
             ) { lens in
                 viewModel.setSelfKnowledgeLens(lens)
             } onSuggestion: { text in
@@ -70,11 +80,15 @@ struct VenusChatView: View {
                 viewModel.sendMessage(text: text)
             } onConfirmPlan: { messageId in
                 viewModel.confirmPlanningProposal(for: messageId)
+            } onDismissDiagnosis: {
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) {
+                    viewModel.lastDiagnosis = nil
+                }
             }
         }
         .onAppear {
-            viewModel.startAnimations()
-            viewModel.requestPermissions()
+            guard !didLoadInitialData else { return }
+            didLoadInitialData = true
             viewModel.loadInitialData()
         }
         .alert("Aviso", isPresented: $viewModel.showError) {
@@ -84,51 +98,48 @@ struct VenusChatView: View {
         }
     }
 
+    /// O cabeçalho é um componente compartilhado: o recorte esconde apenas a
+    /// área do botão "voltar" (12pt de padding + 44pt de botão) quando a tela
+    /// é raiz de aba, sem duplicar a UI dele neste arquivo.
+    private var chatHeader: some View {
+        VenusChatHeaderView(
+            lens: viewModel.activeLens,
+            isThinking: viewModel.isVenusThinking,
+            hasPendingReview: hasPendingPlan || viewModel.lastDiagnosis?.dissonance != nil
+        ) {
+            isTextFieldFocused = false
+            dismiss()
+        } onShowDetails: {
+            isTextFieldFocused = false
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            showDetails = true
+        }
+        .mask {
+            Rectangle()
+                .padding(.leading, isModalPresentation ? 0 : 56)
+        }
+        .overlay(alignment: .leading) {
+            if !isModalPresentation {
+                Rectangle()
+                    .foregroundStyle(.clear)
+                    .frame(width: 56)
+                    .contentShape(Rectangle())
+                    .onTapGesture {}
+            }
+        }
+        .contentTransition(.opacity)
+        .animation(.spring(response: 0.42, dampingFraction: 0.8), value: viewModel.activeLens)
+    }
+
     // MARK: - Conversa
 
     private var conversationArea: some View {
         ZStack(alignment: .bottom) {
             ScrollViewReader { proxy in
                 ScrollView(.vertical, showsIndicators: false) {
+                    // A conversa é a única coisa nesta área: insights, lentes e
+                    // propostas vivem no sheet de detalhes, sem competir aqui.
                     LazyVStack(spacing: 0) {
-                        // Aviso do Radar de Contradições (transitório e dispensável)
-                        if let dissonance = viewModel.lastDiagnosis?.dissonance {
-                            HStack(spacing: 8) {
-                                Image(systemName: "bolt.shield.fill")
-                                    .foregroundStyle(.yellow)
-                                    .font(.system(size: 13, weight: .bold))
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(dissonance.type.badgeLabel)
-                                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                                        .foregroundStyle(VenusTheme.text)
-
-                                    Text(dissonance.headline)
-                                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                                        .foregroundStyle(VenusTheme.textSecondary)
-                                        .lineLimit(1)
-                                }
-
-                                Spacer()
-
-                                Button {
-                                    withAnimation(.spring(duration: 0.25)) {
-                                        viewModel.lastDiagnosis = nil
-                                    }
-                                } label: {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundStyle(VenusTheme.textSecondary)
-                                }
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 8)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                        }
-
                         ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
                             let isPrevSame = index > 0 && viewModel.messages[index - 1].isFromUser == message.isFromUser
                             let isNextSame = index < viewModel.messages.count - 1 && viewModel.messages[index + 1].isFromUser == message.isFromUser
@@ -159,9 +170,10 @@ struct VenusChatView: View {
                             .id(message.id)
                         }
                         .animation(
-                            .spring(response: 0.42, dampingFraction: 0.86),
+                            .spring(response: 0.42, dampingFraction: 0.8),
                             value: viewModel.messages.count
                         )
+                        .contentTransition(.opacity)
 
                         if viewModel.isVenusThinking {
                             VenusThinkingView()
@@ -184,40 +196,49 @@ struct VenusChatView: View {
                         isTextFieldFocused = false
                     }
                 }
+                // Só acompanha a conversa quem já está perto do fim.
+                .onScrollGeometryChange(for: Bool.self) { geometry in
+                    let distanceFromBottom = geometry.contentSize.height - geometry.visibleRect.maxY
+                    return distanceFromBottom < 140
+                } action: { _, nearBottom in
+                    isNearBottom = nearBottom
+                }
                 .onChange(of: viewModel.messages.count) { _, _ in
+                    isNearBottom = true
                     withAnimation(.easeOut(duration: 0.3)) {
-                        if let lastMessage = viewModel.messages.last {
-                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                        if let last = viewModel.messages.last {
+                            proxy.scrollTo(last.id, anchor: .bottom)
                         }
                     }
                 }
-                .onChange(of: viewModel.messages.last?.content) { _, _ in
-                    if let last = viewModel.messages.last, !last.isFromUser {
-                        proxy.scrollTo(last.id, anchor: .bottom)
-                    }
+                .onChange(of: lastMessageBlock) { _, _ in
+                    guard isNearBottom else { return }
+                    scrollToLatest(proxy)
                 }
                 .onChange(of: viewModel.isVenusThinking) { _, isThinking in
-                    if isThinking {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            proxy.scrollTo("thinking", anchor: .bottom)
-                        }
+                    guard isThinking, isNearBottom else { return }
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        proxy.scrollTo("thinking", anchor: .bottom)
                     }
                 }
-                // Haptic de conclusão quando a resposta final chega (fim do
-                // streaming ou conclusão sem streaming, ex.: planejamento).
+                // Um único feedback de conclusão por resposta (o ViewModel
+                // sinaliza o fim limpando `currentlyStreamingMessageId`).
                 .onChange(of: viewModel.currentlyStreamingMessageId) { oldValue, newValue in
-                    if oldValue != nil && newValue == nil {
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    }
-                }
-                .onChange(of: viewModel.isVenusThinking) { oldValue, newValue in
-                    if oldValue && !newValue && viewModel.currentlyStreamingMessageId == nil {
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    }
+                    guard oldValue != nil, newValue == nil else { return }
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    scrollToLatest(proxy)
                 }
             }
 
             inputBar
+        }
+    }
+
+    /// Rola para a última mensagem — chamado em blocos, nunca por caractere.
+    private func scrollToLatest(_ proxy: ScrollViewProxy) {
+        guard let last = viewModel.messages.last else { return }
+        withAnimation(.easeOut(duration: 0.25)) {
+            proxy.scrollTo(last.id, anchor: .bottom)
         }
     }
 
@@ -238,18 +259,20 @@ struct VenusChatView: View {
                     Text("Gravando... Toque no microfone para parar")
                         .font(.subheadline)
                         .foregroundStyle(.red)
+                        .contentTransition(.opacity)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .glassEffect(.regular, in: Capsule(style: .continuous))
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.spring(response: 0.42, dampingFraction: 0.8), value: viewModel.isRecording)
             }
 
             // Prévia da mensagem respondida
             if let replyingTo = viewModel.replyingToMessage {
                 HStack(spacing: 8) {
                     Rectangle()
-                        .fill(VenusTheme.primary)
+                        .fill(VenusChatVisualStyle.lilac)
                         .frame(width: 3)
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -261,6 +284,7 @@ struct VenusChatView: View {
                             .font(.caption)
                             .foregroundStyle(VenusTheme.textSecondary)
                             .lineLimit(1)
+                            .contentTransition(.opacity)
                     }
 
                     Spacer()
@@ -278,12 +302,13 @@ struct VenusChatView: View {
                 .padding(.vertical, 8)
                 .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .padding(.horizontal, 16)
+                .animation(.spring(response: 0.42, dampingFraction: 0.8), value: viewModel.replyingToMessage?.id)
             }
 
             HStack(spacing: 12) {
-                TextField("Converse com Venus...", text: $inputText, axis: .vertical)
+                TextField("Converse com a Venus...", text: $inputText, axis: .vertical)
                     .lineLimit(1...5)
-                    .font(.system(.subheadline, design: .rounded))
+                    .font(.system(size: 15, weight: .light, design: .rounded))
                     .foregroundStyle(VenusTheme.text)
                     .focused($isTextFieldFocused)
 
@@ -320,6 +345,7 @@ struct VenusChatView: View {
                                 .font(.system(size: 20))
                                 .foregroundStyle(viewModel.isRecording ? .red : VenusTheme.textSecondary)
                         }
+                        .buttonStyle(VenusChatPressStyle())
                     }
 
                     Button {
@@ -330,23 +356,34 @@ struct VenusChatView: View {
                         viewModel.sendMessage(text: text)
                     } label: {
                         ZStack {
-                            Circle()
-                                .fill(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                      ? VenusTheme.primary.opacity(0.4)
-                                      : VenusTheme.primary)
-                                .frame(width: 34, height: 34)
+                            Capsule(style: .continuous)
+                                .fill(VenusChatVisualStyle.darkPill(isDark: isDark))
+                                .frame(width: 40, height: 36)
 
                             Image(systemName: "arrow.up")
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundStyle(.white)
                         }
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.white.opacity(0.14), Color.clear],
+                                        startPoint: .top,
+                                        endPoint: .center
+                                    )
+                                )
+                        )
                     }
+                    .buttonStyle(VenusChatPressStyle())
                     .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .opacity(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
+                    .animation(.spring(response: 0.32, dampingFraction: 0.82), value: inputText.isEmpty)
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 18)
             .padding(.vertical, 10)
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .glassEffect(.regular, in: Capsule(style: .continuous))
             .padding(.horizontal, 16)
         }
         .padding(.bottom, 12)
@@ -371,6 +408,18 @@ struct VenusChatView: View {
             message.planningProposal != nil &&
             !(message.planningProposal?.proposedBlocks.isEmpty ?? true)
         }
+    }
+}
+
+// MARK: - Toque suave
+
+/// Pressagem com resposta spring para os controles da entrada — sem estado extra.
+private struct VenusChatPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1)
+            .opacity(configuration.isPressed ? 0.86 : 1)
+            .animation(.spring(response: 0.28, dampingFraction: 0.8), value: configuration.isPressed)
     }
 }
 

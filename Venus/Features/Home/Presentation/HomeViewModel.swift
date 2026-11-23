@@ -54,6 +54,29 @@ final class HomeViewModel {
         return "Ritual \(min(nextIndex, limit))/\(limit)"
     }
 
+    /// Cosmético desbloqueado pelo streak real — o mesmo mapa do mascote hero.
+    var unlockedCosmetic: VenusCosmeticItem {
+        if checkInStreakDays >= 30 { return .saturnRing }
+        if checkInStreakDays >= 14 { return .cosmicHeadphones }
+        if checkInStreakDays >= 7 { return .astralWings }
+        if checkInStreakDays >= 3 { return .starHalo }
+        return .none
+    }
+
+    /// Progresso honesto do dia, derivado apenas de dados já existentes no ViewModel.
+    /// Usa os blocos concluídos do plano diário; sem plano, usa o check-in de hoje.
+    var dailyProgress: (completed: Int, total: Int) {
+        if let plan = todayPlan, plan.totalBlocksCount > 0 {
+            return (min(plan.completedBlocksCount, plan.totalBlocksCount), plan.totalBlocksCount)
+        }
+        return (hasCheckedInToday ? 1 : 0, 1)
+    }
+
+    var dailyProgressLabel: String {
+        let progress = dailyProgress
+        return "\(progress.completed) de \(progress.total) rituais"
+    }
+
     private let patternEngineUseCase: PatternEngineUseCaseProtocol
     private let checkInAllowanceUseCase: CheckInAllowanceUseCaseProtocol
     private let moodRepository: MoodRepositoryProtocol
@@ -125,6 +148,9 @@ final class HomeViewModel {
         Task {
             await notificationService.scheduleEveningReflection()
         }
+        // A4: a saudação é gerada depois de configure(userProfile:) — o nome veio do perfil,
+        // não do placeholder "Amigo" — e é exibida no hero da Home.
+        fetchAIGreeting()
     }
 
     func onChatDismissed() {
@@ -247,10 +273,15 @@ final class HomeViewModel {
 
             // Leituras locais independentes em paralelo: a tela não espera a IA.
             async let fetchedMoods = moodRepository.getMoods(from: sevenDaysAgo, to: Date())
+            // A3: a tendência usa a janela de 7 dias, mas o streak (e os cosméticos
+            // de 14/30 dias) precisa do histórico completo. Buscar só 7 dias quebrava
+            // a sequência acima de uma semana.
+            async let fetchedAllMoods = moodRepository.getAllMoods()
             async let fetchedPlan = try? dailyPlanRepository.getPlan(for: Date())
             async let fetchedSessions = chatRepository.loadSessions()
 
             let weekMoods = try await fetchedMoods
+            let allMoods = (try? await fetchedAllMoods) ?? weekMoods
             let plan = await fetchedPlan
             let sessions = try await fetchedSessions
 
@@ -266,7 +297,7 @@ final class HomeViewModel {
             self.weekMoods = weekMoods
             self.hasCheckedInToday = (todayMood != nil)
             self.todayMoodType = todayMood?.type
-            self.checkInStreakDays = calculateStreak(from: weekMoods)
+            self.checkInStreakDays = calculateStreak(from: allMoods)
             self.todayPlan = plan
             self.checkInAllowance = allowance
             self.checkInsUsedToday = allowance.usedToday
@@ -286,7 +317,6 @@ final class HomeViewModel {
             // IA em background: complementa a tela quando chega, sem bloqueá-la.
             triggerAIMicroCopyUpdate()
             refreshPatternInsights()
-            fetchAIGreeting()
             if let latestSession = todaySessions.first {
                 scheduleChatImpactAnalysis(session: latestSession)
             }
@@ -429,15 +459,35 @@ final class HomeViewModel {
 
         insightsTask = Task { [weak self] in
             guard let self = self else { return }
-            let snapshot = try? await self.patternEngineUseCase.execute()
-            guard !Task.isCancelled, self.insightsRequestID == requestID else { return }
-
-            withAnimation(.easeInOut(duration: 0.3)) {
-                self.patternSnapshot = snapshot
-                if let trend = snapshot?.weeklyTrend {
-                    self.weeklyTrend = trend
+            do {
+                // A4: usa o callback assíncrono. O snapshot local chega rápido; a IA paga
+                // atualiza a Home quando termina, em vez de rodar no caminho síncrono.
+                let localSnapshot = try await self.patternEngineUseCase.execute(
+                    referenceDate: Date(),
+                    onAIUpdate: { [weak self] snapshot in
+                        Task { @MainActor [weak self] in
+                            guard let self, self.insightsRequestID == requestID else { return }
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                self.patternSnapshot = snapshot
+                                self.weeklyTrend = snapshot.weeklyTrend
+                                self.isLoadingInsights = false
+                            }
+                        }
+                    }
+                )
+                guard !Task.isCancelled, self.insightsRequestID == requestID else { return }
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    self.patternSnapshot = localSnapshot
+                    if let trend = localSnapshot?.weeklyTrend {
+                        self.weeklyTrend = trend
+                    }
+                    self.isLoadingInsights = false
                 }
+            } catch {
+                guard !Task.isCancelled, self.insightsRequestID == requestID else { return }
                 self.isLoadingInsights = false
+                self.insightsErrorMessage = "Não foi possível atualizar suas reflexões agora."
+                print("Error refreshing pattern insights: \(error)")
             }
         }
     }

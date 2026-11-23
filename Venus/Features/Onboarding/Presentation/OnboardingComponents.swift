@@ -239,7 +239,7 @@ struct OnboardingJourneyHeader: View {
             OnboardingJourneyProgress(currentStep: currentStep, totalSteps: totalSteps, tint: tint)
                 .frame(maxWidth: 280)
         }
-        .animation(.spring(response: 0.55, dampingFraction: 0.86), value: currentStep)
+        .animation(.spring(response: 0.42, dampingFraction: 0.8), value: currentStep)
     }
 }
 
@@ -270,6 +270,7 @@ struct OnboardingJourneyCTALabel: View {
                 Text(title)
                     .font(.system(.headline, design: .rounded).weight(.semibold))
                     .contentTransition(.opacity)
+                    .animation(.spring(response: 0.42, dampingFraction: 0.8), value: title)
 
                 if let systemImage {
                     Image(systemName: systemImage)
@@ -323,6 +324,8 @@ struct OnboardingStepHeader: View {
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .foregroundStyle(tint)
                     .tracking(1.3)
+                    .contentTransition(.opacity)
+                    .animation(.spring(response: 0.42, dampingFraction: 0.8), value: eyebrow)
             }
 
             Text(title)
@@ -330,6 +333,8 @@ struct OnboardingStepHeader: View {
                 .foregroundStyle(VenusTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(2)
+                .contentTransition(.opacity)
+                .animation(.spring(response: 0.42, dampingFraction: 0.8), value: title)
 
             if let subtitle {
                 Text(subtitle)
@@ -337,6 +342,8 @@ struct OnboardingStepHeader: View {
                     .foregroundStyle(VenusTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .lineSpacing(3)
+                    .contentTransition(.opacity)
+                    .animation(.spring(response: 0.42, dampingFraction: 0.8), value: subtitle)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -389,12 +396,16 @@ struct OnboardingSelectionRow: View {
                 Text(title)
                     .font(.system(.headline, design: .rounded).weight(.semibold))
                     .foregroundStyle(isSelected ? .white : VenusTheme.text)
+                    .contentTransition(.opacity)
+                    .animation(.spring(response: 0.42, dampingFraction: 0.8), value: isSelected)
 
                 Text(detail)
                     .font(.system(.caption, design: .rounded).weight(.medium))
                     .foregroundStyle(isSelected ? .white.opacity(0.88) : VenusTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .lineSpacing(2)
+                    .contentTransition(.opacity)
+                    .animation(.spring(response: 0.42, dampingFraction: 0.8), value: isSelected)
             }
 
             Spacer(minLength: 0)
@@ -420,5 +431,41 @@ struct OnboardingPressableButtonStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? pressedScale : 1)
             .opacity(configuration.isPressed ? 0.92 : 1)
             .animation(.spring(response: 0.28, dampingFraction: 0.78), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Teclado: botão "OK" para fechar
+
+/// Toolbar de teclado com "OK" — mantém o CTA visível e permite dispensar o teclado
+/// sem depender de navegação (útil nos TextEditor do fluxo).
+private struct KeyboardDoneToolbar: ViewModifier {
+    var primaryTitle: String? = nil
+    var primaryAction: (() -> Void)? = nil
+
+    func body(content: Content) -> some View {
+        content
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    if let primaryTitle, let primaryAction {
+                        Button(primaryTitle) {
+                            primaryAction()
+                        }
+                    }
+                    Spacer()
+                    Button("OK") {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil, from: nil, for: nil
+                        )
+                    }
+                }
+            }
+    }
+}
+
+extension View {
+    /// Barra do teclado com "OK" para dispensar e, opcionalmente, uma ação de avanço.
+    func keyboardDoneToolbar(primaryTitle: String? = nil, primaryAction: (() -> Void)? = nil) -> some View {
+        modifier(KeyboardDoneToolbar(primaryTitle: primaryTitle, primaryAction: primaryAction))
     }
 }

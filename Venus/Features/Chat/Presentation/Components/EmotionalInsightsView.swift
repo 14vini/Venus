@@ -20,18 +20,18 @@ struct EmotionalInsightsView: View {
                     Circle()
                         .fill(emotionColor(for: state.primaryEmotion))
                         .frame(width: 12, height: 12)
-                    
+
                     Text("Percebo que você está se sentindo \(emotionDescription(for: state.primaryEmotion))")
-                        .font(.caption)
-                        .foregroundColor(VenusTheme.textSecondary)
-                    
+                        .font(.system(size: 12, weight: .light, design: .rounded))
+                        .foregroundStyle(VenusTheme.textSecondary)
+
                     Spacer()
-                    
+
                     Text("Intensidade: \(state.intensity)/10")
-                        .font(.caption2)
-                        .foregroundColor(VenusTheme.textSecondary)
+                        .font(.system(size: 11, weight: .light, design: .rounded))
+                        .foregroundStyle(VenusTheme.textSecondary)
                 }
-                
+
                 if state.needsSupport {
                     SupportSuggestionCard(
                         emotion: state.primaryEmotion,
@@ -39,15 +39,16 @@ struct EmotionalInsightsView: View {
                     )
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .glassEffect(
-                .regular.tint(VenusChatVisualStyle.panelTint(isDark: colorScheme == .dark)),
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .padding(16)
+            .background(VenusChatVisualStyle.surfaceFill(isDark: colorScheme == .dark))
+            .clipShape(RoundedRectangle(cornerRadius: VenusChatVisualStyle.cardRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: VenusChatVisualStyle.cardRadius, style: .continuous)
+                    .stroke(VenusChatVisualStyle.surfaceBorder(isDark: colorScheme == .dark), lineWidth: 0.5)
             )
         }
     }
-    
+
     private func emotionColor(for emotion: EmotionType) -> Color {
         switch emotion {
         case .happy, .excited, .grateful:
@@ -62,7 +63,7 @@ struct EmotionalInsightsView: View {
             return VenusTheme.primary
         }
     }
-    
+
     private func emotionDescription(for emotion: EmotionType) -> String {
         switch emotion {
         case .happy: return "feliz"

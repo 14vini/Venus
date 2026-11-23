@@ -13,11 +13,34 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
     private let baseURL: String
     private let session: URLSession
     
+    /// Sessão única e reutilizada: mantém conexões TCP/TLS aquecidas entre
+    /// chamadas (chat, streaming e fallbacks), reduzindo latência de handshake.
+    private static let sharedSession: URLSession = {
+        let configuration = URLSessionConfiguration.default
+        configuration.httpMaximumConnectionsPerHost = 4
+        configuration.timeoutIntervalForRequest = Networking.requestTimeout
+        configuration.timeoutIntervalForResource = Networking.streamTimeout + 10
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.urlCache = nil
+        return URLSession(configuration: configuration)
+    }()
+    
+    private struct Codec: @unchecked Sendable {
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+    }
+    private static let codec = Codec()
+    
+    private enum Networking {
+        static let requestTimeout: TimeInterval = 20
+        static let streamTimeout: TimeInterval = 30
+    }
+    
     init(
         apiKey: String = AppConfig.openRouterAPIKey,
         model: String = AppConfig.openRouterModel,
         baseURL: String = AppConfig.openRouterBaseURL,
-        session: URLSession = .shared
+        session: URLSession = OpenRouterService.sharedSession
     ) {
         self.apiKey = apiKey
         self.model = model
@@ -27,6 +50,62 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
     
     // MARK: - Core API Communication
     
+    /// Toda string que chega à UI passa pelo filtro. `fallback` cobre o caso
+    /// em que o modelo devolve só pensamento/JSON e a limpeza esvazia o texto.
+    private func safeText(_ value: String?, fallback: String = "") -> String {
+        let clean = ThinkingStreamFilter.sanitizeUserVisible(value ?? "")
+        return clean.isEmpty ? fallback : clean
+    }
+    
+    private func cleanJsonText(_ response: String) -> String {
+        ThinkingStreamFilter.cleanStructuredJSON(response)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    private func textSystemMessage(_ instruction: String) -> OpenRouterMessage {
+        OpenRouterMessage(role: "system", content: "\(instruction)\n\n\(VenusSystemPrompt.outputContract)")
+    }
+    
+    private func structuredSystemMessage(_ instruction: String) -> OpenRouterMessage {
+        OpenRouterMessage(role: "system", content: "\(instruction)\n\n\(VenusSystemPrompt.jsonOutputContract)")
+    }
+    
+    /// Micro-falas da Home: sem rótulos ecoados ("Título:") e no máximo 4 palavras.
+    private func cleanMicroCopyPart(_ raw: String, fallback: String) -> String {
+        var part = safeText(raw, fallback: fallback)
+        let labels = ["título:", "titulo:", "subtítulo:", "subtitulo:", "título", "titulo", "estado:", "title:", "subtitle:"]
+        for label in labels where part.lowercased().hasPrefix(label) {
+            part = String(part.dropFirst(label.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        part = part.trimmingCharacters(in: CharacterSet(charactersIn: "*`>\"“” ."))
+        let compact = part.split(separator: " ").prefix(4).joined(separator: " ")
+        return compact.isEmpty ? fallback : compact
+    }
+    
+    /// Planos são exibidos no chat: nenhum campo de texto escapa da limpeza.
+    private func sanitizedPlanningResponse(_ response: AIPlanningResponse) -> AIPlanningResponse {
+        var result = response
+        result.message = safeText(result.message, fallback: "Montei uma sugestão de blocos para seu dia. Você pode confirmar ou ajustar:")
+        result.reasoningSummary = result.reasoningSummary.flatMap { safeText($0, fallback: "") }
+        if result.reasoningSummary?.isEmpty == true {
+            result.reasoningSummary = "Rotina adaptada ao seu ritmo atual."
+        }
+        result.questions = result.questions?.compactMap { safeText($0, fallback: "") }.filter { !$0.isEmpty }
+        result.proposedBlocks = result.proposedBlocks.map { block in
+            var cleanBlock = block
+            cleanBlock.title = safeText(cleanBlock.title, fallback: "Atividade")
+            cleanBlock.category = safeText(cleanBlock.category, fallback: "personal")
+            cleanBlock.priority = cleanBlock.priority.flatMap { safeText($0, fallback: "") }
+            if let note = cleanBlock.note {
+                let cleanNote = safeText(note, fallback: "")
+                cleanBlock.note = cleanNote.isEmpty ? nil : cleanNote
+            }
+            return cleanBlock
+        }
+        return result
+    }
+    
+
     private func executeChatCompletion(
         modelToUse: String,
         messages: [OpenRouterMessage],
@@ -47,7 +126,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("https://venus.app", forHTTPHeaderField: "HTTP-Referer")
         request.setValue("Venus Emotional Wellness", forHTTPHeaderField: "X-Title")
-        request.timeoutInterval = 45
+        request.timeoutInterval = Networking.requestTimeout
         
         let requestBody = OpenRouterChatRequest(
             model: modelToUse,
@@ -57,8 +136,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             stream: false
         )
         
-        let encoder = JSONEncoder()
-        request.httpBody = try encoder.encode(requestBody)
+        request.httpBody = try Self.codec.encoder.encode(requestBody)
         
         let (data, response) = try await session.data(for: request)
         
@@ -75,21 +153,19 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             throw VenusAIError.apiError(statusCode: httpResponse.statusCode, message: "OpenRouter request failed with HTTP \(httpResponse.statusCode)")
         }
         
-        let decoder = JSONDecoder()
-        let chatResponse = try decoder.decode(OpenRouterChatResponse.self, from: data)
+        let chatResponse = try Self.codec.decoder.decode(OpenRouterChatResponse.self, from: data)
         
         guard let choices = chatResponse.choices,
               let firstChoice = choices.first else {
             throw VenusAIError.noResponse
         }
         
-        if let content = firstChoice.message.content, !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        // `reasoning` nunca é resposta ao usuário: força o fallback de modelo em
+        // vez de devolver tokens de pensamento como se fossem conversa. A limpeza
+        // final fica com cada rota (texto ou JSON estruturado).
+        if let content = firstChoice.message.content,
+           ThinkingStreamFilter.hasDeliverableContent(content) {
             return content
-        }
-        
-        // Fallback para modelos de raciocínio (reasoning tokens)
-        if let reasoning = firstChoice.message.reasoning, !reasoning.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return ThinkingStreamFilter.clean(reasoning)
         }
         
         throw VenusAIError.noResponse
@@ -215,6 +291,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
 
         for (index, currentModel) in modelsToTry.enumerated() {
             let isLastAttempt = index == modelsToTry.count - 1
+            let recoveryModel = index + 1 < modelsToTry.count ? modelsToTry[index + 1] : nil
             
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
@@ -222,7 +299,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("https://venus.app", forHTTPHeaderField: "HTTP-Referer")
             request.setValue("Venus Emotional Wellness", forHTTPHeaderField: "X-Title")
-            request.timeoutInterval = 60
+            request.timeoutInterval = Networking.streamTimeout
             
             let requestBody = OpenRouterChatRequest(
                 model: currentModel,
@@ -233,8 +310,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             )
             
             do {
-                let encoder = JSONEncoder()
-                request.httpBody = try encoder.encode(requestBody)
+                request.httpBody = try Self.codec.encoder.encode(requestBody)
                 
                 let (asyncBytes, response) = try await session.bytes(for: request)
                 
@@ -278,7 +354,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                     }
                     
                     guard let data = dataContent.data(using: .utf8),
-                          let chunk = try? JSONDecoder().decode(OpenRouterStreamResponse.self, from: data),
+                          let chunk = try? Self.codec.decoder.decode(OpenRouterStreamResponse.self, from: data),
                           let choices = chunk.choices,
                           let delta = choices.first?.delta else {
                         continue
@@ -299,16 +375,18 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                     continuation.yield(remaining)
                 }
                 
-                // Se o stream completou sem texto emitido, aciona fallback síncrono
+                // Stream sem texto visível: tenta o outro modelo (quando há)
+                // em vez de repetir a mesma chamada que acabou de falhar.
                 if !streamReceivedAny {
-                    print("⚠️ Stream finalizou sem texto visível. Acionando fallback direto...")
+                    let retryModel = recoveryModel ?? currentModel
+                    print("⚠️ Stream finalizou sem texto visível. Fallback direto com '\(retryModel)'...")
                     if let fallbackContent = try? await self.executeChatCompletion(
-                        modelToUse: currentModel,
+                        modelToUse: retryModel,
                         messages: apiMessages,
                         temperature: 0.7,
                         maxTokens: 1500
                     ) {
-                        let clean = ThinkingStreamFilter.clean(fallbackContent)
+                        let clean = ThinkingStreamFilter.sanitizeUserVisible(fallbackContent)
                         if !clean.isEmpty {
                             continuation.yield(clean)
                         }
@@ -400,9 +478,11 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         - Seja calorosa, empática, profunda e lúcida, mas SEM bajulação, sem passar a mão na cabeça e sem clichês de autoajuda.
         - Fale em português do Brasil de forma natural, humana e fluida.
         - NUNCA use jargões técnicos, médicos ou diagnósticos clínicos formais.
-        - Responda de forma concisa e direta (2 a 4 parágrafos no máximo), sem rodeios.
+        - Responda de forma concisa e direta (2 a 4 parágrafos no máximo), sem rodeios e sem markdown desnecessário.
         - Se detectar risco de automutilação ou crise severa, oriente gentilmente a buscar apoio profissional e o CVV (188).
         - NUNCA inclua pensamentos internos ou tags como <thought> ou <thinking> na resposta.
+        
+        \(VenusSystemPrompt.outputContract)
         """
         
         if let profile = profile {
@@ -485,10 +565,12 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         - Máximo de 3 parágrafos curtos.
         - Tom acolhedor e focado em clareza prática.
         - Responda em português do Brasil sem incluir pensamentos internos.
+        
+        \(VenusSystemPrompt.outputContract)
         """
         
         let messages = [
-            OpenRouterMessage(role: "system", content: "Você é a Venus, assistente empático de bem-estar. Responda em português."),
+            textSystemMessage("Você é a Venus, assistente empático de bem-estar. Responda em português."),
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
@@ -532,10 +614,12 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             "alertTitle": "Título do alerta ou null",
             "alertDetail": "Detalhe do alerta ou null"
         }
+        
+        \(VenusSystemPrompt.jsonOutputContract)
         """
         
         let messages = [
-            OpenRouterMessage(role: "system", content: "Responda exclusivamente com o objeto JSON válido, sem texto antes ou depois. Todos os textos em português."),
+            structuredSystemMessage("Responda exclusivamente com o objeto JSON válido, sem texto antes ou depois. Todos os textos em português."),
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
@@ -553,20 +637,28 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                 default: direction = .stable
                 }
                 
+                let summary = safeText(decoded.summary, fallback: "Sua semana mostra busca por clareza e acolhimento dos próprios ritmos.")
+                let dominantTrigger = safeText(decoded.dominantTrigger, fallback: "Rotina e ritmo")
+                let bestDay = safeText(decoded.bestDay, fallback: "Hoje")
+                let criticalWindow = safeText(decoded.criticalWindow, fallback: "Período da tarde")
+                let behavioralFocus = safeText(decoded.behavioralFocus, fallback: "Preservar intervalos de descanso sem culpa")
+                let alertTitle = decoded.alertTitle.flatMap { safeText($0, fallback: "") }
+                let alertDetail = decoded.alertDetail.flatMap { safeText($0, fallback: "") }
+                
                 let weeklyTrend = WeeklyEmotionalTrend(
                     direction: direction,
-                    summary: decoded.summary,
+                    summary: summary,
                     currentWeekScore: decoded.currentWeekScore,
                     previousWeekScore: decoded.previousWeekScore
                 )
                 
                 let weeklyInsights = WeeklyStrategicInsights(
-                    dominantTrigger: decoded.dominantTrigger,
-                    bestDay: decoded.bestDay,
-                    criticalWindow: decoded.criticalWindow,
+                    dominantTrigger: dominantTrigger,
+                    bestDay: bestDay,
+                    criticalWindow: criticalWindow,
                     sleepCounterfactual: nil,
-                    worstRecurringPattern: decoded.alertTitle ?? "Nenhum padrão crítico detectado",
-                    behavioralFocus: decoded.behavioralFocus,
+                    worstRecurringPattern: alertTitle.flatMap { $0.isEmpty ? nil : $0 } ?? "Nenhum padrão crítico detectado",
+                    behavioralFocus: behavioralFocus,
                     leverageScore: 0.8,
                     streakQualityScore: 0.9,
                     recoveryProtocol: nil,
@@ -574,11 +666,9 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                 )
                 
                 var patternAlert: PatternAlert? = nil
-                if let alertTitle = decoded.alertTitle, let alertDetail = decoded.alertDetail, !alertTitle.isEmpty {
-                    patternAlert = PatternAlert(
-                        title: alertTitle,
-                        detail: alertDetail
-                    )
+                if let title = alertTitle, !title.isEmpty,
+                   let detail = alertDetail, !detail.isEmpty {
+                    patternAlert = PatternAlert(title: title, detail: detail)
                 }
                 
                 return (weeklyTrend, weeklyInsights, patternAlert)
@@ -614,10 +704,12 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         Nome: \(userContext.name)
         Tom preferido: \(userContext.coachingTone.isEmpty ? "não informado" : userContext.coachingTone)
         Gere uma micro-sugestão acolhedora e prática em 1 ou 2 frases curtas.
+        
+        \(VenusSystemPrompt.outputContract)
         """
         
         let messages = [
-            OpenRouterMessage(role: "system", content: "Você é a Venus, uma amiga empática. Responda em português."),
+            textSystemMessage("Você é a Venus, uma amiga empática. Responda em português."),
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
@@ -633,10 +725,10 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
     func generateGreeting(userName: String, mood: MoodType?) async throws -> String {
         let name = userName.isEmpty ? "você" : userName
         let moodContext = mood != nil ? "O humor recente é \(mood!.rawValue)." : ""
-        let prompt = "Gere uma saudação acolhedora e breve para \(name). \(moodContext) Responda em uma única frase calorosa."
+        let prompt = "Gere uma saudação acolhedora e breve para \(name). \(moodContext) Responda em uma única frase calorosa.\n\n\(VenusSystemPrompt.outputContract)"
         
         let messages = [
-            OpenRouterMessage(role: "system", content: "Você é a Venus. Seja breve e acolhedora."),
+            textSystemMessage("Você é a Venus. Seja breve e acolhedora."),
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
@@ -673,10 +765,12 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             "suggestedTone": "Acolhedor",
             "hasEnoughContext": false
         }
+        
+        \(VenusSystemPrompt.jsonOutputContract)
         """
         
         let messages = [
-            OpenRouterMessage(role: "system", content: "Responda exclusivamente com JSON válido."),
+            structuredSystemMessage("Responda exclusivamente com JSON válido."),
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
@@ -685,7 +779,10 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             let clean = cleanJsonText(response)
             
             if let data = clean.data(using: .utf8),
-               let decoded = try? JSONDecoder().decode(AIOnboardingQuestionResponse.self, from: data) {
+               var decoded = try? JSONDecoder().decode(AIOnboardingQuestionResponse.self, from: data) {
+                decoded.empathyReaction = safeText(decoded.empathyReaction, fallback: "Entendo perfeitamente.")
+                decoded.nextQuestion = safeText(decoded.nextQuestion, fallback: "O que mais você gostaria de compartilhar sobre sua rotina?")
+                decoded.suggestedTone = decoded.suggestedTone.flatMap { safeText($0, fallback: "") }
                 return decoded
             }
         } catch {
@@ -715,10 +812,12 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             "growthArea": "Permitir-se pausas sem culpa",
             "statText": "92% de alinhamento com foco intencional"
         }
+        
+        \(VenusSystemPrompt.jsonOutputContract)
         """
         
         let messages = [
-            OpenRouterMessage(role: "system", content: "Responda exclusivamente com JSON válido."),
+            structuredSystemMessage("Responda exclusivamente com JSON válido."),
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
@@ -727,7 +826,13 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             let clean = cleanJsonText(response)
             
             if let data = clean.data(using: .utf8),
-               let decoded = try? JSONDecoder().decode(AIOnboardingProfileResponse.self, from: data) {
+               var decoded = try? JSONDecoder().decode(AIOnboardingProfileResponse.self, from: data) {
+                decoded.title = safeText(decoded.title, fallback: "Explorador da Consciência")
+                decoded.badge = safeText(decoded.badge, fallback: "Em Busca de Clareza")
+                decoded.subtitle = safeText(decoded.subtitle, fallback: "Sua jornada de autoconhecimento está apenas começando.")
+                decoded.strengths = safeText(decoded.strengths, fallback: "Curiosidade e abertura interna")
+                decoded.growthArea = safeText(decoded.growthArea, fallback: "Construção de pausas conscientes")
+                decoded.statText = safeText(decoded.statText, fallback: "Pronto para calibrar seu ritmo")
                 return decoded
             }
         } catch {
@@ -827,10 +932,13 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                  "note": "dica ou observação acolhedora opcional"
                }
              ],
-             "reasoningSummary": "Resumo curto em 1 frase sobre como a rotina foi adaptada",
+             "reasoningSummary": "Frase curta e acolhedora sobre o ajuste da rotina, sem explicar processos internos",
              "questions": ["Pergunta caso falte informação importante"],
              "requiresConfirmation": true
            }
+           
+           \(VenusSystemPrompt.jsonOutputContract)
+           "reasoningSummary" é apenas o rótulo do resumo amigável exibido ao usuário: escreva uma frase simples, nunca o seu raciocínio.
         """
         
         let messages = [
@@ -850,7 +958,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                     let substring = String(clean[startIndex...endIndex])
                     if let subData = substring.data(using: .utf8),
                        let subDecoded = try? JSONDecoder().decode(AIPlanningResponse.self, from: subData) {
-                        return subDecoded
+                        return sanitizedPlanningResponse(subDecoded)
                     }
                 }
                 
@@ -868,7 +976,7 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
                 )
             }
             
-            return decoded
+            return sanitizedPlanningResponse(decoded)
         } catch {
             print("⚠️ [OpenRouterService] Erro ao gerar planejamento estruturado: \(error)")
             let defaultStarters = DailyPlanEngine.shared.generateDefaultStarterProposedBlocks(
@@ -929,10 +1037,12 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             "customStateSubtitle": "Tensão acumulada",
             "detectedInsight": "Ansiedade sobre prazos"
         }
+        
+        \(VenusSystemPrompt.jsonOutputContract)
         """
         
         let messages = [
-            OpenRouterMessage(role: "system", content: "You are an emotion & readiness analyzer. Output only valid JSON."),
+            structuredSystemMessage("Você é um analisador de emoção e prontidão. Responda somente com JSON válido."),
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
@@ -952,9 +1062,9 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             isFocusImpacted: json["isFocusImpacted"] as? Bool,
             isBodyImpacted: json["isBodyImpacted"] as? Bool,
             isSleepImpacted: json["isSleepImpacted"] as? Bool,
-            customStateTitle: json["customStateTitle"] as? String,
-            customStateSubtitle: json["customStateSubtitle"] as? String,
-            detectedInsight: json["detectedInsight"] as? String,
+            customStateTitle: (json["customStateTitle"] as? String).flatMap { safeText($0, fallback: "") },
+            customStateSubtitle: (json["customStateSubtitle"] as? String).flatMap { safeText($0, fallback: "") },
+            detectedInsight: (json["detectedInsight"] as? String).flatMap { safeText($0, fallback: "") },
             timestamp: Date()
         )
     }
@@ -968,10 +1078,12 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
         Gere uma micro-fala para o gráfico de Prontidão (Readiness) do usuário com score \(String(format: "%.1f", score))/10.
         Estado primário: \(primaryState)
         Responda em formato: TÍTULO | SUBTÍTULO (máximo 4 palavras cada).
+        
+        \(VenusSystemPrompt.outputContract)
         """
         
         let messages = [
-            OpenRouterMessage(role: "system", content: "Seja breve e direto. Responda estritamente no formato: TITULO | SUBTITULO."),
+            textSystemMessage("Seja breve e direto. Responda estritamente no formato: TITULO | SUBTITULO."),
             OpenRouterMessage(role: "user", content: prompt)
         ]
         
@@ -979,12 +1091,13 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
             return ("Prontidão Estável", "Ritmo equilibrado")
         }
         
-        let parts = response.components(separatedBy: "|")
+        let clean = ThinkingStreamFilter.sanitizeUserVisible(response)
+        let parts = clean.components(separatedBy: "|")
         if parts.count >= 2 {
-            return (parts[0].trimmingCharacters(in: .whitespacesAndNewlines),
-                    parts[1].trimmingCharacters(in: .whitespacesAndNewlines))
+            return (cleanMicroCopyPart(parts[0], fallback: "Prontidão Estável"),
+                    cleanMicroCopyPart(parts[1], fallback: "Ritmo equilibrado"))
         }
-        return (response.trimmingCharacters(in: .whitespacesAndNewlines), "Energia equilibrada")
+        return (cleanMicroCopyPart(clean, fallback: "Prontidão Estável"), "Energia equilibrada")
     }
     
     // MARK: - Private Context Helpers
@@ -1010,23 +1123,10 @@ final class OpenRouterService: VenusAIServiceProtocol, @unchecked Sendable {
     }
     
     private func cleanResponse(_ response: String) -> String {
-        response.trimmingCharacters(in: .whitespacesAndNewlines)
+        ThinkingStreamFilter.sanitizeUserVisible(response)
     }
     
     private func cleanResponseText(_ response: String) -> String {
-        ThinkingStreamFilter.clean(response).trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-    
-    private func cleanJsonText(_ response: String) -> String {
-        var clean = response.trimmingCharacters(in: .whitespacesAndNewlines)
-        if clean.hasPrefix("```json") {
-            clean = String(clean.dropFirst(7))
-        } else if clean.hasPrefix("```") {
-            clean = String(clean.dropFirst(3))
-        }
-        if clean.hasSuffix("```") {
-            clean = String(clean.dropLast(3))
-        }
-        return clean.trimmingCharacters(in: .whitespacesAndNewlines)
+        ThinkingStreamFilter.sanitizeUserVisible(response)
     }
 }

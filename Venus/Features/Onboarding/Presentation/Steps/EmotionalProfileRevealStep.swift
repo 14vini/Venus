@@ -114,6 +114,8 @@ struct EmotionalProfileRevealStep: View {
                         .font(.system(size: 12, weight: .bold))
                     Text(result.badge)
                         .font(.system(.caption, design: .rounded).weight(.semibold))
+                        .contentTransition(.opacity)
+                        .animation(.spring(response: 0.42, dampingFraction: 0.8), value: cardAppeared)
                 }
                 .foregroundStyle(result.color)
                 .padding(.horizontal, 14)
@@ -124,15 +126,23 @@ struct EmotionalProfileRevealStep: View {
                     .font(.system(size: 24, weight: .light, design: .rounded))
                     .foregroundStyle(VenusTheme.text)
                     .multilineTextAlignment(.center)
+                    .contentTransition(.opacity)
+                    .animation(.spring(response: 0.42, dampingFraction: 0.8), value: cardAppeared)
             }
             .padding(.top, 8)
             
             // Warm Diagnosis Card — vidro líquido real, sem sombra pesada.
             VStack(alignment: .leading, spacing: 16) {
-                    Text(result.subtitle)
-                        .font(.system(.subheadline, design: .rounded).weight(.medium))
-                        .foregroundStyle(VenusTheme.text)
-                        .lineSpacing(3)
+                    // Texto da IA revelado com a mesma calma das perguntas — sem processo.
+                    OnboardingTypewriterText(
+                        text: result.subtitle,
+                        font: .system(.subheadline, design: .rounded).weight(.medium),
+                        color: VenusTheme.text,
+                        cursorColor: result.color,
+                        lineSpacing: 3,
+                        speedNanos: 9_000_000,
+                        hapticsEnabled: false
+                    )
                     
                     Divider()
                         .background(Color.white.opacity(0.12))
@@ -152,6 +162,8 @@ struct EmotionalProfileRevealStep: View {
                             .font(.system(.footnote, design: .rounded).weight(.medium))
                             .foregroundStyle(VenusTheme.text)
                             .lineSpacing(2)
+                            .contentTransition(.opacity)
+                            .animation(.spring(response: 0.42, dampingFraction: 0.8).delay(0.1), value: cardAppeared)
                     }
                     
                     // Growth / Support Focus
@@ -169,6 +181,8 @@ struct EmotionalProfileRevealStep: View {
                             .font(.system(.footnote, design: .rounded).weight(.medium))
                             .foregroundStyle(VenusTheme.text)
                             .lineSpacing(2)
+                            .contentTransition(.opacity)
+                            .animation(.spring(response: 0.42, dampingFraction: 0.8).delay(0.16), value: cardAppeared)
                     }
                     
                     // Reassurance Message Box
@@ -182,6 +196,8 @@ struct EmotionalProfileRevealStep: View {
                             .foregroundStyle(VenusTheme.text)
                             .fixedSize(horizontal: false, vertical: true)
                             .lineSpacing(2)
+                            .contentTransition(.opacity)
+                            .animation(.spring(response: 0.42, dampingFraction: 0.8).delay(0.22), value: cardAppeared)
                     }
                     .padding(12)
                     .background(

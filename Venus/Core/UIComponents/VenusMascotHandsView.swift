@@ -16,6 +16,10 @@ enum VenusHandPose: Equatable, Sendable {
     case clapping
     case curiousPeek
     case supportive
+
+    // MARK: Novas reações (aditivas)
+    case heartHands   // mãos reunidas junto ao peito — carinho/gratidão
+    case cheer        // mãos erguidas — celebração suave
 }
 
 struct VenusMascotHandsView: View {
@@ -131,6 +135,37 @@ struct VenusMascotHandsView: View {
                         .rotationEffect(.degrees(-32))
                 }
                 .offset(y: size * 0.22)
+
+            case .heartHands:
+                // Paws meet over the chest, holding a small wordless heart.
+                ZStack {
+                    HStack(spacing: 4 * scale) {
+                        singlePaw(isRight: false)
+                            .rotationEffect(.degrees(28))
+                        singlePaw(isRight: true)
+                            .rotationEffect(.degrees(-28))
+                    }
+
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: max(5, 7 * scale), weight: .bold))
+                        .foregroundColor(Color(hex: "FF6B8B").opacity(0.85))
+                        .shadow(color: Color(hex: "FF6B8B").opacity(0.6), radius: 3 * scale)
+                        .offset(y: -3 * scale)
+                        .scaleEffect(idleFloat ? 1.08 : 0.96)
+                }
+                .offset(y: size * 0.26)
+
+            case .cheer:
+                // Both paws lifted beside the head — joyful, never frantic.
+                HStack(spacing: size * 0.62) {
+                    singlePaw(isRight: false)
+                        .rotationEffect(.degrees(-38))
+                        .offset(y: -26 * scale)
+                    singlePaw(isRight: true)
+                        .rotationEffect(.degrees(38))
+                        .offset(y: -26 * scale)
+                }
+                .offset(y: -size * 0.02)
             }
         }
         .allowsHitTesting(false)
@@ -159,46 +194,89 @@ struct VenusMascotHandsView: View {
                 }
             }
         }
+        // Transição suave entre poses: as mãos não "saltam" de posição.
+        .phaseAnimator([false, true], trigger: pose) { content, phase in
+            content
+                .opacity(phase ? 1.0 : 0.45)
+                .scaleEffect(phase ? 1.0 : 0.92)
+        } animation: { _ in
+            .spring(response: 0.42, dampingFraction: 0.8)
+        }
     }
     
     // MARK: - Paw Component
     
     private func singlePaw(isRight: Bool) -> some View {
         ZStack {
-            // Diffuse spectral hand — layered light replaces the former hard rim.
+            // A soft bloom seats each paw inside Venus's own aura, so the
+            // hands read as luminous extensions of the body — not as two
+            // detached beads. Same tints, same positions, same size.
             Circle()
                 .fill(
-                    LinearGradient(
+                    RadialGradient(
                         colors: [
-                            Color.white.opacity(0.70),
-                            highlightTint.opacity(0.70),
-                            tint.opacity(0.48)
+                            highlightTint.opacity(0.28),
+                            tint.opacity(0.12),
+                            Color.clear
                         ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 12 * scale
+                    )
+                )
+                .frame(width: 26 * scale, height: 26 * scale)
+                .blur(radius: 2 * scale)
+                .blendMode(.plusLighter)
+
+            // Lit dome: pale at the top, mood tint at the shaded base. Reading
+            // the paw as a small sphere gives the hands real volume.
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color.white.opacity(0.92),
+                            highlightTint.opacity(0.78),
+                            tint.opacity(0.58),
+                            tint.opacity(0.30)
+                        ],
+                        center: .init(x: isRight ? 0.36 : 0.32, y: 0.24),
+                        startRadius: 0,
+                        endRadius: 10 * scale
                     )
                 )
                 .frame(width: 14 * scale, height: 14 * scale)
-                .overlay(
-                    // Interior glow only; no drawn outline around the hand.
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.white.opacity(0.32), Color.clear],
-                                center: .topLeading,
-                                startRadius: 0,
-                                endRadius: 11 * scale
-                            )
-                        )
+
+            // Soft ambient occlusion in the lower-right keeps it rounded.
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [tint.opacity(0.34), Color.clear],
+                        center: .init(x: 0.78, y: 0.82),
+                        startRadius: 0,
+                        endRadius: 8 * scale
+                    )
                 )
-                .overlay(
-                    // Small starlight glint
-                    Circle()
-                        .fill(Color.white.opacity(0.70))
-                        .frame(width: 3.4 * scale, height: 3.4 * scale)
-                        .offset(x: isRight ? 1.5 * scale : -1.5 * scale, y: -2.5 * scale)
+                .frame(width: 14 * scale, height: 14 * scale)
+
+            // Tight specular pinprick, brighter than the old flat glint.
+            Circle()
+                .fill(Color.white.opacity(0.92))
+                .frame(width: 3.2 * scale, height: 3.2 * scale)
+                .offset(x: -1.6 * scale, y: -2.6 * scale)
+                .blur(radius: max(0.2, 0.3 * scale))
+
+            // Faint reflected bounce along the lower rim.
+            Circle()
+                .stroke(
+                    LinearGradient(
+                        colors: [Color.clear, highlightTint.opacity(0.45), Color.clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ),
+                    lineWidth: max(0.6, scale)
                 )
-                .shadow(color: tint.opacity(0.32), radius: 4 * scale, x: 0, y: 2 * scale)
+                .frame(width: 13 * scale, height: 13 * scale)
         }
+        .shadow(color: tint.opacity(0.34), radius: 4 * scale, x: 0, y: 2 * scale)
     }
 }

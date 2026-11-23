@@ -46,8 +46,8 @@ else
 fi
 
 # --- 3. Áreas vetadas intactas ---------------------------------------------
+# Core/AI foi autorizado nesta rodada (F24) — não é mais área vetada.
 veto=$(git status --short -- \
-  'Venus/Core/AI' \
   'Venus/Core/DI' \
   'Venus/Features/DailyPlanning/Domain' \
   'Venus/Features/Chat/Domain' \
