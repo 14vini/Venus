@@ -168,9 +168,32 @@ struct VenusGroundShadowView: View {
 /// A soft, scalloped silhouette that gives Venus a recognizable ghost-like body
 /// without relying on a hard outline.
 private struct VenusGhostBodyShape: Shape {
+    /// 0…1 ripple phase. Both ends are the exact resting silhouette, so the
+    /// tail settles back where it started when the loop reverses.
+    var wiggle: CGFloat = 0
+
+    var animatableData: CGFloat {
+        get { wiggle }
+        set { wiggle = newValue }
+    }
+
     func path(in rect: CGRect) -> Path {
         let width = rect.width
         let height = rect.height
+
+        // A travelling wave across the three hem lobes: the envelope is zero
+        // at both ends of the cycle, and each lobe is slightly phase-shifted
+        // so the tail ripples instead of swinging as one rigid piece.
+        let envelope = 4 * wiggle * (1 - wiggle)
+        func ripple(_ phase: CGFloat) -> CGFloat {
+            envelope * sin(wiggle * 2 * .pi + phase)
+        }
+        let lobeA = ripple(0)
+        let valleyA = ripple(.pi * 0.5) * 0.6
+        let lobeB = ripple(.pi)
+        let valleyB = ripple(.pi * 1.5) * 0.6
+        let lift = height * 0.020
+
         var path = Path()
 
         path.move(to: CGPoint(x: width * 0.5, y: height * 0.035))
@@ -182,32 +205,33 @@ private struct VenusGhostBodyShape: Shape {
             control2: CGPoint(x: width * 0.12, y: height * 0.19)
         )
 
-        // Floating sides and a gentle, wavy ghost tail.
+        // Floating sides and a gentle, wavy ghost tail. Only the hem control
+        // points move; head and side anchors stay put so the silhouette holds.
         path.addLine(to: CGPoint(x: width * 0.12, y: height * 0.70))
         path.addCurve(
-            to: CGPoint(x: width * 0.23, y: height * 0.93),
-            control1: CGPoint(x: width * 0.11, y: height * 0.85),
-            control2: CGPoint(x: width * 0.16, y: height * 0.98)
+            to: CGPoint(x: width * 0.23, y: height * 0.93 + lobeA * lift),
+            control1: CGPoint(x: width * 0.11, y: height * 0.85 + lobeA * lift * 0.7),
+            control2: CGPoint(x: width * 0.16, y: height * 0.98 + lobeA * lift * 0.9)
         )
         path.addCurve(
-            to: CGPoint(x: width * 0.42, y: height * 0.86),
-            control1: CGPoint(x: width * 0.31, y: height * 0.98),
-            control2: CGPoint(x: width * 0.34, y: height * 0.80)
+            to: CGPoint(x: width * 0.42, y: height * 0.86 + valleyA * lift),
+            control1: CGPoint(x: width * 0.31, y: height * 0.98 + lobeA * lift * 0.8),
+            control2: CGPoint(x: width * 0.34, y: height * 0.80 + valleyA * lift * 0.7)
         )
         path.addCurve(
-            to: CGPoint(x: width * 0.60, y: height * 0.91),
-            control1: CGPoint(x: width * 0.49, y: height * 0.92),
-            control2: CGPoint(x: width * 0.54, y: height * 0.98)
+            to: CGPoint(x: width * 0.60, y: height * 0.91 + lobeB * lift),
+            control1: CGPoint(x: width * 0.49, y: height * 0.92 + valleyA * lift * 0.8),
+            control2: CGPoint(x: width * 0.54, y: height * 0.98 + lobeB * lift * 0.9)
         )
         path.addCurve(
-            to: CGPoint(x: width * 0.78, y: height * 0.86),
-            control1: CGPoint(x: width * 0.67, y: height * 0.99),
-            control2: CGPoint(x: width * 0.72, y: height * 0.81)
+            to: CGPoint(x: width * 0.78, y: height * 0.86 + valleyB * lift),
+            control1: CGPoint(x: width * 0.67, y: height * 0.99 + lobeB * lift * 0.8),
+            control2: CGPoint(x: width * 0.72, y: height * 0.81 + valleyB * lift * 0.7)
         )
         path.addCurve(
             to: CGPoint(x: width * 0.88, y: height * 0.70),
-            control1: CGPoint(x: width * 0.86, y: height * 0.84),
-            control2: CGPoint(x: width * 0.89, y: height * 0.78)
+            control1: CGPoint(x: width * 0.86, y: height * 0.84 + valleyB * lift * 0.7),
+            control2: CGPoint(x: width * 0.89, y: height * 0.78 + valleyB * lift * 0.5)
         )
         path.addLine(to: CGPoint(x: width * 0.88, y: height * 0.42))
         path.addCurve(
@@ -250,6 +274,7 @@ struct VenusMoodOrb: View {
     @State private var internalState: VenusMascotState? = nil
     @State private var quirkTask: Task<Void, Never>? = nil
     @State private var listeningWavePulse: Bool = false
+    @State private var tailWiggle: CGFloat = 0
     
     @Environment(\.colorScheme) private var colorScheme
     
@@ -411,7 +436,7 @@ struct VenusMoodOrb: View {
                 .frame(width: size * 0.78, height: size * 0.78)
                 .blur(radius: max(4, size * 0.04))
 
-            VenusGhostBodyShape()
+            VenusGhostBodyShape(wiggle: tailWiggle)
                 .fill(
                     LinearGradient(
                         colors: [
@@ -440,7 +465,7 @@ struct VenusMoodOrb: View {
 
         return ZStack {
             // 1. Translucent glass base — the mood palette stays the source of truth.
-            VenusGhostBodyShape()
+            VenusGhostBodyShape(wiggle: tailWiggle)
                 .fill(
                     LinearGradient(
                         colors: [
@@ -456,7 +481,7 @@ struct VenusMoodOrb: View {
 
             // 2. Ambient occlusion: the deep tone gathers near the base, so
             //    the silhouette reads as a rounded volume, not a flat decal.
-            VenusGhostBodyShape()
+            VenusGhostBodyShape(wiggle: tailWiggle)
                 .fill(
                     RadialGradient(
                         colors: [
@@ -472,7 +497,7 @@ struct VenusMoodOrb: View {
 
             // 3. Broad top light, as before, but with a tighter specular
             //    streak on top of it for a glossy, wet-glass finish.
-            VenusGhostBodyShape()
+            VenusGhostBodyShape(wiggle: tailWiggle)
                 .fill(
                     RadialGradient(
                         colors: [
@@ -524,7 +549,7 @@ struct VenusMoodOrb: View {
             // across the glass. It is built only from the mood palette and
             // white, so the approved colours and silhouette never change.
             // The angle follows the existing breathe flag — no new loop.
-            VenusGhostBodyShape()
+            VenusGhostBodyShape(wiggle: tailWiggle)
                 .fill(
                     AngularGradient(
                         colors: [
@@ -566,7 +591,7 @@ struct VenusMoodOrb: View {
 
             // 4. Luminous inner rim. Soft and blurred — it never becomes a
             //    hard outline, it just catches light along the edge.
-            VenusGhostBodyShape()
+            VenusGhostBodyShape(wiggle: tailWiggle)
                 .stroke(
                     LinearGradient(
                         colors: [
@@ -583,7 +608,7 @@ struct VenusMoodOrb: View {
                 .blendMode(.plusLighter)
 
             // 5. Subsurface bounce light rising from the base.
-            VenusGhostBodyShape()
+            VenusGhostBodyShape(wiggle: tailWiggle)
                 .fill(
                     LinearGradient(
                         colors: [
@@ -599,7 +624,7 @@ struct VenusMoodOrb: View {
         }
         .frame(width: size * 0.82, height: size * 0.88)
         .compositingGroup()
-        .mask(VenusGhostBodyShape())
+        .mask(VenusGhostBodyShape(wiggle: tailWiggle))
         .shadow(color: baseColor.opacity(colorScheme == .dark ? 0.40 : 0.27), radius: max(7, size * 0.07), x: 0, y: max(3, size * 0.03))
     }
 
@@ -847,6 +872,12 @@ struct VenusMoodOrb: View {
         .onAppear {
             withAnimation(.easeInOut(duration: effectiveState == .sleeping ? 3.5 : 2.5).repeatForever(autoreverses: true)) {
                 animate = true
+            }
+            // The ghost hem ripples on its own gentle cycle. It only touches
+            // the shape's animatableData, so float/scale/aura/blink and the
+            // squish/drag springs keep their existing timing untouched.
+            withAnimation(.easeInOut(duration: 1.9).repeatForever(autoreverses: true)) {
+                tailWiggle = 1
             }
             if effectiveState == .thinking {
                 withAnimation(.linear(duration: 4.0).repeatForever(autoreverses: false)) {

@@ -24,6 +24,11 @@ enum VenusChatVisualStyle {
     static let controlRadius: CGFloat = 16
     /// Fração da largura disponível ocupada por um balão (preserva o layout F30).
     static let bubbleWidthRatio: CGFloat = 0.82
+    /// Inset horizontal compartilhado por header, composer e células: garante que
+    /// a borda da bolha do usuário e a do campo de texto estejam na mesma linha.
+    static let chromeHorizontalInset: CGFloat = 16
+    /// Teto de leitura confortável para um balão em telas largas (iPad/paisagem).
+    static let bubbleMaxWidth: CGFloat = 560
 
     // MARK: - Shell (F39)
 
@@ -151,6 +156,19 @@ enum VenusChatVisualStyle {
     static var aura: Color { lilac }
 
     // MARK: - Texto
+
+    /// Placeholder do composer. Contraste reforçado sobre a cápsula clara.
+    static let composerPlaceholder = "Digite aqui"
+
+    /// Timestamp discreto, mas legível sobre o lilás/rosa do fundo.
+    static func timestampColor(isDark: Bool) -> Color {
+        VenusTheme.text.opacity(isDark ? 0.74 : 0.72)
+    }
+
+    /// Cor do placeholder — mais escura que o cinza padrão do sistema.
+    static func placeholderColor(isDark: Bool) -> Color {
+        isDark ? VenusTheme.text.opacity(0.70) : VenusTheme.textSecondary
+    }
 
     /// Rótulo discreto abaixo do último balão de um grupo: "Hoje · 14:32".
     static func timestampLabel(for date: Date) -> String {

@@ -44,13 +44,25 @@ struct VenusChatComposerView: View {
             HStack(alignment: .bottom, spacing: 6) {
                 microphoneButton
 
-                TextField("Converse com a Venus...", text: $text, axis: .vertical)
+                TextField("", text: $text, axis: .vertical)
                     .lineLimit(1...6)
                     .font(.system(size: 15, weight: .light, design: .rounded))
                     .foregroundStyle(VenusTheme.text)
                     .focused(isFocused)
                     .padding(.vertical, 9)
                     .frame(minHeight: 44)
+                    // Placeholder próprio: o cinza do sistema some sobre a
+                    // cápsula clara, então a cor é controlada explicitamente.
+                    .overlay(alignment: .leading) {
+                        if text.isEmpty {
+                            Text(VenusChatVisualStyle.composerPlaceholder)
+                                .font(.system(size: 15, weight: .light, design: .rounded))
+                                .foregroundStyle(VenusChatVisualStyle.placeholderColor(isDark: isDark))
+                                .padding(.vertical, 9)
+                                .allowsHitTesting(false)
+                                .transition(.opacity)
+                        }
+                    }
 
                 if isFocused.wrappedValue {
                     Button(action: onDismissKeyboard) {
@@ -80,7 +92,7 @@ struct VenusChatComposerView: View {
         .animation(.spring(response: 0.38, dampingFraction: 0.84), value: isRecording)
         .animation(.spring(response: 0.38, dampingFraction: 0.84), value: replyingTo?.id)
         .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isFocused.wrappedValue)
-        .padding(.horizontal, 16)
+        .padding(.horizontal, VenusChatVisualStyle.chromeHorizontalInset)
         .padding(.bottom, 8)
         .frame(maxWidth: VenusChatVisualStyle.chromeMaxWidth)
         .frame(maxWidth: .infinity)

@@ -2,9 +2,9 @@
 //  HomeView.swift
 //  Venus
 //
-//  Home na linguagem visual da jornada: fundo lilás → rosa → branco com respiração lenta,
-//  arco dos 3 rituais, Venus central, saudação curta, prontidão em pill e CTA escuro.
-//  Quatro blocos visíveis; o resto segue acessível no toolbar e nas sheets.
+//  Home com hierarquia única: fundo sóbrio, progresso dos 3 rituais (arco/pontos),
+//  Venus central com saudação curta (A4) e um CTA circular em Liquid Glass.
+//  Streak (A3), prontidão, modos e padrão ficam na sheet secundária (um toque).
 //  Mascote, navegação e ações permanecem intactas.
 //
 
@@ -24,33 +24,32 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            // Fundo da jornada, com respiração lenta e tons profundos no dark mode.
             VenusHomeJourneyBackground()
 
             GeometryReader { geometry in
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
-                        // (a) progresso dos 3 rituais com arco e micro-burst (A9).
+                        // (a) único progresso do topo: arco e pontos dos 3 rituais (A9).
                         VenusDailyRitualsView(
                             checkInDone: viewModel.hasCheckedInToday,
                             planBlockDone: (viewModel.todayPlan?.completedBlocksCount ?? 0) > 0,
                             chatDone: hasChattedToday
                         )
-                        .padding(.top, 12)
+                        .padding(.top, 18)
 
-                        // (b) Venus central + saudação curta (A4) + streak real (A3).
+                        // (b) Venus + saudação curta. Sem streak, sem prontidão, sem modos.
                         venusSection
-                            .padding(.top, 24)
-
-                        // (c) prontidão em pill; o toque abre o detalhamento.
-                        readinessPill
                             .padding(.top, 20)
 
                         Spacer(minLength: 28)
 
-                        // (d) única ação principal.
-                        actionButton
-                            .padding(.bottom, 36)
+                        // (c) única ação principal: círculo de vidro com "+".
+                        VenusHomeCheckInButton(
+                            hasCheckedInToday: viewModel.hasCheckedInToday
+                        ) {
+                            viewModel.checkInButtonTapped()
+                        }
+                        .padding(.bottom, 40)
                     }
                     .frame(maxWidth: .infinity, minHeight: geometry.size.height)
                 }
@@ -71,13 +70,6 @@ struct HomeView: View {
                 .accessibilityLabel("Histórico de conversas")
             }
 
-            ToolbarItem(placement: .principal) {
-                Text("Venus")
-                    .font(.system(size: 16, weight: .light, design: .rounded))
-                    .kerning(1.6)
-                    .foregroundStyle(VenusTheme.text)
-            }
-
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 14) {
                     Button {
@@ -88,7 +80,7 @@ struct HomeView: View {
                             .font(.system(size: 17, weight: .regular))
                             .foregroundStyle(VenusTheme.textSecondary)
                     }
-                    .accessibilityLabel("Modo e padrões da semana")
+                    .accessibilityLabel("Sequência, prontidão, modo e padrões")
 
                     Button {
                         isProfilePresented = true
@@ -134,11 +126,16 @@ struct HomeView: View {
                 ProfileView()
             }
         }
-        // Acesso secundário: modo de bem-estar e padrão da IA saem da hierarquia principal.
+        // Acesso secundário: streak, prontidão, modo e padrão saem da hierarquia principal.
         .sheet(isPresented: $isJourneyDetailsPresented) {
             VenusHomeJourneyDetailsSheet(
                 selectedMode: $selectedMode,
-                patternSnapshot: viewModel.patternSnapshot
+                patternSnapshot: viewModel.patternSnapshot,
+                streakDays: viewModel.checkInStreakDays,
+                cosmetic: viewModel.unlockedCosmetic,
+                readinessPercentage: viewModel.readinessAssessment.percentage100,
+                readinessStateTitle: shortStateTitle,
+                onOpenReadiness: { viewModel.showReadinessBreakdown = true }
             )
         }
         .fullScreenCover(isPresented: $viewModel.showVenusChat, onDismiss: {
@@ -187,26 +184,26 @@ struct HomeView: View {
         lastChatDay = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
     }
 
-    // MARK: - Bloco (b): Venus em código + saudação curta + streak real
+    private var shortStateTitle: String {
+        let title = viewModel.readinessAssessment.stateTitle
+        if title.hasPrefix("Prontidão ") {
+            return String(title.dropFirst("Prontidão ".count))
+        }
+        return title
+    }
+
+    // MARK: - Venus + saudação curta (A4)
 
     private var venusSection: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             mascotStage
 
             greetingText
                 .padding(.horizontal, 32)
-
-            // A3: streak calculado com o histórico completo; marcos mantêm confete.
-            if viewModel.checkInStreakDays > 0 {
-                StreakBadge(days: viewModel.checkInStreakDays, celebrated: true)
-                    .frame(minHeight: 40)
-                    .contentTransition(.opacity)
-                    .animation(.spring(response: 0.42, dampingFraction: 0.8), value: viewModel.checkInStreakDays)
-            }
         }
     }
 
-    /// A4: saudação da IA em tipografia fina; sem cartão, sem parágrafo e sem rótulo duplicado.
+    /// A4: saudação da IA em tipografia fina; sem cartão, sem rótulo de modo e sem parágrafo.
     private var greetingText: some View {
         Group {
             if let greeting = viewModel.aiGreeting,
@@ -226,13 +223,14 @@ struct HomeView: View {
                 }
                 .accessibilityLabel("Saudação da Venus: \(greeting)")
             } else {
-                Text(selectedMode.label)
+                // Saudação curta de reserva: nenhum rótulo de modo compete no topo.
+                Text("Olá, \(userName)")
                     .font(.system(size: 15, weight: .light, design: .rounded))
                     .foregroundStyle(VenusTheme.textSecondary)
                     .contentTransition(.opacity)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 40, alignment: .top)
+        .frame(maxWidth: .infinity, minHeight: 32, alignment: .top)
         .animation(.easeInOut(duration: 0.45), value: viewModel.aiGreeting)
     }
 
@@ -240,15 +238,15 @@ struct HomeView: View {
         ZStack {
             RadialGradient(
                 colors: [
-                    selectedMode.activeAuraColor.opacity(colorScheme == .dark ? 0.26 : 0.52),
-                    VenusHomeJourneyPalette.rose.opacity(colorScheme == .dark ? 0.10 : 0.20),
+                    selectedMode.activeAuraColor.opacity(colorScheme == .dark ? 0.20 : 0.36),
+                    VenusHomeJourneyPalette.rose.opacity(colorScheme == .dark ? 0.06 : 0.12),
                     Color.clear
                 ],
                 center: .center,
                 startRadius: 15,
-                endRadius: 118
+                endRadius: 110
             )
-            .frame(width: 236, height: 236)
+            .frame(width: 220, height: 220)
             .blur(radius: 18)
             .animation(.easeInOut(duration: 0.5), value: selectedMode)
 
@@ -279,220 +277,6 @@ struct HomeView: View {
         if viewModel.isHomeLoading { return .thinking }
         if viewModel.hasCheckedInToday { return .celebrating }
         return .welcoming
-    }
-
-    // MARK: - Prontidão em número + anel (toque abre detalhes completos)
-
-    private var readinessPill: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            viewModel.showReadinessBreakdown = true
-        } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .stroke(
-                            colorScheme == .dark ? Color.white.opacity(0.14) : Color.white.opacity(0.72),
-                            lineWidth: 3
-                        )
-
-                    Circle()
-                        .trim(from: 0, to: readinessFraction)
-                        .stroke(
-                            VenusHomeJourneyPalette.lilac,
-                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-90))
-                        .animation(.spring(response: 0.6, dampingFraction: 0.82), value: readinessFraction)
-
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(VenusHomeJourneyPalette.lilac)
-                }
-                .frame(width: 34, height: 34)
-
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Text("\(viewModel.readinessAssessment.percentage100)")
-                            .font(.system(size: 24, weight: .light, design: .rounded))
-                            .contentTransition(.numericText())
-
-                        Text("%")
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(VenusTheme.textSecondary)
-                    }
-
-                    Text(shortStateTitle)
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .tracking(0.8)
-                        .foregroundStyle(VenusTheme.textSecondary)
-                        .lineLimit(1)
-                }
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 10)
-            .frame(minHeight: 56)
-            .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
-        }
-        .buttonStyle(VenusHomePressableButtonStyle())
-        .accessibilityLabel("Prontidão \(viewModel.readinessAssessment.percentage100)%, \(shortStateTitle)")
-    }
-
-    private var readinessFraction: CGFloat {
-        let value = Double(viewModel.readinessAssessment.percentage100) / 100
-        return CGFloat(min(max(value, 0), 1))
-    }
-
-    private var shortStateTitle: String {
-        let title = viewModel.readinessAssessment.stateTitle
-        if title.hasPrefix("Prontidão ") {
-            return String(title.dropFirst("Prontidão ".count))
-        }
-        return title
-    }
-
-    // MARK: - Ação Principal (CTA escuro em pill)
-
-    private var actionButton: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            viewModel.checkInButtonTapped()
-        } label: {
-            VenusHomeCTALabel(
-                title: viewModel.hasCheckedInToday ? "Registrar novo momento" : "Fazer check-in de hoje",
-                systemImage: "arrow.right"
-            )
-        }
-        .buttonStyle(VenusHomePressableButtonStyle())
-        .padding(.horizontal, 24)
-    }
-}
-
-// MARK: - Acesso secundário (um toque): modos de bem-estar + padrão calculado pela IA
-
-/// Tira da Home o seletor de modos e o insight de padrão sem remover a função:
-/// o botão de estrelas no toolbar abre esta sheet em um toque.
-private struct VenusHomeJourneyDetailsSheet: View {
-    @Binding var selectedMode: VenusWellnessMode
-    let patternSnapshot: PatternInsightsSnapshot?
-
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 26) {
-                    modeSection
-
-                    if let patternSnapshot {
-                        patternSection(patternSnapshot)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 36)
-            }
-            .background(VenusHomeJourneyBackground())
-            .navigationTitle("Seu momento")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Fechar") {
-                        dismiss()
-                    }
-                    .font(.system(.body, design: .rounded).weight(.semibold))
-                    .foregroundStyle(VenusTheme.text)
-                }
-            }
-        }
-    }
-
-    private var modeSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("COMO VOCÊ QUER SE SENTIR?")
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .tracking(1.4)
-                .foregroundStyle(VenusHomeJourneyPalette.lilac)
-
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 10)], spacing: 10) {
-                ForEach(VenusWellnessMode.allCases) { mode in
-                    let isSelected = selectedMode == mode
-
-                    Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) {
-                            selectedMode = mode
-                        }
-                    } label: {
-                        VStack(spacing: 8) {
-                            Image(systemName: mode.iconSystemName)
-                                .font(.system(size: 18, weight: isSelected ? .bold : .semibold))
-
-                            Text(mode.label)
-                                .font(.system(size: 11, weight: .medium, design: .rounded))
-                        }
-                        .foregroundStyle(
-                            isSelected
-                                ? (colorScheme == .dark ? Color.black : Color.white)
-                                : VenusTheme.text
-                        )
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(
-                                    isSelected
-                                        ? (colorScheme == .dark ? Color.white : Color(hex: "241E2B"))
-                                        : Color.white.opacity(colorScheme == .dark ? 0.08 : 0.48)
-                                )
-                        )
-                        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    }
-                    .buttonStyle(VenusHomePressableButtonStyle())
-                    .accessibilityLabel(mode.label)
-                    .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-                }
-            }
-        }
-    }
-
-    private func patternSection(_ snapshot: PatternInsightsSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("PADRÃO DA SEMANA")
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .tracking(1.4)
-                .foregroundStyle(VenusHomeJourneyPalette.lilac)
-
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: snapshot.weeklyTrend.direction.iconName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(VenusHomeJourneyPalette.lilac)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(snapshot.weeklyTrend.direction.title)
-                        .font(.system(size: 16, weight: .light, design: .rounded))
-                        .foregroundStyle(VenusTheme.text)
-
-                    Text(snapshot.weeklyTrend.summary)
-                        .font(.system(size: 12, weight: .regular, design: .rounded))
-                        .foregroundStyle(VenusTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text(snapshot.nextBestAction.title)
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(VenusTheme.text)
-
-                    Text(snapshot.nextBestAction.detail)
-                        .font(.system(size: 12, weight: .regular, design: .rounded))
-                        .foregroundStyle(VenusTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
     }
 }
 

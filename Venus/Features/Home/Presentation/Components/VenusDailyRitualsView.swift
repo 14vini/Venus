@@ -2,15 +2,16 @@
 //  VenusDailyRitualsView.swift
 //  Venus
 //
-//  F28 / A9 — meta honesta de 3 rituais por dia (check-in, bloco concluído, conversa),
-//  agora na linguagem visual da jornada: número, arco com pontos, ícones e micro-celebração.
+//  F28 / A9 — meta honesta de 3 rituais por dia (check-in, bloco concluído, conversa).
+//  Topo limpo: só o arco com pontos, os ícones e a micro-celebração. Sem número grande
+//  ou rótulo duplicado — a contagem continua no accessibility label.
 //
 
 import SwiftUI
 import UIKit
 
-/// Cabeçalho de jornada da Home: três rituais simples, arco com pontos e um burst
-/// sutil quando a meta é concluída. Texto reduzido a rótulos curtos.
+/// Cabeçalho de jornada da Home: três rituais representados pelo arco com pontos
+/// e pelos ícones, com um burst sutil quando a meta é concluída.
 struct VenusDailyRitualsView: View {
     let checkInDone: Bool
     let planBlockDone: Bool
@@ -26,19 +27,7 @@ struct VenusDailyRitualsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text("\(completed)/\(total)")
-                    .font(.system(size: 28, weight: .light, design: .rounded))
-                    .contentTransition(.numericText())
-
-                Text("rituais")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(VenusTheme.textSecondary)
-                    .padding(.leading, 2)
-            }
-            .foregroundStyle(VenusTheme.text)
-
+        VStack(spacing: 12) {
             ZStack {
                 VenusHomeProgressArc(completed: completed, total: total)
 
@@ -55,7 +44,6 @@ struct VenusDailyRitualsView: View {
                 ritualStep(systemImage: "square.grid.2x2", label: "Meu Dia", done: planBlockDone)
                 ritualStep(systemImage: "bubble.left.and.bubble.right", label: "Conversa", done: chatDone)
             }
-
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 28)

@@ -2,9 +2,10 @@
 //  VenusHomeJourneyStyle.swift
 //  Venus
 //
-//  Linguagem visual da jornada aplicada à Home: gradiente lilás → rosa → branco
-//  com respiração lenta, arco de progresso com pontos, superfícies de vidro
-//  e CTA escuro em pill. Implementado localmente para não depender de outras frentes.
+//  Linguagem visual da jornada aplicada à Home: fundo único off-white com um leve
+//  toque lilás no topo (equivalente sóbrio no dark), arco de progresso com pontos,
+//  superfícies de vidro e CTA circular em Liquid Glass.
+//  Implementado localmente para não depender de outras frentes.
 //
 
 import SwiftUI
@@ -24,69 +25,33 @@ struct VenusHomeJourneyPalette {
     }
 }
 
-// MARK: - Fundo com respiração lenta
+// MARK: - Fundo único e discreto
 
-/// Fundo contínuo lilás → rosa → branco, com brilhos que respiram em ciclos longos.
+/// Um único gradiente suave: off-white quase branco com leve lilás só no topo.
+/// No dark, a mesma ideia com tons profundos e sóbrios. Sem blobs e sem respiração:
+/// o movimento fica só nos elementos que têm significado (arco, Venus, CTA).
 struct VenusHomeJourneyBackground: View {
     @Environment(\.colorScheme) private var colorScheme
-    @State private var isBreathing = false
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: baseColors,
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            RadialGradient(
-                colors: [
-                    VenusHomeJourneyPalette.lilac.opacity(colorScheme == .dark ? 0.24 : 0.40),
-                    Color.clear
-                ],
-                center: .topLeading,
-                startRadius: 12,
-                endRadius: 360
-            )
-            .scaleEffect(isBreathing ? 1.08 : 1)
-            .animation(
-                .easeInOut(duration: 8).repeatForever(autoreverses: true),
-                value: isBreathing
-            )
-
-            RadialGradient(
-                colors: [
-                    VenusHomeJourneyPalette.rose.opacity(colorScheme == .dark ? 0.18 : 0.34),
-                    Color.clear
-                ],
-                center: .bottomTrailing,
-                startRadius: 20,
-                endRadius: 340
-            )
-            .scaleEffect(isBreathing ? 0.94 : 1)
-            .animation(
-                .easeInOut(duration: 11).repeatForever(autoreverses: true),
-                value: isBreathing
-            )
-        }
+        LinearGradient(
+            stops: [
+                .init(color: topColor, location: 0),
+                .init(color: bottomColor, location: 0.42)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
         .ignoresSafeArea()
         .allowsHitTesting(false)
-        .onAppear { isBreathing = true }
     }
 
-    private var baseColors: [Color] {
-        if colorScheme == .dark {
-            return [
-                Color(hex: "2B2340"),
-                Color(hex: "3A2639"),
-                Color(hex: "17131F")
-            ]
-        }
-        return [
-            Color(hex: "DCD0F4"),
-            Color(hex: "F4CBD8"),
-            Color(hex: "FDF8FB")
-        ]
+    private var topColor: Color {
+        colorScheme == .dark ? Color(hex: "221D2E") : Color(hex: "F2EDFA")
+    }
+
+    private var bottomColor: Color {
+        colorScheme == .dark ? Color(hex: "14121A") : Color(hex: "FDFBFD")
     }
 }
 
@@ -177,48 +142,6 @@ struct VenusHomeProgressArc: View {
             x: mt * mt * mt * p0.x + 3 * mt * mt * t * p1.x + 3 * mt * t * t * p2.x + t * t * t * p3.x,
             y: mt * mt * mt * p0.y + 3 * mt * mt * t * p1.y + 3 * mt * t * t * p2.y + t * t * t * p3.y
         )
-    }
-}
-
-// MARK: - CTA escuro em pill
-
-/// Rótulo do botão principal: pill escura, não sobrecarregada, com brilho sutil no topo.
-struct VenusHomeCTALabel: View {
-    let title: String
-    var systemImage: String? = nil
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(title)
-                .font(.system(.headline, design: .rounded).weight(.semibold))
-                .contentTransition(.opacity)
-                .animation(.spring(response: 0.42, dampingFraction: 0.8), value: title)
-
-            if let systemImage {
-                Image(systemName: systemImage)
-                    .font(.system(size: 14, weight: .bold))
-            }
-        }
-        .foregroundStyle(Color.white)
-        .frame(maxWidth: .infinity)
-        .frame(height: 54)
-        .background(
-            Capsule(style: .continuous)
-                .fill(colorScheme == .dark ? Color(hex: "3B3442") : Color(hex: "241E2B"))
-        )
-        .overlay(
-            Capsule(style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.12), Color.clear],
-                        startPoint: .top,
-                        endPoint: .center
-                    )
-                )
-        )
-        .contentShape(Capsule(style: .continuous))
     }
 }
 

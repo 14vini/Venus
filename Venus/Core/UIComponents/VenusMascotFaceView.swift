@@ -177,19 +177,41 @@ struct VenusMascotFaceView: View {
         ZStack {
             // Convex sheen across the face plane: a soft top light that makes
             // the features feel embedded in a rounded surface, not painted on.
-            RadialGradient(
-                colors: [
-                    Color.white.opacity(colorScheme == .dark ? 0.14 : 0.22),
-                    Color.white.opacity(0.06),
-                    Color.clear
-                ],
-                center: .init(x: 0.34, y: 0.16),
-                startRadius: 0,
-                endRadius: size * 0.42
-            )
-            .frame(width: size * 0.74, height: size * 0.52)
-            .blendMode(.plusLighter)
-            .allowsHitTesting(false)
+            // The gradient now reaches Color.clear well inside the frame and a
+            // feathered elliptical mask fades the rest before any straight edge,
+            // so .plusLighter can never reveal a rectangle (light or dark).
+            Ellipse()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color.white.opacity(colorScheme == .dark ? 0.16 : 0.24),
+                            Color.white.opacity(0.07),
+                            Color.clear
+                        ],
+                        center: .init(x: 0.40, y: 0.30),
+                        startRadius: 0,
+                        endRadius: size * 0.30
+                    )
+                )
+                .frame(width: size * 0.74, height: size * 0.52)
+                .mask(
+                    Ellipse()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    Color.white,
+                                    Color.white.opacity(0.75),
+                                    Color.clear
+                                ],
+                                center: .center,
+                                startRadius: size * 0.06,
+                                endRadius: size * 0.25
+                            )
+                        )
+                        .frame(width: size * 0.74, height: size * 0.52)
+                )
+                .blendMode(.plusLighter)
+                .allowsHitTesting(false)
 
             // Eyebrows / Expressive micro-accents
             eyebrowsView

@@ -38,7 +38,7 @@ struct VenusChatHeaderView: View {
                 .frame(maxWidth: .infinity)
                 .allowsHitTesting(false)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, VenusChatVisualStyle.chromeHorizontalInset)
         .padding(.vertical, 8)
         .frame(maxWidth: VenusChatVisualStyle.chromeMaxWidth)
         .frame(maxWidth: .infinity)
@@ -56,25 +56,19 @@ struct VenusChatHeaderView: View {
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(VenusTheme.text)
                         .frame(width: 36, height: 36)
-                        .background(VenusChatVisualStyle.controlFill(isDark: isDark))
-                        .clipShape(Circle())
                         .contentShape(Circle())
                 }
                 .buttonStyle(VenusChatSpringPressStyle())
                 .accessibilityLabel("Voltar")
             }
 
+            // Apenas o ícone na toolbar — sem texto e sem container próprio.
             Button(action: onNewChat) {
-                HStack(spacing: 6) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 13, weight: .light))
-                    Text("Nova conversa")
-                        .font(.system(size: 14, weight: .light, design: .rounded))
-                }
-                .foregroundStyle(VenusTheme.text)
-                .frame(minHeight: 36)
-                .padding(.horizontal, isModal ? 6 : 2)
-                .contentShape(Rectangle())
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(VenusTheme.text)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Circle())
             }
             .buttonStyle(VenusChatSpringPressStyle())
             .accessibilityLabel("Nova conversa")
@@ -82,7 +76,7 @@ struct VenusChatHeaderView: View {
     }
 
     private var center: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 10) {
             HStack(spacing: 7) {
                 VenusMoodOrb(
                     state: isThinking ? .thinking : .idle,
@@ -93,8 +87,10 @@ struct VenusChatHeaderView: View {
                 )
                 .animation(.spring(response: 0.42, dampingFraction: 0.8), value: isThinking)
 
-                Text("Ven\(Text("us").fontWeight(.semibold))")
-                    .font(.system(size: 16, weight: .light, design: .rounded))
+                // Um único Text: peso e tracking idênticos em "Venus" inteiro.
+                Text("Venus")
+                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .kerning(0.3)
                     .foregroundStyle(VenusTheme.text)
             }
 
@@ -106,11 +102,9 @@ struct VenusChatHeaderView: View {
     private var trailing: some View {
         Button(action: onShowDetails) {
             Image(systemName: "ellipsis")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 16, weight: .regular))
                 .foregroundStyle(VenusTheme.text)
-                .frame(width: 38, height: 38)
-                .background(VenusChatVisualStyle.controlFill(isDark: isDark))
-                .clipShape(Circle())
+                .frame(width: 36, height: 36)
                 .contentShape(Circle())
                 .overlay(alignment: .topTrailing) {
                     if hasPendingReview {

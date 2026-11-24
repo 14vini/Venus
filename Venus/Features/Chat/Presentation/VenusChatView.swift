@@ -132,6 +132,7 @@ struct VenusChatView: View {
     private func startNewConversation() {
         isTextFieldFocused = false
         inputText = ""
+        VenusChatHaptics.light()
         viewModel.stopStreaming()
 
         let freshViewModel = VenusChatViewModel()
@@ -213,6 +214,10 @@ struct VenusChatView: View {
                 .frame(maxWidth: VenusChatVisualStyle.conversationMaxWidth)
                 .frame(maxWidth: .infinity)
             }
+            // O fundo do ScrollView precisa ser transparente: qualquer
+            // preenchimento próprio corta o gradiente da tela (artefato F43).
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
             .scrollDismissesKeyboard(.interactively)
             .onTapGesture {
                 if isTextFieldFocused {

@@ -284,6 +284,22 @@ Pedido do usuário: (1) melhorar o desenho da Venus com **muitas mais reações*
 Erros `switch must be exhaustive` em `VenusMascotFaceView.swift` são transitórios da F31 (novos casos `.amused`, `.surprised`, `.proud`... em inserção). Não intervir — a própria F31 deve fechar os switches antes de entregar. Gate consolidado só após todas as frentes.
 | F33 | Home no visual jornada | `Features/Home/**` | `f33-home-journey-r1` — **concluído**: 0/3 rituais com arco, Venus central, saudação IA no hero, prontidão em pill, chips de modo, CTA escuro; screenshot `/tmp/f33-home.png`验证 visual claro; build EXIT=0 |
 
+## 17. Correção do rosto e cauda da Venus (feedback do usuário)
+Diagnóstico do orquestrador: em VenusMascotFaceView.swift linhas 180-192, o RadialGradient do "convex sheen" está dentro de `.frame(width: size*0.74, height: size*0.52)` — a borda retangular desse frame vaza com `.blendMode(.plusLighter)` e aparece como quadrado atrás do rosto. Corrigir com máscara elíptica/sem frame rígido. Segundo pedido: a base de fantasminha (cauda ondulada) deve se mexer — tornar VenusGhostBodyShape Animatable com fase de wiggle e animar os pontos de controle da cauda.
+Frente F45 — escopo: `Core/UIComponents/VenusMascotFaceView.swift`, `Core/UIComponents/VenusMoodSurfaceComponents.swift`. clientRequestId: `f45-venus-face-tail-r1` — **concluído**: sheen com máscara elíptica (quadrado eliminado), VenusGhostBodyShape Animatable com wiggle 0→1→0 em 1,9s nos 8 usos sincronizados, silhueta/API intactas; build EXIT=0 |
+
+### Entrega final (rodada de polimento 23/11)
+Gate: **4 pass / 0 fail**. Build EXIT=0 em F43/F44/F45. Chat: alinhamento ao trailing do composer, scrollContentBackground hidden, toolbar ícones nus, título uniforme, contraste de timestamp/placeholder. Home: fundo estático simples, botão + circular glass, topo 1 hierarquia, streak no sheet. Venus: sem quadrado no rosto e cauda ondulada animada. Nada commitado até esta linha — próximo passo: commit/push.
+
+## 16. Ajustes da Home (feedback do usuário)
+Pedido: background mais simples; botão de check-in virou "feio" — trocar por um botão circular em Liquid Glass igual ao de "nova busca"/"+" da tab bar do iPhone; topo da Home está confuso (simplificar); streak sair do topo e ir para outro lugar acessível.
+Frente F44 — escopo: `Features/Home/**` (inclusive `Components/**` e `VenusHomeJourneyDetailsSheet.swift`). clientRequestId: `f44-home-refine-r1` — **concluído**: fundo gradiente estático simples, botão "+" circular em Liquid Glass (estilo nova busca do iOS), topo reduzido a arco+Venus+saudação, streak movido para VenusHomeJourneyDetailsSheet; build EXIT=0 |
+
+## 15. Polimento visual do Chat (feedback pontual do usuário)
+Ajustes pedidos: (1) bolha do usuário alinhada à margem direita do input; (2) margem direita das bolhas da Venus alinhada ao trailing do input (sem padding fixo largo); (3) `.scrollContentBackground(.hidden)` para remover borda reta no canto inferior direito que corta o gradiente; (4) "Nova conversa" como ícone sem fundo na toolbar e "..." também na toolbar, padronizando com o botão direito; (5) título "Venus" com peso uniforme e arco/pontos mais afastados; (6) timestamps com mais contraste; (7) placeholder "Digite aqui" com mais contraste.
+
+Frente F43 — escopo: `Features/Chat/Presentation/{VenusChatView.swift, Components/ChatMessageView.swift, Components/VenusChatHeaderView.swift, Components/VenusChatComposerView.swift, Components/VenusChatVisualStyle.swift}`. clientRequestId: `f43-chat-polish-r1`.
+
 ## 14. Rodada autônoma (usuário ausente — sem perguntas)
 Pedido: "manda o antygravity melhorar as imagens e o 3d e as reacoes igual o duo... e simplifica mais ainda a ui da home sem perder o visual".
 

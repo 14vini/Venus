@@ -30,12 +30,12 @@ struct ChatMessageView: View {
     @State private var showActions = false
     @Environment(\.colorScheme) private var colorScheme
 
-    /// Recuo lateral da row — usado também no cálculo da largura do balão.
-    private static let horizontalInset: CGFloat = 16
+    /// Recuo lateral da row — o mesmo do header e do composer (F43), para que
+    /// as bordas das bolhas e do campo de texto coincidam.
+    private static let horizontalInset = VenusChatVisualStyle.chromeHorizontalInset
     /// Calçada fixa à esquerda: avatar da Venus ou seta de resposta ao arrastar.
     private static let gutterWidth: CGFloat = 32
     private static let gutterSpacing: CGFloat = 8
-    private static let trailingGutter: CGFloat = 36
 
     private var isDark: Bool { colorScheme == .dark }
 
@@ -43,28 +43,18 @@ struct ChatMessageView: View {
         VenusChatVisualStyle.displayText(message.content)
     }
 
-    /// Largura estável por container (sem GeometryReader). Desconta a calçada
-    /// para que avatar + balão nunca empurrem a row além da largura útil.
-    private func bubbleWidth(_ length: CGFloat) -> CGFloat {
-        let usable = max(0, length - 2 * Self.horizontalInset)
-        let preferred = usable * VenusChatVisualStyle.bubbleWidthRatio
-        let limit = usable - Self.gutterWidth - Self.gutterSpacing - Self.trailingGutter
-        return min(preferred, max(limit, 160))
+    /// As mensagens da Venus crescem a partir da calçada do avatar; as do
+    /// usuário encostam no trailing do composer. A coluna ocupa toda a largura
+    /// útil — cada conteúdo se alinha à sua borda, sem `GeometryReader`.
+    private var columnAlignment: Alignment {
+        message.isFromUser ? .trailing : .leading
     }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: Self.gutterSpacing) {
             leadingGutter
 
-            if message.isFromUser {
-                Spacer(minLength: 0)
-            }
-
             messageColumn()
-
-            if !message.isFromUser {
-                Spacer(minLength: 0)
-            }
         }
         .frame(maxWidth: .infinity)
         .offset(x: dragOffset)
@@ -161,16 +151,14 @@ struct ChatMessageView: View {
 
             if !isNextSame {
                 Text(VenusChatVisualStyle.timestampLabel(for: message.timestamp))
-                    .font(.system(size: 10, weight: .light, design: .rounded))
-                    .foregroundStyle(VenusTheme.textSecondary.opacity(0.8))
+                    .font(.system(size: 10.5, weight: .regular, design: .rounded))
+                    .foregroundStyle(VenusChatVisualStyle.timestampColor(isDark: isDark))
                     .padding(.horizontal, 4)
                     .contentTransition(.opacity)
                     .animation(.spring(response: 0.42, dampingFraction: 0.8), value: message.timestamp)
             }
         }
-        .containerRelativeFrame(.horizontal) { length, _ in
-            bubbleWidth(length)
-        }
+        .frame(maxWidth: .infinity, alignment: columnAlignment)
     }
 
     private func quote(text: String) -> some View {
@@ -215,6 +203,7 @@ struct ChatMessageView: View {
                     }
             }
         }
+        .frame(maxWidth: VenusChatVisualStyle.bubbleMaxWidth)
         .padding(.horizontal, 18)
         .padding(.vertical, 15)
         .glassEffect(
