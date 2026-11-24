@@ -1049,10 +1049,12 @@ struct VenusMoodOrb: View {
     }
     
     private func spawnCelebrationConfetti() {
-        let confetti = MascotParticleFactory.makeCheeringConfetti(count: 12)
-        activeParticles.append(contentsOf: confetti)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
-            activeParticles.removeAll { p in confetti.contains { $0.id == p.id } }
+        let confetti = MascotParticleFactory.makeMilestoneConfetti(count: 14)
+        let stars = MascotParticleFactory.makeStarRain(count: 6, tint: highlightColor)
+        let burst = confetti + stars
+        activeParticles.append(contentsOf: burst)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            activeParticles.removeAll { particle in burst.contains { $0.id == particle.id } }
         }
     }
 
@@ -1060,10 +1062,20 @@ struct VenusMoodOrb: View {
     /// e sempre com retorno ao repouso. Não duplica as reações originais.
     private func spawnReaction(for expression: VenusMascotExpression) {
         switch expression {
-        case .loving, .grateful:
+        case .loving:
+            addParticles(
+                MascotParticleFactory.makeDoubleHeart(count: 2, tint: highlightColor),
+                lifetime: 1.1
+            )
+        case .grateful:
             addParticles(
                 MascotParticleFactory.makeHeartBurst(count: 6, tint: highlightColor),
                 lifetime: 1.2
+            )
+        case .happy, .determined:
+            addParticles(
+                MascotParticleFactory.makeCorrectAnswerSpark(count: 8, tint: highlightColor),
+                lifetime: 0.9
             )
         case .proud, .sparkling:
             addParticles(

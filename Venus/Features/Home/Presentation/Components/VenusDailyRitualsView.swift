@@ -27,20 +27,15 @@ struct VenusDailyRitualsView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("\(completed)")
-                    .font(.system(size: 30, weight: .light, design: .rounded))
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(completed)/\(total)")
+                    .font(.system(size: 28, weight: .light, design: .rounded))
                     .contentTransition(.numericText())
 
-                Text("/ \(total)")
-                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                Text("rituais")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(VenusTheme.textSecondary)
-
-                Text("RITUAIS")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .tracking(1.6)
-                    .foregroundStyle(VenusHomeJourneyPalette.lilac)
-                    .padding(.leading, 4)
+                    .padding(.leading, 2)
             }
             .foregroundStyle(VenusTheme.text)
 
@@ -83,37 +78,29 @@ struct VenusDailyRitualsView: View {
         }
     }
 
+    /// Só o ícone: o nome do ritual continua disponível para VoiceOver e o arco mostra o progresso.
     private func ritualStep(systemImage: String, label: String, done: Bool) -> some View {
-        VStack(spacing: 5) {
-            ZStack {
-                Circle()
-                    .fill(
-                        done
-                            ? VenusHomeJourneyPalette.lilac.opacity(colorScheme == .dark ? 0.42 : 0.28)
-                            : Color.white.opacity(colorScheme == .dark ? 0.08 : 0.46)
-                    )
-                    .frame(width: 36, height: 36)
-                    .glassEffect(.regular, in: Circle())
+        ZStack {
+            Circle()
+                .fill(
+                    done
+                        ? VenusHomeJourneyPalette.lilac.opacity(colorScheme == .dark ? 0.42 : 0.28)
+                        : Color.white.opacity(colorScheme == .dark ? 0.08 : 0.46)
+                )
+                .frame(width: 36, height: 36)
+                .glassEffect(.regular, in: Circle())
 
-                Image(systemName: done ? "checkmark" : systemImage)
-                    .font(.system(size: 13, weight: done ? .bold : .semibold))
-                    .foregroundStyle(
-                        done
-                            ? VenusHomeJourneyPalette.lilac
-                            : VenusTheme.textSecondary.opacity(colorScheme == .dark ? 0.7 : 0.6)
-                    )
-                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: done)
-            }
-
-            Text(label)
-                .font(.system(size: 9, weight: done ? .bold : .medium, design: .rounded))
+            Image(systemName: done ? "checkmark" : systemImage)
+                .font(.system(size: 13, weight: done ? .bold : .semibold))
                 .foregroundStyle(
                     done
-                        ? VenusTheme.text
-                        : VenusTheme.textSecondary.opacity(colorScheme == .dark ? 0.66 : 0.58)
+                        ? VenusHomeJourneyPalette.lilac
+                        : VenusTheme.textSecondary.opacity(colorScheme == .dark ? 0.7 : 0.6)
                 )
+                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: done)
         }
         .contentTransition(.opacity)
+        .accessibilityLabel("\(label): \(done ? "concluído" : "pendente")")
     }
 
     /// Rotação determinística: mesma frase para todos os usuários no mesmo dia, sem IA e sem sortear.

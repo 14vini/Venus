@@ -25,6 +25,16 @@ enum VenusChatVisualStyle {
     /// Fração da largura disponível ocupada por um balão (preserva o layout F30).
     static let bubbleWidthRatio: CGFloat = 0.82
 
+    // MARK: - Shell (F39)
+
+    /// Largura máxima da coluna de conversa. Centralizada: a leitura fica
+    /// confortável em iPad e em iPhone em paisagem sem perder o layout F30.
+    static let conversationMaxWidth: CGFloat = 760
+    /// Largura máxima do cabeçalho e do composer — alinhados à conversa.
+    static let chromeMaxWidth: CGFloat = 780
+    /// Raio do composer (mais generoso que o dos controles pequenos).
+    static let composerRadius: CGFloat = 26
+
     // MARK: - Cores da jornada
 
     /// Lilás da jornada — acento principal do chat.
@@ -118,6 +128,25 @@ enum VenusChatVisualStyle {
         isDark ? Color.white.opacity(0.08) : Color.white.opacity(0.46)
     }
 
+    /// Superfície do composer — a segunda (e última) superfície elevada da tela,
+    /// discreta o suficiente para não competir com o balão.
+    static func composerFill(isDark: Bool) -> Color {
+        isDark ? Color.white.opacity(0.07) : Color.white.opacity(0.60)
+    }
+
+    static func composerBorder(isDark: Bool) -> Color {
+        isDark ? Color.white.opacity(0.12) : Color.white.opacity(0.72)
+    }
+
+    /// Pílulas de sugestão do estado vazio: vidro leve, sem borda dura.
+    static func suggestionFill(isDark: Bool) -> Color {
+        isDark ? Color.white.opacity(0.08) : Color.white.opacity(0.56)
+    }
+
+    static func suggestionBorder(isDark: Bool) -> Color {
+        isDark ? Color.white.opacity(0.12) : Color.white.opacity(0.70)
+    }
+
     /// Aura do mascot em estado de espera.
     static var aura: Color { lilac }
 
@@ -195,5 +224,35 @@ struct VenusChatBackground: View {
         }
         .allowsHitTesting(false)
         .onAppear { isBreathing = true }
+    }
+}
+
+// MARK: - Feedback (F39)
+
+/// Haptics do shell — curtos e com propósito, nunca repetidos em cascata.
+enum VenusChatHaptics {
+    static func light() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    static func medium() {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    }
+
+    static func success() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+}
+
+/// Pressagem com resposta spring, compartilhada por header, composer e
+/// estado vazio. Substitui o estilo privado que vivia em `VenusChatView`.
+struct VenusChatSpringPressStyle: ButtonStyle {
+    var scale: CGFloat = 0.94
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scale : 1)
+            .opacity(configuration.isPressed ? 0.86 : 1)
+            .animation(.spring(response: 0.28, dampingFraction: 0.8), value: configuration.isPressed)
     }
 }

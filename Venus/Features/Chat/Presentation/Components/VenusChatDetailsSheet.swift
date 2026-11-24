@@ -97,6 +97,18 @@ struct VenusChatDetailsSheet: View {
                     .font(.system(size: 12, weight: .light, design: .rounded))
                     .foregroundStyle(VenusTheme.textSecondary)
 
+                // Assinatura da jornada: um fio lilás → rosa, sem vidro extra.
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [VenusChatVisualStyle.lilac, VenusChatVisualStyle.rose],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: 64, height: 3)
+                    .padding(.top, 4)
+
                 // Número discreto com a mesma transição da Home: só muda quando
                 // a conversa cresce, sem afetar o foco da tela principal.
                 Text("\(messageCount) mensagens")
@@ -131,6 +143,7 @@ struct VenusChatDetailsSheet: View {
         VStack(spacing: 8) {
             ForEach(SelfKnowledgeLens.allCases) { item in
                 Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     onSelectLens(item)
                 } label: {
                     HStack(spacing: 10) {
@@ -199,7 +212,7 @@ struct VenusChatDetailsSheet: View {
             HStack(spacing: 7) {
                 Text(VenusChatVisualStyle.displayText(dissonance.type.badgeLabel))
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(VenusChatVisualStyle.lilac)
+                    .foregroundStyle(VenusChatVisualStyle.rose)
 
                 Spacer()
 

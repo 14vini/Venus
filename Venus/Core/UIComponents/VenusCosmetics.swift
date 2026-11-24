@@ -67,6 +67,24 @@ struct VenusCosmeticAccessoryView: View {
             case .starHalo:
                 // Floating golden/starlight halo above head
                 ZStack {
+                    // Marco de streak: brilho difuso, sem contorno duro.
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    VenusTheme.journeyLilac.opacity(0.45),
+                                    VenusTheme.accentPink.opacity(0.16),
+                                    Color.clear
+                                ],
+                                center: .center,
+                                startRadius: 1,
+                                endRadius: 30 * scale
+                            )
+                        )
+                        .frame(width: 60 * scale, height: 60 * scale)
+                        .scaleEffect(animateHalo ? 1.08 : 0.92)
+                        .offset(y: -44 * scale)
+
                     Ellipse()
                         .stroke(
                             LinearGradient(
@@ -236,6 +254,13 @@ struct VenusCosmeticAccessoryView: View {
                         .rotation3DEffect(.degrees(55), axis: (x: 1, y: -0.3, z: 0.2))
                         .shadow(color: Color(hex: "FFB347").opacity(0.5), radius: 8 * scale)
                     
+                    // Marco de 30 dias: brilho extra no anel.
+                    Image(systemName: "sparkle")
+                        .font(.system(size: 9 * scale, weight: .bold))
+                        .foregroundColor(.white)
+                        .shadow(color: VenusTheme.accentPurple.opacity(0.8), radius: 4 * scale)
+                        .offset(x: -46 * scale, y: -6 * scale)
+
                     // Orbiting micro satellite
                     Circle()
                         .fill(Color.white)

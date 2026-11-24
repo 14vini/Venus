@@ -20,6 +20,12 @@ enum MascotParticleType: Equatable {
     case sparkle
     case thoughtBubble   // balão de pensamento gráfico, sem texto
 
+    // MARK: Reações F41 (estilo Duolingo)
+    case milestoneConfetti  // confete de marco — lilás/rosa/ciano
+    case starRain           // chuva de estrelas
+    case doubleHeart        // coração duplo
+    case correctSpark       // faísca de "resposta correta"
+
     var systemIcon: String {
         switch self {
         case .heart: return "heart.fill"
@@ -31,6 +37,18 @@ enum MascotParticleType: Equatable {
         case .confetti: return "star.fill"
         case .sparkle: return "sparkles"
         case .thoughtBubble: return "bubble"
+        case .milestoneConfetti: return "star.fill"
+        case .starRain: return "sparkle"
+        case .doubleHeart: return "heart.fill"
+        case .correctSpark: return "sparkles"
+        }
+    }
+
+    /// Reações curtas voltam ao repouso em vez de simplesmente desaparecer.
+    var returnsToRest: Bool {
+        switch self {
+        case .milestoneConfetti, .starRain, .doubleHeart, .correctSpark: return true
+        default: return false
         }
     }
 }
@@ -70,9 +88,12 @@ struct MascotParticleEmitterView: View {
 
 private struct SingleParticleView: View {
     let particle: MascotParticleItem
-    
+
     @State private var isEmitted = false
-    
+    @State private var isReturned = false
+
+    private var returnsToRest: Bool { particle.type.returnsToRest }
+
     var body: some View {
         Group {
             if particle.type == .zzz {
@@ -103,16 +124,32 @@ private struct SingleParticleView: View {
         // Soft self-glow keeps confetti and listening sparks readable even on
         // the 30pt header orb, without adding any animation loop.
         .shadow(color: particle.color.opacity(0.65), radius: 3 * particle.scale)
-        .scaleEffect(isEmitted ? particle.scale : 0.2)
-        .opacity(isEmitted ? 0 : particle.opacity)
+        .scaleEffect(returnsToRest && isReturned ? particle.scale * 0.85 : (isEmitted ? particle.scale : 0.2))
+        .opacity(returnsToRest ? (isReturned ? 0 : (isEmitted ? particle.opacity : 0)) : (isEmitted ? 0 : particle.opacity))
         .rotationEffect(.degrees(isEmitted ? particle.rotation + 45 : particle.rotation))
         .offset(
-            x: isEmitted ? particle.endOffset.width : particle.startOffset.width,
-            y: isEmitted ? particle.endOffset.height : particle.startOffset.height
+            x: returnsToRest && isReturned
+                ? particle.startOffset.width
+                : (isEmitted ? particle.endOffset.width : particle.startOffset.width),
+            y: returnsToRest && isReturned
+                ? particle.startOffset.height
+                : (isEmitted ? particle.endOffset.height : particle.startOffset.height)
         )
         .onAppear {
-            withAnimation(.easeOut(duration: particle.duration)) {
-                isEmitted = true
+            if returnsToRest {
+                // Vai até o pico e volta ao repouso com mola, sempre < 1,2s.
+                withAnimation(.easeOut(duration: particle.duration * 0.5)) {
+                    isEmitted = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + particle.duration * 0.5) {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
+                        isReturned = true
+                    }
+                }
+            } else {
+                withAnimation(.easeOut(duration: particle.duration)) {
+                    isEmitted = true
+                }
             }
         }
     }
@@ -288,6 +325,97 @@ enum MascotParticleFactory {
                 opacity: 0.9,
                 rotation: Double.random(in: -25...25),
                 duration: Double.random(in: 0.6...0.95)
+            )
+        }
+    }
+
+    // MARK: - Reações Duolingo (F41)
+
+    /// Confete de marco: lilás, rosa e ciano em leque largo.
+    static func makeMilestoneConfetti(count: Int = 16, origin: CGSize = .zero) -> [MascotParticleItem] {
+        let colors: [Color] = [
+            Color(hex: "BF5AF2"), Color(hex: "FF6B8B"), Color(hex: "64D2FF"),
+            Color(hex: "FFE44A"), Color(hex: "FFA8E8"), Color(hex: "B9EEFF")
+        ]
+        return (0..<count).map { i in
+            let angle = Double.random(in: (-165.0)...(-15.0)) * .pi / 180.0
+            let distance = CGFloat.random(in: 60...120)
+            return MascotParticleItem(
+                type: .milestoneConfetti,
+                color: colors[i % colors.count],
+                startOffset: CGSize(
+                    width: origin.width + CGFloat.random(in: -14...14),
+                    height: origin.height + CGFloat.random(in: 4...14)
+                ),
+                endOffset: CGSize(
+                    width: origin.width + cos(angle) * distance,
+                    height: origin.height + sin(angle) * distance
+                ),
+                scale: CGFloat.random(in: 0.8...1.35),
+                opacity: 1.0,
+                rotation: Double.random(in: 0...360),
+                duration: Double.random(in: 0.72...0.95)
+            )
+        }
+    }
+
+    /// Chuva de estrelas que desce ao redor do mascote.
+    static func makeStarRain(count: Int = 12, tint: Color? = nil) -> [MascotParticleItem] {
+        let colors: [Color] = [
+            tint ?? Color(hex: "FFE44A"), Color(hex: "B9EEFF"),
+            Color(hex: "FFA8E8"), Color(hex: "BF5AF2")
+        ]
+        return (0..<count).map { i in
+            let drift = CGFloat.random(in: -72...72)
+            return MascotParticleItem(
+                type: .starRain,
+                color: colors[i % colors.count],
+                startOffset: CGSize(width: drift * 0.35, height: -CGFloat.random(in: 56...90)),
+                endOffset: CGSize(width: drift, height: CGFloat.random(in: 14...40)),
+                scale: CGFloat.random(in: 0.6...1.05),
+                opacity: 0.95,
+                rotation: Double.random(in: 0...180),
+                duration: Double.random(in: 0.75...1.0)
+            )
+        }
+    }
+
+    /// Coração duplo que sobe junto e retorna ao repouso.
+    static func makeDoubleHeart(count: Int = 2, tint: Color? = nil) -> [MascotParticleItem] {
+        let colors: [Color] = [tint ?? Color(hex: "FF6B8B"), Color(hex: "FFA8E8")]
+        return (0..<count).map { i in
+            let side: CGFloat = i % 2 == 0 ? -1 : 1
+            return MascotParticleItem(
+                type: .doubleHeart,
+                color: colors[i % colors.count],
+                startOffset: CGSize(width: side * 10, height: 8),
+                endOffset: CGSize(width: side * CGFloat.random(in: 38...58), height: -CGFloat.random(in: 58...82)),
+                scale: CGFloat.random(in: 1.0...1.35),
+                opacity: 1.0,
+                rotation: Double.random(in: -12...12),
+                duration: Double.random(in: 0.85...1.05)
+            )
+        }
+    }
+
+    /// Faísca radial curta para "resposta correta".
+    static func makeCorrectAnswerSpark(count: Int = 10, tint: Color? = nil) -> [MascotParticleItem] {
+        let colors: [Color] = [
+            tint ?? Color(hex: "64D2FF"), Color(hex: "B9EEFF"),
+            Color(hex: "FFE44A"), Color(hex: "BF5AF2")
+        ]
+        return (0..<count).map { i in
+            let angle = Double(i) * (360.0 / Double(count)) * .pi / 180.0
+            let distance = CGFloat.random(in: 40...72)
+            return MascotParticleItem(
+                type: .correctSpark,
+                color: colors[i % colors.count],
+                startOffset: .zero,
+                endOffset: CGSize(width: cos(angle) * distance, height: sin(angle) * distance),
+                scale: CGFloat.random(in: 0.9...1.4),
+                opacity: 1.0,
+                rotation: Double.random(in: 0...120),
+                duration: Double.random(in: 0.55...0.8)
             )
         }
     }

@@ -284,6 +284,34 @@ Pedido do usuário: (1) melhorar o desenho da Venus com **muitas mais reações*
 Erros `switch must be exhaustive` em `VenusMascotFaceView.swift` são transitórios da F31 (novos casos `.amused`, `.surprised`, `.proud`... em inserção). Não intervir — a própria F31 deve fechar os switches antes de entregar. Gate consolidado só após todas as frentes.
 | F33 | Home no visual jornada | `Features/Home/**` | `f33-home-journey-r1` — **concluído**: 0/3 rituais com arco, Venus central, saudação IA no hero, prontidão em pill, chips de modo, CTA escuro; screenshot `/tmp/f33-home.png`验证 visual claro; build EXIT=0 |
 
+## 14. Rodada autônoma (usuário ausente — sem perguntas)
+Pedido: "manda o antygravity melhorar as imagens e o 3d e as reacoes igual o duo... e simplifica mais ainda a ui da home sem perder o visual".
+
+| # | Frente | Escopo exclusivo | clientRequestId |
+|---|---|---|---|
+| F41 | Antigravity/3D/imagens + reações Duolingo | `output/venus/**`, `Core/UIComponents/{VenusMascotParticles,VenusMoodSurfaceComponents,VenusCosmetics}.swift`, novo `Core/UIComponents/VenusCelebrationView.swift` | `f41-antigravity-r1` — **concluído**: Antigravity indisponível (credencial inválida, 6ª falha) → fallback procedural: USDZ 31 meshes (usdchecker Success), 4 renders PNG 1024² em output/venus/renders (gitignored), VenusCelebrationView + 4 novos bursts Duolingo; build EXIT=0 |
+
+### Entrega final (rodada autônoma 23/11)
+Gate: **4 pass / 0 fail**. Build `EXIT=0` em todas as frentes. Greps: GeometryReader real no ChatMessageView=0, fixedSize só em comentário, ultraThinMaterial=0, stopStreaming presente.
+Renders 3D em `output/venus/renders/` (png transparente 1024²) — **limitação artística real**: resultado procedural é simples/achatado, não substitui arte premium; Antigravity não existe no catálogo e o gerador de imagens segue com credencial inválida.
+Chat: performance (~6 escritas/s em vez de 18, ator background), shell estilo ChatGPT (Nova conversa, composer com Parar, empty state com sugestões, coluna 760pt), célula arejada com ações ao toque. Home: 4 blocos, visual preservado.
+Próximo passo (não executado): commit/push automático.
+| F42 | Home ainda mais simples (sem perder o visual) | `Features/Home/**` | `f42-home-simplify-r1` — **concluído**: 4 blocos (rituais → Venus+saudação → prontidão → CTA), título/rótulos duplicados e fileira de seixos movidos para sheet secundário, build EXIT=0 |
+
+Nota Antigravity: catálogo só tem `opencode/grok-imagine-image-2.0` com credencial inválida (5 falhas). F41 deve verificar novamente e, se continuar indisponível, melhorar o USDZ procedural existente e gerar **renders PNG** dele (múltiplos estados) em `output/venus/renders/` — sem importar no app. Reações estilo Duolingo = confete/estrelas em marco, animação de sucesso com mola, feedback de streak.
+
+## 13. Redesenho do Chat — performance + UI/UX estilo ChatGPT
+Pedido: "redesenha chat para melhor performance nova UI e UX igual do chatgpt".
+Diagnóstico: `VenusChatViewModel` (@Observable) muta `messages` ~18x/s no typewriter → invalida a tela inteira. `ChatMessage` já é Equatable/Identifiable.
+
+| # | Frente | Escopo exclusivo | clientRequestId |
+|---|---|---|---|
+| F38 | Performance do streaming/ViewModel | `Features/Chat/Presentation/VenusChatViewModel.swift`, `Features/Chat/Domain/ChatSession.swift` (só se necessário) | `f38-chat-perf-r1` — **concluído**: stream em ator background, flush 150ms (~6 escritas/s vs 18), só a célula em streaming recalcula, `stopStreaming()` aditivo, cancelamento correto; build EXIT=0 |
+| F39 | Shell/UI estilo ChatGPT | `Features/Chat/Presentation/VenusChatView.swift`, `Components/{VenusChatHeaderView,VenusChatVisualStyle}.swift` + novos `VenusChatComposerView.swift`, `VenusChatEmptyStateView.swift` | `f39-chat-shell-r1` — **concluído**: header 3 zonas com Nova conversa, composer via safeAreaInset com botão Parar, empty state com 4 sugestões, coluna centralizada 760pt; build EXIT=0 |
+| F40 | Célula de mensagem + superfícies secundárias | `Components/{ChatMessageView,VenusThinkingView,VenusChatDetailsSheet,ChatPlanningProposalCard,VenusWelcomeMessage}.swift` | `f40-chat-cell-r1` — **concluído**: balões arejados, avatar Venus 28pt, barra de ações ao toque (copiar/reagir/responder/regenerar), context menu removido, sem GeometryReader/fixedSize, indicador sem texto; build EXIT=0 |
+
+Regras: F39 é dono de `VenusChatVisualStyle` (F40 só lê, sem editar); ChatGPT-like = header limpo com "nova conversa", lista centralizada com largura máxima, estado vazio com sugestões, composer arredondado com anexo/mic e botão de parar durante streaming, ações de mensagem (copiar/regenerar/reação), streaming com cursor. Manter零 pensamento/JSON, foco na conversa e correção de layout (sem GeometryReader/fixedSize raiz).
+
 ### Entrega final da rodada de refinamento visual
 - Gate: **4 pass / 0 fail** (gate_avatar.sh).
 - Verificação visual real obtida pelo F33: `/tmp/f33-home.png` (claro) e `/tmp/f33-home-dark.png` (escuro). Home confere com a linguagem do check-in: gradiente lilás→rosa, arco de 3 rituais, Venus central, menos texto, CTA escuro, tab bar nativa.
